@@ -16,6 +16,27 @@ services:
       - NODE_ENV=development
       - DISPLAY=${DISPLAY:-:0}
       - XAUTHORITY=/tmp/.docker.xauth
+      - DATABASE_URL=postgresql://postgres:password@db:5432/pricesync
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=pricesync
+    depends_on:
+      - db
     privileged: true
     # network_mode: host  # Comentado para permitir mapeo de puertos
     command: npm run dev
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: pricesync
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./prisma/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+volumes:
+  postgres_data:
