@@ -1,8 +1,11 @@
 import express from 'express';
 import cors from 'cors';
+import { connectDatabase } from './config/database.js';
+import prisma from './config/database.js';
+import authRoutes from './routes/auth.js';
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3002;
 
 // Middleware CORS para permitir conexiones desde el frontend Vue (puerto 5173)
 app.use(cors({
@@ -11,7 +14,8 @@ app.use(cors({
 }));
 
 // Middleware para parsing JSON
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Middleware de logging básico
 app.use((req, res, next) => {
@@ -20,9 +24,30 @@ app.use((req, res, next) => {
   next();
 });
 
+// Conectar a la base de datos
+await connectDatabase();
+
+// Rutas de la API
+app.use('/api/auth', authRoutes);
+
 // Endpoint de health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok' });
+app.get('/api/health', async (req, res) => {
+  try {
+    // Verificar conexión a la base de datos
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ 
+      status: 'ok',
+      database: 'connected',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(503).json({ 
+      status: 'error',
+      database: 'disconnected',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 // Endpoint raíz
@@ -31,7 +56,9 @@ app.get('/', (req, res) => {
     message: 'PryceSync ERP API Server',
     version: '1.0.0',
     endpoints: {
-      health: '/api/health'
+      health: '/api/health',
+      auth: '/api/auth',
+      docs: 'https://github.com/your-repo/docs'
     }
   });
 });
