@@ -722,7 +722,7 @@ ENCRYPTION_KEY=your-encryption-key
 ### Dependencies NO Negociables
 - Vue 3 (NO Vue 2, NO React, NO Angular)
 - TypeScript (NO JavaScript puro)
-- Tailwind CSS (NO Bootstrap, NO Material UI)
+- Tailwind CSS (NO Bootstrap, NO Material UI), usar V3 , es mas estable
 - PostgreSQL (NO MySQL, NO MongoDB)
 - Prisma ORM (NO TypeORM, NO Sequelize)
 
