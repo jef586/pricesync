@@ -6,25 +6,18 @@ services:
     ports:
       - "3000:3000"
       - "3001:3001"
+      - "3002:3002"
       - "5173:5173"
     volumes:
       - .:/app
       - /app/node_modules
-      - /tmp/.X11-unix:/tmp/.X11-unix:rw
     working_dir: /app
-    environment:
-      - NODE_ENV=development
-      - DISPLAY=${DISPLAY:-:0}
-      - XAUTHORITY=/tmp/.docker.xauth
-      - DATABASE_URL=postgresql://postgres:password@db:5432/pricesync
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=pricesync
+    env_file:
+      - .env.docker
     depends_on:
-      - db
-    privileged: true
-    # network_mode: host  # Comentado para permitir mapeo de puertos
-    command: npm run dev
+      db:
+        condition: service_healthy
+    restart: unless-stopped
 
   db:
     image: postgres:15-alpine
@@ -37,6 +30,12 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./prisma/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
 
 volumes:
   postgres_data:

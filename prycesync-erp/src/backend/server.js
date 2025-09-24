@@ -3,6 +3,7 @@ import cors from 'cors';
 import { connectDatabase } from './config/database.js';
 import prisma from './config/database.js';
 import authRoutes from './routes/auth.js';
+import invoiceRoutes from './routes/invoices.js';
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -29,6 +30,7 @@ await connectDatabase();
 
 // Rutas de la API
 app.use('/api/auth', authRoutes);
+app.use('/api/invoices', invoiceRoutes);
 
 // Endpoint de health check
 app.get('/api/health', async (req, res) => {
@@ -58,6 +60,7 @@ app.get('/', (req, res) => {
     endpoints: {
       health: '/api/health',
       auth: '/api/auth',
+      invoices: '/api/invoices',
       docs: 'https://github.com/your-repo/docs'
     }
   });
