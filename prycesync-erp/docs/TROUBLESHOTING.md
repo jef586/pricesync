@@ -44,6 +44,51 @@ npm run doctor # Script personalizado (ver abajo)
 
 ---
 
+## 🎨 Problemas de CSS y Estilos
+
+### Tailwind CSS no funciona / Estilos no se aplican
+
+**Síntomas:**
+- Los estilos de Tailwind no se aplican
+- Warning: "The `content` option in your Tailwind CSS configuration is missing or empty"
+- Los componentes no tienen estilos visuales
+
+**Solución:**
+1. **Verificar ubicación del archivo de configuración:**
+   ```bash
+   # El archivo tailwind.config.js DEBE estar en la raíz del proyecto
+   # NO en src/renderer/ o cualquier subdirectorio
+   ls -la tailwind.config.js  # Debe existir en la raíz
+   ```
+
+2. **Verificar configuración de contenido:**
+   ```javascript
+   // tailwind.config.js (en la raíz del proyecto)
+   module.exports = {
+     content: [
+       "./src/renderer/index.html",
+       "./src/renderer/src/**/*.{vue,js,ts,jsx,tsx}",
+     ],
+     theme: {
+       extend: {
+         // configuración personalizada
+       },
+     },
+     plugins: [],
+   }
+   ```
+
+3. **Reconstruir después de cambios:**
+   ```bash
+   # Siempre reconstruir Docker después de cambios en tailwind.config.js
+   docker build -t prycesync-erp .
+   docker run -p 5173:5173 -p 3000:3000 prycesync-erp
+   ```
+
+**Nota importante:** Vite busca automáticamente `tailwind.config.js` en la raíz del proyecto. Si está en otro lugar, no lo encontrará y los estilos no funcionarán.
+
+---
+
 ## 🔧 Scripts de Diagnóstico Automático
 
 ### package.json - Scripts de Troubleshooting
