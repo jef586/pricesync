@@ -1,113 +1,624 @@
 <template>
   <DashboardLayout>
     <div class="invoice-new-view">
+      <!-- Header -->
       <div class="page-header">
-        <div class="header-left">
-          <router-link to="/invoices" class="back-button">
-            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M19 12H5M12 19L5 12L12 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <div class="flex items-center gap-4">
+          <BaseButton
+            variant="ghost"
+            @click="$router.back()"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
             </svg>
-            Volver
-          </router-link>
-          <h1>Nueva Factura</h1>
+          </BaseButton>
+          <div>
+            <h1 class="page-title">Nueva Factura</h1>
+            <p class="page-subtitle">Crea una nueva factura para tu cliente</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <BaseButton
+            variant="ghost"
+            @click="saveDraft"
+            :loading="isSavingDraft"
+            :disabled="!canSaveDraft"
+          >
+            Guardar Borrador
+          </BaseButton>
+          <BaseButton
+            variant="primary"
+            @click="createInvoice"
+            :loading="isCreating"
+            :disabled="!isFormValid"
+          >
+            Crear Factura
+          </BaseButton>
         </div>
       </div>
 
-      <div class="content-placeholder">
-        <div class="placeholder-icon">
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
+      <form @submit.prevent="createInvoice" class="invoice-form">
+        <!-- Invoice Details -->
+        <BaseCard class="mb-6">
+          <template #header>
+            <h3 class="text-lg font-semibold text-gray-900">Detalles de la Factura</h3>
+          </template>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <BaseInput
+              v-model="form.type"
+              label="Tipo de Factura"
+              required
+              :error="errors.type"
+            >
+              <select v-model="form.type" class="form-select">
+                <option value="">Seleccionar tipo</option>
+                <option value="A">Factura A</option>
+                <option value="B">Factura B</option>
+                <option value="C">Factura C</option>
+              </select>
+            </BaseInput>
+
+            <BaseInput
+              v-model="form.number"
+              label="Número de Factura"
+              placeholder="Se generará automáticamente"
+              :disabled="true"
+            />
+
+            <BaseInput
+              v-model="form.issueDate"
+              label="Fecha de Emisión"
+              type="date"
+              required
+              :error="errors.issueDate"
+            />
+
+            <BaseInput
+              v-model="form.dueDate"
+              label="Fecha de Vencimiento"
+              type="date"
+              :error="errors.dueDate"
+            />
+
+            <BaseInput
+              v-model="form.paymentTerms"
+              label="Términos de Pago (días)"
+              type="number"
+              min="0"
+              @input="updateDueDate"
+            />
+
+            <BaseInput
+              v-model="form.currency"
+              label="Moneda"
+              required
+              :error="errors.currency"
+            >
+              <select v-model="form.currency" class="form-select">
+                <option value="ARS">Peso Argentino (ARS)</option>
+                <option value="USD">Dólar Estadounidense (USD)</option>
+                <option value="EUR">Euro (EUR)</option>
+              </select>
+            </BaseInput>
+          </div>
+
+          <div class="mt-6">
+            <BaseInput
+              v-model="form.notes"
+              label="Notas"
+              type="textarea"
+              rows="3"
+              placeholder="Notas adicionales para la factura..."
+            />
+          </div>
+        </BaseCard>
+
+        <!-- Customer Selection -->
+        <BaseCard class="mb-6">
+          <template #header>
+            <h3 class="text-lg font-semibold text-gray-900">Cliente</h3>
+          </template>
+
+          <div class="space-y-4">
+            <div class="flex items-center gap-4">
+              <div class="flex-1">
+                <BaseInput
+                  v-model="customerSearch"
+                  label="Buscar Cliente"
+                  placeholder="Buscar por nombre, CUIT o email..."
+                  @input="searchCustomers"
+                />
+              </div>
+              <BaseButton
+                variant="ghost"
+                @click="showNewCustomerModal = true"
+              >
+                Nuevo Cliente
+              </BaseButton>
+            </div>
+
+            <!-- Customer Search Results -->
+            <div v-if="customerResults.length > 0" class="border rounded-lg max-h-48 overflow-y-auto">
+              <div
+                v-for="customer in customerResults"
+                :key="customer.id"
+                @click="selectCustomer(customer)"
+                class="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
+              >
+                <div class="font-medium">{{ customer.name }}</div>
+                <div class="text-sm text-gray-500">{{ customer.taxId }} - {{ customer.email }}</div>
+              </div>
+            </div>
+
+            <!-- Selected Customer -->
+            <div v-if="form.customerId" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <div class="font-medium text-blue-900">{{ selectedCustomer?.name }}</div>
+                  <div class="text-sm text-blue-700">{{ selectedCustomer?.taxId }} - {{ selectedCustomer?.email }}</div>
+                  <div class="text-sm text-blue-600">{{ selectedCustomer?.address }}</div>
+                </div>
+                <BaseButton
+                  variant="ghost"
+                  size="sm"
+                  @click="clearCustomer"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </BaseButton>
+              </div>
+            </div>
+
+            <div v-if="errors.customerId" class="text-red-600 text-sm">{{ errors.customerId }}</div>
+          </div>
+        </BaseCard>
+
+        <!-- Invoice Items -->
+        <BaseCard class="mb-6">
+          <template #header>
+            <div class="flex items-center justify-between">
+              <h3 class="text-lg font-semibold text-gray-900">Productos/Servicios</h3>
+              <BaseButton
+                variant="ghost"
+                @click="addItem"
+              >
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                Agregar Ítem
+              </BaseButton>
+            </div>
+          </template>
+
+          <div class="space-y-4">
+            <div
+              v-for="(item, index) in form.items"
+              :key="item.tempId"
+              class="border rounded-lg p-4 bg-gray-50"
+            >
+              <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                <div class="md:col-span-4">
+                  <BaseInput
+                    v-model="item.description"
+                    label="Descripción"
+                    required
+                    :error="errors[`items.${index}.description`]"
+                  />
+                </div>
+
+                <div class="md:col-span-2">
+                  <BaseInput
+                    v-model.number="item.quantity"
+                    label="Cantidad"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    required
+                    @input="calculateItemTotal(index)"
+                    :error="errors[`items.${index}.quantity`]"
+                  />
+                </div>
+
+                <div class="md:col-span-2">
+                  <BaseInput
+                    v-model.number="item.unitPrice"
+                    label="Precio Unitario"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    required
+                    @input="calculateItemTotal(index)"
+                    :error="errors[`items.${index}.unitPrice`]"
+                  />
+                </div>
+
+                <div class="md:col-span-2">
+                  <BaseInput
+                    v-model.number="item.taxRate"
+                    label="% IVA"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    @input="calculateItemTotal(index)"
+                  />
+                </div>
+
+                <div class="md:col-span-1">
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Subtotal</label>
+                  <div class="text-lg font-semibold text-gray-900">
+                    {{ formatCurrency(item.subtotal || 0) }}
+                  </div>
+                </div>
+
+                <div class="md:col-span-1">
+                  <BaseButton
+                    variant="danger"
+                    size="sm"
+                    @click="removeItem(index)"
+                    :disabled="form.items.length === 1"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </BaseButton>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="errors.items" class="text-red-600 text-sm">{{ errors.items }}</div>
+          </div>
+        </BaseCard>
+
+        <!-- Totals -->
+        <BaseCard>
+          <template #header>
+            <h3 class="text-lg font-semibold text-gray-900">Totales</h3>
+          </template>
+
+          <div class="space-y-3">
+            <div class="flex justify-between items-center">
+              <span class="text-gray-600">Subtotal:</span>
+              <span class="font-medium">{{ formatCurrency(totals.subtotal) }}</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-gray-600">IVA:</span>
+              <span class="font-medium">{{ formatCurrency(totals.tax) }}</span>
+            </div>
+            <div class="border-t pt-3">
+              <div class="flex justify-between items-center">
+                <span class="text-lg font-semibold text-gray-900">Total:</span>
+                <span class="text-xl font-bold text-gray-900">{{ formatCurrency(totals.total) }}</span>
+              </div>
+            </div>
+          </div>
+        </BaseCard>
+      </form>
+
+      <!-- Error Alert -->
+      <div v-if="hasError" class="fixed bottom-4 right-4 max-w-md">
+        <div class="bg-red-50 border border-red-200 rounded-lg p-4 shadow-lg">
+          <div class="flex">
+            <div class="flex-shrink-0">
+              <svg class="h-5 w-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div class="ml-3">
+              <p class="text-sm font-medium text-red-800">{{ error }}</p>
+            </div>
+            <div class="ml-auto pl-3">
+              <button
+                @click="clearError"
+                class="inline-flex text-red-400 hover:text-red-600"
+              >
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
         </div>
-        <h2>Crear Nueva Factura</h2>
-        <p>Esta funcionalidad estará disponible próximamente.</p>
-        <p>Aquí podrás crear facturas con todos los detalles necesarios para tu empresa.</p>
       </div>
     </div>
   </DashboardLayout>
 </template>
 
 <script setup lang="ts">
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import DashboardLayout from '../components/organisms/DashboardLayout.vue'
+import BaseButton from '../components/atoms/BaseButton.vue'
+import BaseCard from '../components/atoms/BaseCard.vue'
+import BaseInput from '../components/atoms/BaseInput.vue'
+import { useInvoices, type CreateInvoiceData, type InvoiceItem } from '../composables/useInvoices'
+
+const router = useRouter()
+
+// Composables
+const {
+  isLoading,
+  hasError,
+  error,
+  createInvoice: createInvoiceAPI,
+  clearError,
+  formatCurrency
+} = useInvoices()
+
+// Local state
+const isCreating = ref(false)
+const isSavingDraft = ref(false)
+const customerSearch = ref('')
+const customerResults = ref<any[]>([])
+const selectedCustomer = ref<any>(null)
+const showNewCustomerModal = ref(false)
+
+// Form data
+const form = ref<CreateInvoiceData>({
+  type: '',
+  customerId: '',
+  issueDate: new Date().toISOString().split('T')[0],
+  dueDate: '',
+  paymentTerms: 30,
+  currency: 'ARS',
+  notes: '',
+  items: [
+    {
+      tempId: Date.now().toString(),
+      description: '',
+      quantity: 1,
+      unitPrice: 0,
+      taxRate: 21,
+      subtotal: 0
+    }
+  ]
+})
+
+// Validation errors
+const errors = ref<Record<string, string>>({})
+
+// Computed
+const totals = computed(() => {
+  const subtotal = form.value.items.reduce((sum, item) => {
+    const itemSubtotal = (item.quantity || 0) * (item.unitPrice || 0)
+    return sum + itemSubtotal
+  }, 0)
+
+  const tax = form.value.items.reduce((sum, item) => {
+    const itemSubtotal = (item.quantity || 0) * (item.unitPrice || 0)
+    const itemTax = itemSubtotal * ((item.taxRate || 0) / 100)
+    return sum + itemTax
+  }, 0)
+
+  return {
+    subtotal,
+    tax,
+    total: subtotal + tax
+  }
+})
+
+const isFormValid = computed(() => {
+  return (
+    form.value.type &&
+    form.value.customerId &&
+    form.value.issueDate &&
+    form.value.currency &&
+    form.value.items.length > 0 &&
+    form.value.items.every(item => 
+      item.description && 
+      item.quantity > 0 && 
+      item.unitPrice >= 0
+    )
+  )
+})
+
+const canSaveDraft = computed(() => {
+  return form.value.type || form.value.customerId || form.value.items.some(item => item.description)
+})
+
+// Methods
+const updateDueDate = () => {
+  if (form.value.issueDate && form.value.paymentTerms) {
+    const issueDate = new Date(form.value.issueDate)
+    const dueDate = new Date(issueDate)
+    dueDate.setDate(dueDate.getDate() + form.value.paymentTerms)
+    form.value.dueDate = dueDate.toISOString().split('T')[0]
+  }
+}
+
+const addItem = () => {
+  form.value.items.push({
+    tempId: Date.now().toString(),
+    description: '',
+    quantity: 1,
+    unitPrice: 0,
+    taxRate: 21,
+    subtotal: 0
+  })
+}
+
+const removeItem = (index: number) => {
+  if (form.value.items.length > 1) {
+    form.value.items.splice(index, 1)
+  }
+}
+
+const calculateItemTotal = (index: number) => {
+  const item = form.value.items[index]
+  if (item) {
+    const subtotal = (item.quantity || 0) * (item.unitPrice || 0)
+    const tax = subtotal * ((item.taxRate || 0) / 100)
+    item.subtotal = subtotal + tax
+  }
+}
+
+const searchCustomers = async () => {
+  if (customerSearch.value.length < 2) {
+    customerResults.value = []
+    return
+  }
+
+  try {
+    // Mock customer search - replace with actual API call
+    const mockCustomers = [
+      {
+        id: '1',
+        name: 'Empresa ABC S.A.',
+        taxId: '20-12345678-9',
+        email: 'contacto@empresaabc.com',
+        address: 'Av. Corrientes 1234, CABA'
+      },
+      {
+        id: '2',
+        name: 'Comercial XYZ',
+        taxId: '20-87654321-0',
+        email: 'ventas@comercialxyz.com',
+        address: 'San Martín 567, Buenos Aires'
+      }
+    ]
+
+    customerResults.value = mockCustomers.filter(customer =>
+      customer.name.toLowerCase().includes(customerSearch.value.toLowerCase()) ||
+      customer.taxId.includes(customerSearch.value) ||
+      customer.email.toLowerCase().includes(customerSearch.value.toLowerCase())
+    )
+  } catch (err) {
+    console.error('Error searching customers:', err)
+  }
+}
+
+const selectCustomer = (customer: any) => {
+  form.value.customerId = customer.id
+  selectedCustomer.value = customer
+  customerResults.value = []
+  customerSearch.value = ''
+  delete errors.value.customerId
+}
+
+const clearCustomer = () => {
+  form.value.customerId = ''
+  selectedCustomer.value = null
+  customerSearch.value = ''
+}
+
+const validateForm = () => {
+  errors.value = {}
+
+  if (!form.value.type) {
+    errors.value.type = 'El tipo de factura es requerido'
+  }
+
+  if (!form.value.customerId) {
+    errors.value.customerId = 'Debe seleccionar un cliente'
+  }
+
+  if (!form.value.issueDate) {
+    errors.value.issueDate = 'La fecha de emisión es requerida'
+  }
+
+  if (!form.value.currency) {
+    errors.value.currency = 'La moneda es requerida'
+  }
+
+  if (form.value.items.length === 0) {
+    errors.value.items = 'Debe agregar al menos un ítem'
+  } else {
+    form.value.items.forEach((item, index) => {
+      if (!item.description) {
+        errors.value[`items.${index}.description`] = 'La descripción es requerida'
+      }
+      if (!item.quantity || item.quantity <= 0) {
+        errors.value[`items.${index}.quantity`] = 'La cantidad debe ser mayor a 0'
+      }
+      if (item.unitPrice < 0) {
+        errors.value[`items.${index}.unitPrice`] = 'El precio no puede ser negativo'
+      }
+    })
+  }
+
+  return Object.keys(errors.value).length === 0
+}
+
+const createInvoice = async () => {
+  if (!validateForm()) return
+
+  isCreating.value = true
+  try {
+    const invoiceData = {
+      ...form.value,
+      status: 'draft' as const,
+      subtotal: totals.value.subtotal,
+      tax: totals.value.tax,
+      total: totals.value.total
+    }
+
+    const invoice = await createInvoiceAPI(invoiceData)
+    router.push(`/invoices/${invoice.id}`)
+  } catch (err) {
+    // Error is handled by the composable
+  } finally {
+    isCreating.value = false
+  }
+}
+
+const saveDraft = async () => {
+  isSavingDraft.value = true
+  try {
+    const invoiceData = {
+      ...form.value,
+      status: 'draft' as const,
+      subtotal: totals.value.subtotal,
+      tax: totals.value.tax,
+      total: totals.value.total
+    }
+
+    const invoice = await createInvoiceAPI(invoiceData)
+    router.push(`/invoices/${invoice.id}`)
+  } catch (err) {
+    // Error is handled by the composable
+  } finally {
+    isSavingDraft.value = false
+  }
+}
+
+// Watchers
+watch(() => form.value.paymentTerms, updateDueDate)
+watch(() => form.value.issueDate, updateDueDate)
+
+// Lifecycle
+onMounted(() => {
+  updateDueDate()
+})
 </script>
 
 <style scoped>
 .invoice-new-view {
-  max-width: 1200px;
-  margin: 0 auto;
+  @apply p-6 max-w-6xl mx-auto;
 }
 
 .page-header {
-  margin-bottom: 2rem;
+  @apply flex items-center justify-between mb-6;
 }
 
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
+.page-title {
+  @apply text-2xl font-bold text-gray-900;
 }
 
-.back-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: #6b7280;
-  text-decoration: none;
-  padding: 0.5rem;
-  border-radius: 0.375rem;
-  transition: all 0.2s;
+.page-subtitle {
+  @apply text-gray-600 mt-1;
 }
 
-.back-button:hover {
-  background-color: #f3f4f6;
-  color: #374151;
+.invoice-form {
+  @apply space-y-6;
 }
 
-.back-button svg {
-  width: 20px;
-  height: 20px;
+.form-select {
+  @apply block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm;
 }
 
-.page-header h1 {
-  font-size: 2rem;
-  font-weight: 700;
-  color: #1f2937;
-  margin: 0;
-}
-
-.content-placeholder {
-  background: white;
-  border-radius: 0.75rem;
-  padding: 4rem 2rem;
-  text-align: center;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
-  border: 1px solid #e2e8f0;
-}
-
-.placeholder-icon {
-  width: 80px;
-  height: 80px;
-  margin: 0 auto 2rem;
-  color: #9ca3af;
-}
-
-.placeholder-icon svg {
-  width: 100%;
-  height: 100%;
-}
-
-.content-placeholder h2 {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #1f2937;
-  margin-bottom: 1rem;
-}
-
-.content-placeholder p {
-  color: #6b7280;
-  margin-bottom: 0.5rem;
-  max-width: 500px;
-  margin-left: auto;
-  margin-right: auto;
+.form-select:focus {
+  @apply ring-2 ring-blue-500 border-blue-500;
 }
 </style>
