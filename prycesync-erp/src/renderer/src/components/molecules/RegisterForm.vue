@@ -60,7 +60,7 @@
     <div class="text-center">
       <button
         type="button"
-        @click="$emit('switchMode')"
+        @click="$emit('switchToLogin')"
         class="text-primary-600 hover:text-primary-700 text-sm font-medium"
       >
         ¿Ya tienes cuenta? Inicia sesión
@@ -78,7 +78,7 @@ import { useAuthStore } from '../../stores/auth'
 
 // Emits
 defineEmits<{
-  switchMode: []
+  switchToLogin: []
 }>()
 
 // Composables
@@ -156,7 +156,8 @@ const handleSubmit = async () => {
     name: form.value.name,
     email: form.value.email,
     password: form.value.password,
-    confirmPassword: form.value.confirmPassword
+    role: 'admin', // Por defecto admin para el primer usuario
+    companyId: 'cmfzbx1ff0000521dfh4ynxm1' // ID de la empresa de prueba
   })
 
   if (result.success) {

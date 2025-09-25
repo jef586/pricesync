@@ -18,8 +18,8 @@
       <div class="auth-view__form">
         <AuthCard
           :initial-mode="mode"
-          :loading="loading"
-          :error="error"
+          :loading="authStore.isLoading"
+          :error="authStore.error"
           @login="handleLogin"
           @register="handleRegister"
         />
@@ -29,8 +29,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '../stores/auth'
 import AuthCard from '../components/organisms/AuthCard.vue'
 
 interface LoginData {
@@ -46,55 +47,36 @@ interface RegisterData {
 
 const route = useRoute()
 const router = useRouter()
-
-const loading = ref(false)
-const error = ref('')
+const authStore = useAuthStore()
 
 const mode = computed(() => {
   return route.query.mode === 'register' ? 'register' : 'login'
 })
 
 const handleLogin = async (data: LoginData) => {
-  loading.value = true
-  error.value = ''
+  const result = await authStore.login(data)
   
-  try {
-    // TODO: Implementar llamada al store de autenticación
-    console.log('Login data:', data)
-    
-    // Simular delay de API
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    // TODO: Redirigir al dashboard después del login exitoso
+  if (result.success) {
     router.push('/')
-  } catch (err) {
-    error.value = 'Error al iniciar sesión. Verifica tus credenciales.'
-    console.error('Login error:', err)
-  } finally {
-    loading.value = false
   }
 }
 
 const handleRegister = async (data: RegisterData) => {
-  loading.value = true
-  error.value = ''
+  const result = await authStore.register({
+    ...data,
+    role: 'admin',
+    companyId: 'cmfzbx1ff0000521dfh4ynxm1'
+  })
   
-  try {
-    // TODO: Implementar llamada al store de autenticación
-    console.log('Register data:', data)
-    
-    // Simular delay de API
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    // TODO: Redirigir al dashboard después del registro exitoso
+  if (result.success) {
     router.push('/')
-  } catch (err) {
-    error.value = 'Error al crear la cuenta. Inténtalo de nuevo.'
-    console.error('Register error:', err)
-  } finally {
-    loading.value = false
   }
 }
+
+// Inicializar autenticación al montar el componente
+onMounted(() => {
+  authStore.initializeAuth()
+})
 </script>
 
 <style scoped>

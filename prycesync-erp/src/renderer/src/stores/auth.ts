@@ -2,10 +2,16 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 
 export interface User {
-  id: number
+  id: string
   email: string
   name: string
   role: string
+  status: string
+  company: {
+    id: string
+    name: string
+    taxId: string
+  }
 }
 
 export interface LoginCredentials {
@@ -18,6 +24,7 @@ export interface RegisterCredentials {
   email: string
   password: string
   confirmPassword: string
+  companyId: string
 }
 
 export const useAuthStore = defineStore('auth', () => {
@@ -37,7 +44,7 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null
 
     try {
-      const response = await fetch('http://localhost:3000/api/auth/login', {
+      const response = await fetch('http://localhost:3002/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -52,11 +59,14 @@ export const useAuthStore = defineStore('auth', () => {
 
       const data = await response.json()
       
-      // Guardar token y usuario
-      token.value = data.token
-      user.value = data.user
-      localStorage.setItem('token', data.token)
-      localStorage.setItem('user', JSON.stringify(data.user))
+      // Guardar token y usuario según la estructura de respuesta de la API
+      const accessToken = data.data.tokens.accessToken
+      const userData = data.data.user
+      
+      token.value = accessToken
+      user.value = userData
+      localStorage.setItem('token', accessToken)
+      localStorage.setItem('user', JSON.stringify(userData))
 
       return { success: true }
     } catch (err) {
@@ -72,7 +82,7 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null
 
     try {
-      const response = await fetch('http://localhost:3000/api/auth/register', {
+      const response = await fetch('http://localhost:3002/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -81,6 +91,8 @@ export const useAuthStore = defineStore('auth', () => {
           name: credentials.name,
           email: credentials.email,
           password: credentials.password,
+          role: 'admin',
+          companyId: credentials.companyId,
         }),
       })
 
@@ -91,11 +103,14 @@ export const useAuthStore = defineStore('auth', () => {
 
       const data = await response.json()
       
-      // Guardar token y usuario
-      token.value = data.token
-      user.value = data.user
-      localStorage.setItem('token', data.token)
-      localStorage.setItem('user', JSON.stringify(data.user))
+      // Guardar token y usuario según la estructura de respuesta de la API
+      const accessToken = data.data.tokens.accessToken
+      const userData = data.data.user
+      
+      token.value = accessToken
+      user.value = userData
+      localStorage.setItem('token', accessToken)
+      localStorage.setItem('user', JSON.stringify(userData))
 
       return { success: true }
     } catch (err) {
@@ -106,7 +121,61 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  const logout = () => {
+  const getCurrentUser = async () => {
+    if (!token.value) {
+      return { success: false, error: 'No token available' }
+    }
+
+    isLoading.value = true
+    error.value = null
+
+    try {
+      const response = await fetch('http://localhost:3002/api/auth/me', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token.value}`,
+        },
+      })
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          // Token inválido o expirado
+          logout()
+          throw new Error('Sesión expirada')
+        }
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'Error al obtener usuario')
+      }
+
+      const data = await response.json()
+      user.value = data.data.user
+
+      return { success: true }
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Error desconocido'
+      return { success: false, error: error.value }
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  const logout = async () => {
+    if (token.value) {
+      try {
+        await fetch('http://localhost:3002/api/auth/logout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token.value}`,
+          },
+        })
+      } catch (err) {
+        // Ignorar errores de logout en el servidor
+        console.warn('Error during logout:', err)
+      }
+    }
+
     user.value = null
     token.value = null
     localStorage.removeItem('token')
@@ -145,6 +214,7 @@ export const useAuthStore = defineStore('auth', () => {
     login,
     register,
     logout,
+    getCurrentUser,
     initializeAuth,
     clearError,
   }

@@ -40,7 +40,7 @@
     <div class="text-center">
       <button
         type="button"
-        @click="$emit('switchMode')"
+        @click="$emit('switchToRegister')"
         class="text-primary-600 hover:text-primary-700 text-sm font-medium"
       >
         ¿No tienes cuenta? Regístrate
@@ -58,7 +58,7 @@ import { useAuthStore } from '../../stores/auth'
 
 // Emits
 defineEmits<{
-  switchMode: []
+  switchToRegister: []
 }>()
 
 // Composables

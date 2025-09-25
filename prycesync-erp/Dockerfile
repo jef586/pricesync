@@ -15,9 +15,6 @@ RUN npm install
 # Generar cliente de Prisma
 RUN npx prisma generate
 
-# Copiar el resto del código
-COPY . .
-
 # Copiar el script de entrada
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/docker-entrypoint.sh

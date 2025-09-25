@@ -9,5 +9,11 @@ done
 echo "Base de datos conectada, ejecutando migraciones..."
 npx prisma db push
 
-echo "Iniciando aplicación..."
+echo "Instalando dependencias si es necesario..."
+npm install
+
+echo "Generando cliente de Prisma..."
+npx prisma generate
+
+echo "Iniciando aplicación en modo desarrollo..."
 npm run dev
