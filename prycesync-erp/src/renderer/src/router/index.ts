@@ -31,6 +31,12 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/invoices/:id',
+      name: 'invoice-detail',
+      component: () => import('../views/InvoiceDetailView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/inventory',
       name: 'inventory',
       component: () => import('../views/InventoryView.vue'),
@@ -53,11 +59,22 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   const authStore = useAuthStore()
   
+  console.log('🛣️ Router guard:', {
+    to: to.path,
+    from: from.path,
+    requiresAuth: to.meta.requiresAuth,
+    requiresGuest: to.meta.requiresGuest,
+    isAuthenticated: authStore.isAuthenticated
+  })
+  
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+    console.log('🚫 Redirecting to /auth - not authenticated')
     next('/auth')
   } else if (to.meta.requiresGuest && authStore.isAuthenticated) {
+    console.log('🚫 Redirecting to / - already authenticated')
     next('/')
   } else {
+    console.log('✅ Navigation allowed')
     next()
   }
 })

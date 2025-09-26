@@ -88,17 +88,6 @@
 
     <!-- Main Content -->
     <main class="dashboard-main" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
-      <header class="dashboard-header">
-        <div class="header-content">
-          <h1 class="page-title">{{ pageTitle }}</h1>
-          <div class="header-actions">
-            <div class="company-info">
-              <span class="company-name">{{ authStore.user?.company?.name }}</span>
-            </div>
-          </div>
-        </div>
-      </header>
-
       <div class="dashboard-content">
         <slot />
       </div>
@@ -129,15 +118,6 @@ const handleLogout = async () => {
 const userInitials = computed(() => {
   const name = authStore.user?.name || ''
   return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-})
-
-const pageTitle = computed(() => {
-  const path = route.path
-  if (path === '/') return 'Dashboard'
-  if (path.startsWith('/invoices')) return 'Gestión de Facturas'
-  if (path.startsWith('/inventory')) return 'Control de Inventario'
-  if (path.startsWith('/company')) return 'Configuración de Empresa'
-  return 'PryceSync ERP'
 })
 </script>
 
@@ -342,45 +322,6 @@ const pageTitle = computed(() => {
   transition: margin-left 0.3s ease;
 }
 
-.dashboard-header {
-  background: white;
-  border-bottom: 1px solid #e2e8f0;
-  padding: 1rem 2rem;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
-}
-
-.header-content {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.page-title {
-  font-size: 1.875rem;
-  font-weight: 700;
-  color: #1f2937;
-  margin: 0;
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.company-info {
-  padding: 0.5rem 1rem;
-  background-color: #f1f5f9;
-  border-radius: 0.5rem;
-  border: 1px solid #e2e8f0;
-}
-
-.company-name {
-  font-weight: 600;
-  color: #475569;
-  font-size: 0.875rem;
-}
-
 .dashboard-content {
   flex: 1;
   padding: 2rem;
@@ -404,10 +345,6 @@ const pageTitle = computed(() => {
 
   .dashboard-main {
     margin-left: 0;
-  }
-
-  .page-title {
-    font-size: 1.5rem;
   }
 
   .dashboard-content {

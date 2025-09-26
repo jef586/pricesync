@@ -2,77 +2,33 @@
   <DashboardLayout>
     <div class="invoices-view">
       <!-- Header -->
-      <div class="page-header">
-        <div>
-          <h1 class="page-title">Gestión de Facturas</h1>
-          <p class="page-subtitle">Administra todas las facturas de tu empresa</p>
-        </div>
-        <BaseButton
-          variant="primary"
-          @click="$router.push('/invoices/new')"
-        >
-          <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-          </svg>
-          Nueva Factura
-        </BaseButton>
-      </div>
+      <PageHeader
+        title="Gestión de Facturas"
+        subtitle="Administra todas las facturas de tu empresa"
+      >
+        <template #actions>
+          <BaseButton
+            variant="primary"
+            @click="$router.push('/invoices/new')"
+          >
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            Nueva Factura
+          </BaseButton>
+        </template>
+      </PageHeader>
 
       <!-- Filters -->
-      <BaseCard class="mb-6">
-        <div class="filters-grid">
-          <BaseInput
-            v-model="filters.search"
-            placeholder="Buscar por número, cliente o notas..."
-            @input="debouncedSearch"
-          />
-          
-          <select
-            v-model="filters.status"
-            class="filter-select"
-            @change="applyFilters"
-          >
-            <option value="">Todos los estados</option>
-            <option value="draft">Borrador</option>
-            <option value="sent">Enviada</option>
-            <option value="paid">Pagada</option>
-            <option value="overdue">Vencida</option>
-            <option value="cancelled">Cancelada</option>
-          </select>
-
-          <select
-            v-model="filters.type"
-            class="filter-select"
-            @change="applyFilters"
-          >
-            <option value="">Todos los tipos</option>
-            <option value="A">Factura A</option>
-            <option value="B">Factura B</option>
-            <option value="C">Factura C</option>
-          </select>
-
-          <BaseInput
-            v-model="filters.dateFrom"
-            type="date"
-            label="Desde"
-            @change="applyFilters"
-          />
-
-          <BaseInput
-            v-model="filters.dateTo"
-            type="date"
-            label="Hasta"
-            @change="applyFilters"
-          />
-
-          <BaseButton
-            variant="ghost"
-            @click="clearFilters"
-          >
-            Limpiar Filtros
-          </BaseButton>
-        </div>
-      </BaseCard>
+      <FilterBar
+        v-model="filters"
+        :status-options="statusOptions"
+        :type-options="typeOptions"
+        search-placeholder="Buscar por número, cliente o notas..."
+        @filter-change="applyFilters"
+        @search="debouncedSearch"
+        class="mb-6"
+      />
 
       <!-- Data Table -->
       <DataTable
@@ -81,21 +37,9 @@
         :loading="isLoading"
         :paginated="true"
         :page-size="pagination.limit"
+        :show-header="false"
         @row-click="handleRowClick"
       >
-        <template #actions>
-          <BaseButton
-            variant="ghost"
-            size="sm"
-            @click="refreshInvoices"
-            :loading="isLoading"
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-          </BaseButton>
-        </template>
-
         <!-- Custom cell templates -->
         <template #cell-number="{ item }">
           <div class="font-mono text-sm">
@@ -250,6 +194,8 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import DashboardLayout from '../components/organisms/DashboardLayout.vue'
+import PageHeader from '../components/molecules/PageHeader.vue'
+import FilterBar from '../components/molecules/FilterBar.vue'
 import BaseButton from '../components/atoms/BaseButton.vue'
 import BaseCard from '../components/atoms/BaseCard.vue'
 import BaseInput from '../components/atoms/BaseInput.vue'
@@ -290,6 +236,21 @@ const filters = ref<InvoiceFilters>({
   sortOrder: 'desc'
 })
 
+// Filter options
+const statusOptions = [
+  { value: 'draft', label: 'Borrador' },
+  { value: 'sent', label: 'Enviada' },
+  { value: 'paid', label: 'Pagada' },
+  { value: 'overdue', label: 'Vencida' },
+  { value: 'cancelled', label: 'Cancelada' }
+]
+
+const typeOptions = [
+  { value: 'A', label: 'Factura A' },
+  { value: 'B', label: 'Factura B' },
+  { value: 'C', label: 'Factura C' }
+]
+
 const showDeleteModal = ref(false)
 const invoiceToDelete = ref<Invoice | null>(null)
 
@@ -317,9 +278,10 @@ const getStatusClasses = (status: Invoice['status']) => {
 
 // Debounced search
 let searchTimeout: NodeJS.Timeout
-const debouncedSearch = () => {
+const debouncedSearch = (query: string) => {
   clearTimeout(searchTimeout)
   searchTimeout = setTimeout(() => {
+    filters.value.search = query
     applyFilters()
   }, 500)
 }
@@ -407,27 +369,4 @@ onMounted(() => {
   @apply p-6;
 }
 
-.page-header {
-  @apply flex items-center justify-between mb-6;
-}
-
-.page-title {
-  @apply text-2xl font-bold text-gray-900;
-}
-
-.page-subtitle {
-  @apply text-gray-600 mt-1;
-}
-
-.filters-grid {
-  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 p-4;
-}
-
-.filter-select {
-  @apply block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm;
-}
-
-.filter-select:focus {
-  @apply ring-2 ring-blue-500 border-blue-500;
-}
 </style>

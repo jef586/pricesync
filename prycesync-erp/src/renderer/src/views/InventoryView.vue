@@ -1,15 +1,18 @@
 <template>
   <DashboardLayout>
     <div class="inventory-view">
-      <div class="page-header">
-        <h1>Gestión de Inventario</h1>
-        <button class="btn-primary">
-          <svg class="btn-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          Nuevo Producto
-        </button>
-      </div>
+      <PageHeader
+        title="Gestión de Inventario"
+      >
+        <template #actions>
+          <button class="btn-primary">
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Nuevo Producto
+          </button>
+        </template>
+      </PageHeader>
 
       <div class="content-placeholder">
         <div class="placeholder-icon">
@@ -29,26 +32,13 @@
 
 <script setup lang="ts">
 import DashboardLayout from '../components/organisms/DashboardLayout.vue'
+import PageHeader from '../components/molecules/PageHeader.vue'
 </script>
 
 <style scoped>
 .inventory-view {
   max-width: 1200px;
   margin: 0 auto;
-}
-
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-}
-
-.page-header h1 {
-  font-size: 2rem;
-  font-weight: 700;
-  color: #1f2937;
-  margin: 0;
 }
 
 .btn-primary {

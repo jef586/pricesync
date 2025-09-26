@@ -35,7 +35,17 @@ export const useAuthStore = defineStore('auth', () => {
   const error = ref<string | null>(null)
 
   // Getters
-  const isAuthenticated = computed(() => !!token.value && !!user.value)
+  const isAuthenticated = computed(() => {
+    const result = !!token.value && !!user.value
+    console.log('🔐 isAuthenticated check:', {
+      hasToken: !!token.value,
+      hasUser: !!user.value,
+      result,
+      token: token.value ? `${token.value.substring(0, 20)}...` : null,
+      user: user.value ? user.value.email : null
+    })
+    return result
+  })
   const userRole = computed(() => user.value?.role || null)
 
   // Actions
@@ -183,17 +193,29 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   const initializeAuth = () => {
+    console.log('🚀 Initializing auth...')
     const storedToken = localStorage.getItem('token')
     const storedUser = localStorage.getItem('user')
+
+    console.log('📦 Stored data:', {
+      hasStoredToken: !!storedToken,
+      hasStoredUser: !!storedUser,
+      storedToken: storedToken ? `${storedToken.substring(0, 20)}...` : null,
+      storedUser: storedUser ? JSON.parse(storedUser).email : null
+    })
 
     if (storedToken && storedUser) {
       try {
         token.value = storedToken
         user.value = JSON.parse(storedUser)
+        console.log('✅ Auth initialized successfully')
       } catch (err) {
+        console.error('❌ Error parsing stored user data:', err)
         // Si hay error al parsear, limpiar localStorage
         logout()
       }
+    } else {
+      console.log('⚠️ No stored auth data found')
     }
   }
 

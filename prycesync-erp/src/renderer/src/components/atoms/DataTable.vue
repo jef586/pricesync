@@ -1,15 +1,7 @@
 <template>
   <div class="data-table">
-    <!-- Header with search and actions -->
+    <!-- Header with actions only -->
     <div v-if="showHeader" class="data-table__header">
-      <div class="data-table__search">
-        <BaseInput
-          v-if="searchable"
-          v-model="searchQuery"
-          placeholder="Buscar..."
-          type="text"
-        />
-      </div>
       <div class="data-table__actions">
         <slot name="actions" />
       </div>
@@ -162,6 +154,7 @@
 </template>
 
 <script setup lang="ts">
+import { ref, computed, watch } from 'vue'
 import BaseInput from './BaseInput.vue'
 import BaseButton from './BaseButton.vue'
 
@@ -176,7 +169,6 @@ interface Column {
 interface Props {
   data: any[]
   columns: Column[]
-  searchable?: boolean
   paginated?: boolean
   pageSize?: number
   showHeader?: boolean
@@ -190,7 +182,6 @@ interface Emits {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  searchable: true,
   paginated: true,
   pageSize: 10,
   showHeader: true,
@@ -201,32 +192,17 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<Emits>()
 
 // Reactive state
-const searchQuery = ref('')
 const sortBy = ref('')
 const sortOrder = ref<'asc' | 'desc'>('asc')
 const currentPage = ref(1)
 
 // Computed properties
-const filteredData = computed(() => {
-  if (!props.searchable || !searchQuery.value) {
+const sortedData = computed(() => {
+  if (!sortBy.value) {
     return props.data
   }
 
-  const query = searchQuery.value.toLowerCase()
-  return props.data.filter(item => {
-    return props.columns.some(column => {
-      const value = getNestedValue(item, column.key)
-      return String(value).toLowerCase().includes(query)
-    })
-  })
-})
-
-const sortedData = computed(() => {
-  if (!sortBy.value) {
-    return filteredData.value
-  }
-
-  return [...filteredData.value].sort((a, b) => {
+  return [...props.data].sort((a, b) => {
     const aValue = getNestedValue(a, sortBy.value)
     const bValue = getNestedValue(b, sortBy.value)
 
@@ -329,10 +305,6 @@ const goToPage = (page: number) => {
 watch(() => props.data, () => {
   currentPage.value = 1
 })
-
-watch(searchQuery, () => {
-  currentPage.value = 1
-})
 </script>
 
 <style scoped>
@@ -341,11 +313,7 @@ watch(searchQuery, () => {
 }
 
 .data-table__header {
-  @apply flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50;
-}
-
-.data-table__search {
-  @apply flex-1 max-w-md;
+  @apply flex items-center justify-end p-4 border-b border-gray-200 bg-gray-50;
 }
 
 .data-table__actions {

@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue'
+import { ref, computed, readonly } from 'vue'
 import axios from 'axios'
 
 // Types
@@ -92,7 +92,7 @@ const apiClient = axios.create({
 // Request interceptor to add auth token
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('auth_token')
+    const token = localStorage.getItem('token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
@@ -105,10 +105,13 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
+    console.log('🚨 API Error in useInvoices:', error.response?.status, error.response?.data)
     if (error.response?.status === 401) {
+      console.log('🚨 401 Unauthorized - redirecting to /auth')
       // Handle unauthorized - redirect to login
-      localStorage.removeItem('auth_token')
-      window.location.href = '/login'
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      window.location.href = '/auth'
     }
     return Promise.reject(error)
   }
