@@ -338,6 +338,7 @@ model Invoice {
 
 model InvoiceItem {
   id          String  @id @default(cuid())
+  description String? // Descripción personalizada del item
   quantity    Decimal @db.Decimal(10, 3)
   unitPrice   Decimal @map("unit_price") @db.Decimal(10, 2)
   discount    Decimal @default(0) @db.Decimal(5, 2) // porcentaje
@@ -351,8 +352,8 @@ model InvoiceItem {
   // Relaciones
   invoiceId   String  @map("invoice_id")
   invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  productId   String  @map("product_id")
-  product     Product @relation(fields: [productId], references: [id])
+  productId   String? @map("product_id") // Hacer opcional para permitir items sin producto
+  product     Product? @relation(fields: [productId], references: [id])
   
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")

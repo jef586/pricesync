@@ -1,6 +1,6 @@
 <template>
   <DashboardLayout>
-    <div class="invoice-new-view">
+    <div class="invoice-edit-view">
       <!-- Header -->
       <div class="page-header">
         <div class="flex items-center gap-4">
@@ -13,8 +13,8 @@
             </svg>
           </BaseButton>
           <div>
-            <h1 class="page-title">Nueva Factura</h1>
-            <p class="page-subtitle">Crea una nueva factura para tu cliente</p>
+            <h1 class="page-title">Editar Factura {{ invoice?.number }}</h1>
+            <p class="page-subtitle">Modifica los detalles de la factura</p>
           </div>
         </div>
         <div class="flex items-center gap-3">
@@ -28,16 +28,20 @@
           </BaseButton>
           <BaseButton
             variant="primary"
-            @click="createInvoice"
-            :loading="isCreating"
+            @click="updateInvoice"
+            :loading="isUpdating"
             :disabled="!isFormValid"
           >
-            Crear Factura
+            Actualizar Factura
           </BaseButton>
         </div>
       </div>
 
-      <form @submit.prevent="createInvoice" class="invoice-form">
+      <div v-if="isLoadingInvoice" class="flex justify-center items-center py-12">
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+
+      <form v-else-if="invoice" @submit.prevent="updateInvoice" class="invoice-form">
         <!-- Invoice Details -->
         <BaseCard class="mb-6">
           <template #header>
@@ -62,7 +66,6 @@
             <BaseInput
               v-model="form.number"
               label="Número de Factura"
-              placeholder="Se generará automáticamente"
               :disabled="true"
             />
 
@@ -109,7 +112,7 @@
               label="Notas"
               type="textarea"
               rows="3"
-              placeholder="Notas adicionales para la factura..."
+              placeholder="Notas adicionales sobre la factura..."
             />
           </div>
         </BaseCard>
@@ -121,43 +124,12 @@
           </template>
 
           <div class="space-y-4">
-            <div class="flex items-center gap-4">
-              <div class="flex-1">
-                <BaseInput
-                  v-model="customerSearch"
-                  label="Buscar Cliente"
-                  placeholder="Buscar por nombre, CUIT o email..."
-                  @input="searchCustomers"
-                />
-              </div>
-              <BaseButton
-                variant="ghost"
-                @click="showNewCustomerModal = true"
-              >
-                Nuevo Cliente
-              </BaseButton>
-            </div>
-
-            <!-- Customer Search Results -->
-            <div v-if="customerResults.length > 0" class="border rounded-lg max-h-48 overflow-y-auto">
-              <div
-                v-for="customer in customerResults"
-                :key="customer.id"
-                @click="selectCustomer(customer)"
-                class="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
-              >
-                <div class="font-medium">{{ customer.name }}</div>
-                <div class="text-sm text-gray-500">{{ customer.taxId }} - {{ customer.email }}</div>
-              </div>
-            </div>
-
-            <!-- Selected Customer -->
-            <div v-if="form.customerId" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div v-if="selectedCustomer" class="border rounded-lg p-4 bg-gray-50">
               <div class="flex items-center justify-between">
                 <div>
-                  <div class="font-medium text-blue-900">{{ selectedCustomer?.name }}</div>
-                  <div class="text-sm text-blue-700">{{ selectedCustomer?.taxId }} - {{ selectedCustomer?.email }}</div>
-                  <div class="text-sm text-blue-600">{{ selectedCustomer?.address }}</div>
+                  <h4 class="font-medium text-gray-900">{{ selectedCustomer.name }}</h4>
+                  <p class="text-sm text-gray-600">{{ selectedCustomer.email }}</p>
+                  <p class="text-sm text-gray-600">CUIT: {{ selectedCustomer.taxId }}</p>
                 </div>
                 <BaseButton
                   variant="ghost"
@@ -167,6 +139,42 @@
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                   </svg>
+                </BaseButton>
+              </div>
+            </div>
+
+            <div v-else class="relative">
+              <BaseInput
+                v-model="customerSearch"
+                label="Buscar Cliente"
+                placeholder="Buscar por nombre, email o CUIT..."
+                @input="searchCustomers"
+                :error="errors.customerId"
+              />
+
+              <div v-if="customerResults.length > 0" class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
+                <div
+                  v-for="customer in customerResults"
+                  :key="customer.id"
+                  @click="selectCustomer(customer)"
+                  class="px-4 py-2 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                >
+                  <div class="font-medium text-gray-900">{{ customer.name }}</div>
+                  <div class="text-sm text-gray-600">{{ customer.email }}</div>
+                  <div class="text-sm text-gray-600">CUIT: {{ customer.taxId }}</div>
+                </div>
+              </div>
+
+              <div class="mt-2">
+                <BaseButton
+                  variant="ghost"
+                  size="sm"
+                  @click="showNewCustomerModal = true"
+                >
+                  <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  Crear Nuevo Cliente
                 </BaseButton>
               </div>
             </div>
@@ -195,7 +203,7 @@
           <div class="space-y-4">
             <div
               v-for="(item, index) in form.items"
-              :key="item.tempId"
+              :key="item.tempId || item.id"
               class="border rounded-lg p-4 bg-gray-50"
             >
               <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
@@ -213,11 +221,11 @@
                     v-model.number="item.quantity"
                     label="Cantidad"
                     type="number"
-                    min="0"
-                    step="0.01"
+                    min="1"
+                    step="1"
                     required
-                    @input="calculateItemTotal(index)"
                     :error="errors[`items.${index}.quantity`]"
+                    @input="calculateItemSubtotal(item)"
                   />
                 </div>
 
@@ -229,24 +237,24 @@
                     min="0"
                     step="0.01"
                     required
-                    @input="calculateItemTotal(index)"
                     :error="errors[`items.${index}.unitPrice`]"
-                  />
-                </div>
-
-                <div class="md:col-span-2">
-                  <BaseInput
-                    v-model.number="item.taxRate"
-                    label="% IVA"
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.01"
-                    @input="calculateItemTotal(index)"
+                    @input="calculateItemSubtotal(item)"
                   />
                 </div>
 
                 <div class="md:col-span-1">
+                  <BaseInput
+                    v-model.number="item.taxRate"
+                    label="IVA (%)"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    @input="calculateItemSubtotal(item)"
+                  />
+                </div>
+
+                <div class="md:col-span-2">
                   <label class="block text-sm font-medium text-gray-700 mb-1">Subtotal</label>
                   <div class="text-lg font-semibold text-gray-900">
                     {{ formatCurrency(item.subtotal || 0) }}
@@ -328,13 +336,14 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import DashboardLayout from '../components/organisms/DashboardLayout.vue'
 import BaseButton from '../components/atoms/BaseButton.vue'
 import BaseCard from '../components/atoms/BaseCard.vue'
 import BaseInput from '../components/atoms/BaseInput.vue'
-import { useInvoices, type CreateInvoiceData, type InvoiceItem } from '../composables/useInvoices'
+import { useInvoices, type Invoice, type CreateInvoiceData, type InvoiceItem } from '../composables/useInvoices'
 
+const route = useRoute()
 const router = useRouter()
 
 // Composables
@@ -342,21 +351,24 @@ const {
   isLoading,
   hasError,
   error,
-  createInvoice: createInvoiceAPI,
+  fetchInvoice,
+  updateInvoice: updateInvoiceAPI,
   clearError,
   formatCurrency
 } = useInvoices()
 
 // Local state
-const isCreating = ref(false)
+const isLoadingInvoice = ref(true)
+const isUpdating = ref(false)
 const isSavingDraft = ref(false)
 const customerSearch = ref('')
 const customerResults = ref<any[]>([])
 const selectedCustomer = ref<any>(null)
 const showNewCustomerModal = ref(false)
+const invoice = ref<Invoice | null>(null)
 
 // Form data
-const form = ref<CreateInvoiceData>({
+const form = ref<CreateInvoiceData & { number?: string }>({
   type: '',
   customerId: '',
   issueDate: new Date().toISOString().split('T')[0],
@@ -364,16 +376,7 @@ const form = ref<CreateInvoiceData>({
   paymentTerms: 30,
   currency: 'ARS',
   notes: '',
-  items: [
-    {
-      tempId: Date.now().toString(),
-      description: '',
-      quantity: 1,
-      unitPrice: 0,
-      taxRate: 21,
-      subtotal: 0
-    }
-  ]
+  items: []
 })
 
 // Validation errors
@@ -419,6 +422,47 @@ const canSaveDraft = computed(() => {
 })
 
 // Methods
+const loadInvoice = async () => {
+  try {
+    isLoadingInvoice.value = true
+    clearError()
+    const invoiceId = route.params.id as string
+    const invoiceData = await fetchInvoice(invoiceId)
+    
+    invoice.value = invoiceData
+    
+    // Populate form with invoice data
+    form.value = {
+      type: invoiceData.type,
+      customerId: invoiceData.customer.id,
+      issueDate: invoiceData.issueDate.split('T')[0],
+      dueDate: invoiceData.dueDate ? invoiceData.dueDate.split('T')[0] : '',
+      paymentTerms: invoiceData.dueDate ? 
+        Math.ceil((new Date(invoiceData.dueDate).getTime() - new Date(invoiceData.issueDate).getTime()) / (1000 * 60 * 60 * 24)) : 30,
+      currency: 'ARS', // Default, could be from invoice data
+      notes: invoiceData.notes || '',
+      number: invoiceData.number,
+      items: invoiceData.items.map(item => ({
+        id: item.id,
+        tempId: item.id,
+        description: item.description || item.product?.name || item.product?.description || '',
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        taxRate: item.taxRate,
+        subtotal: item.subtotal
+      }))
+    }
+    
+    // Set selected customer
+    selectedCustomer.value = invoiceData.customer
+    
+  } catch (err) {
+    console.error('Error loading invoice:', err)
+  } finally {
+    isLoadingInvoice.value = false
+  }
+}
+
 const updateDueDate = () => {
   if (form.value.issueDate && form.value.paymentTerms) {
     const issueDate = new Date(form.value.issueDate)
@@ -445,48 +489,15 @@ const removeItem = (index: number) => {
   }
 }
 
-const calculateItemTotal = (index: number) => {
-  const item = form.value.items[index]
-  if (item) {
-    const subtotal = (item.quantity || 0) * (item.unitPrice || 0)
-    const tax = subtotal * ((item.taxRate || 0) / 100)
-    item.subtotal = subtotal + tax
-  }
+const calculateItemSubtotal = (item: any) => {
+  const quantity = item.quantity || 0
+  const unitPrice = item.unitPrice || 0
+  item.subtotal = quantity * unitPrice
 }
 
 const searchCustomers = async () => {
-  if (customerSearch.value.length < 2) {
-    customerResults.value = []
-    return
-  }
-
-  try {
-    // Mock customer search - replace with actual API call
-    const mockCustomers = [
-      {
-        id: '1',
-        name: 'Empresa ABC S.A.',
-        taxId: '20-12345678-9',
-        email: 'contacto@empresaabc.com',
-        address: 'Av. Corrientes 1234, CABA'
-      },
-      {
-        id: '2',
-        name: 'Comercial XYZ',
-        taxId: '20-87654321-0',
-        email: 'ventas@comercialxyz.com',
-        address: 'San Martín 567, Buenos Aires'
-      }
-    ]
-
-    customerResults.value = mockCustomers.filter(customer =>
-      customer.name.toLowerCase().includes(customerSearch.value.toLowerCase()) ||
-      customer.taxId.includes(customerSearch.value) ||
-      customer.email.toLowerCase().includes(customerSearch.value.toLowerCase())
-    )
-  } catch (err) {
-    console.error('Error searching customers:', err)
-  }
+  // TODO: Implement customer search
+  console.log('Searching customers:', customerSearch.value)
 }
 
 const selectCustomer = (customer: any) => {
@@ -607,29 +618,39 @@ const validateItem = (item: any, index: number) => {
   }
 }
 
-const createInvoice = async () => {
-  if (!validateForm()) return
+const updateInvoice = async () => {
+  if (!validateForm() || !invoice.value) return
 
-  isCreating.value = true
+  isUpdating.value = true
   try {
     const invoiceData = {
-      ...form.value,
-      status: 'draft' as const,
-      subtotal: totals.value.subtotal,
-      tax: totals.value.tax,
-      total: totals.value.total
+      type: form.value.type,
+      customerId: form.value.customerId,
+      dueDate: form.value.dueDate,
+      notes: form.value.notes,
+      items: form.value.items.map(item => ({
+        id: item.id,
+        productId: item.productId || null,
+        description: item.description,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        discount: item.discount || 0,
+        taxRate: item.taxRate || 21
+      }))
     }
 
-    const invoice = await createInvoiceAPI(invoiceData)
-    router.push(`/invoices/${invoice.id}`)
+    await updateInvoiceAPI(invoice.value.id, invoiceData)
+    router.push(`/invoices/${invoice.value.id}`)
   } catch (err) {
     // Error is handled by the composable
   } finally {
-    isCreating.value = false
+    isUpdating.value = false
   }
 }
 
 const saveDraft = async () => {
+  if (!invoice.value) return
+  
   isSavingDraft.value = true
   try {
     const invoiceData = {
@@ -640,8 +661,8 @@ const saveDraft = async () => {
       total: totals.value.total
     }
 
-    const invoice = await createInvoiceAPI(invoiceData)
-    router.push(`/invoices/${invoice.id}`)
+    await updateInvoiceAPI(invoice.value.id, invoiceData)
+    router.push(`/invoices/${invoice.value.id}`)
   } catch (err) {
     // Error is handled by the composable
   } finally {
@@ -655,12 +676,12 @@ watch(() => form.value.issueDate, updateDueDate)
 
 // Lifecycle
 onMounted(() => {
-  updateDueDate()
+  loadInvoice()
 })
 </script>
 
 <style scoped>
-.invoice-new-view {
+.invoice-edit-view {
   @apply p-6 max-w-6xl mx-auto;
 }
 

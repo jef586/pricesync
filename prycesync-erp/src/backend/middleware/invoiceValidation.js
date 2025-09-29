@@ -22,8 +22,8 @@ export const validateCreateInvoice = [
   body('customerId')
     .notEmpty()
     .withMessage('El ID del cliente es requerido')
-    .isUUID()
-    .withMessage('El ID del cliente debe ser un UUID válido'),
+    .custom(isCUID)
+    .withMessage('El ID del cliente debe ser un CUID válido'),
   
   body('type')
     .optional()
@@ -36,8 +36,8 @@ export const validateCreateInvoice = [
   
   body('items.*.productId')
     .optional()
-    .isUUID()
-    .withMessage('El ID del producto debe ser un UUID válido'),
+    .custom(isCUID)
+    .withMessage('El ID del producto debe ser un CUID válido'),
   
   body('items.*.quantity')
     .isFloat({ min: 0.01 })
@@ -79,8 +79,18 @@ export const validateCreateInvoice = [
 // Validaciones para actualizar factura
 export const validateUpdateInvoice = [
   param('id')
-    .isUUID()
-    .withMessage('El ID de la factura debe ser un UUID válido'),
+    .custom(isCUID)
+    .withMessage('El ID de la factura debe ser un CUID válido'),
+
+  body('type')
+    .optional()
+    .isIn(['A', 'B', 'C', 'E'])
+    .withMessage('El tipo de factura debe ser A, B, C o E'),
+
+  body('customerId')
+    .optional()
+    .custom(isCUID)
+    .withMessage('El ID del cliente debe ser un CUID válido'),
   
   body('status')
     .optional()
@@ -108,14 +118,54 @@ export const validateUpdateInvoice = [
       return true;
     }),
   
+  body('items')
+    .optional()
+    .isArray()
+    .withMessage('Los items deben ser un array'),
+  
+  body('items.*.productId')
+    .optional()
+    .custom(isCUID)
+    .withMessage('El ID del producto debe ser un CUID válido'),
+  
+  body('items.*.description')
+    .optional()
+    .isLength({ min: 1, max: 500 })
+    .withMessage('La descripción debe tener entre 1 y 500 caracteres'),
+  
+  body('items.*.quantity')
+    .optional()
+    .isFloat({ min: 0.01 })
+    .withMessage('La cantidad debe ser mayor a 0'),
+  
+  body('items.*.unitPrice')
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage('El precio unitario debe ser mayor o igual a 0'),
+  
+  body('items.*.discount')
+    .optional()
+    .isFloat({ min: 0, max: 100 })
+    .withMessage('El descuento debe estar entre 0 y 100'),
+  
+  body('items.*.taxRate')
+    .optional()
+    .isFloat({ min: 0, max: 100 })
+    .withMessage('La tasa de impuesto debe estar entre 0 y 100'),
+  
   handleValidationErrors
 ];
+
+// Función auxiliar para validar CUID
+const isCUID = (value) => {
+  return /^c[a-z0-9]{24}$/.test(value);
+};
 
 // Validaciones para obtener factura por ID
 export const validateGetInvoice = [
   param('id')
-    .isUUID()
-    .withMessage('El ID de la factura debe ser un UUID válido'),
+    .custom(isCUID)
+    .withMessage('El ID de la factura debe ser un CUID válido'),
   
   handleValidationErrors
 ];
@@ -123,8 +173,8 @@ export const validateGetInvoice = [
 // Validaciones para eliminar factura
 export const validateDeleteInvoice = [
   param('id')
-    .isUUID()
-    .withMessage('El ID de la factura debe ser un UUID válido'),
+    .custom(isCUID)
+    .withMessage('El ID de la factura debe ser un CUID válido'),
   
   handleValidationErrors
 ];
@@ -132,8 +182,8 @@ export const validateDeleteInvoice = [
 // Validaciones para duplicar factura
 export const validateDuplicateInvoice = [
   param('id')
-    .isUUID()
-    .withMessage('El ID de la factura debe ser un UUID válido'),
+    .custom(isCUID)
+    .withMessage('El ID de la factura debe ser un CUID válido'),
   
   handleValidationErrors
 ];
@@ -167,8 +217,8 @@ export const validateListInvoices = [
   
   query('customerId')
     .optional()
-    .isUUID()
-    .withMessage('El ID del cliente debe ser un UUID válido'),
+    .custom(isCUID)
+    .withMessage('El ID del cliente debe ser un CUID válido'),
   
   query('dateFrom')
     .optional()
@@ -224,8 +274,8 @@ export const validateInvoiceReports = [
   
   query('customerId')
     .optional()
-    .isUUID()
-    .withMessage('El ID del cliente debe ser un UUID válido'),
+    .custom(isCUID)
+    .withMessage('El ID del cliente debe ser un CUID válido'),
   
   query('type')
     .optional()

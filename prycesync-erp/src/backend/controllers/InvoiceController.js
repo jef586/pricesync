@@ -53,7 +53,7 @@ class InvoiceController {
       const processedItems = [];
 
       for (const item of items) {
-        const { productId, quantity, unitPrice, discount = 0, taxRate = 21 } = item;
+        const { productId, description, quantity, unitPrice, discount = 0, taxRate = 21 } = item;
 
         // Verificar que el producto existe
         if (productId) {
@@ -85,6 +85,7 @@ class InvoiceController {
 
         processedItems.push({
           productId: productId || null,
+          description: description || null,
           quantity: itemQuantity,
           unitPrice: itemUnitPrice,
           discount: itemDiscount,
@@ -125,6 +126,7 @@ class InvoiceController {
             data: {
               invoiceId: newInvoice.id,
               productId: item.productId,
+              description: item.description,
               quantity: item.quantity,
               unitPrice: item.unitPrice,
               discount: item.discount,
@@ -414,7 +416,15 @@ class InvoiceController {
   static async update(req, res) {
     try {
       const { id } = req.params;
-      const { status, notes, dueDate, paidDate } = req.body;
+      const { 
+        type, 
+        customerId, 
+        dueDate, 
+        notes, 
+        items = [], 
+        status, 
+        paidDate 
+      } = req.body;
       const companyId = req.user.company.id;
 
       // Verificar que la factura existe y pertenece a la empresa
@@ -423,6 +433,9 @@ class InvoiceController {
           id,
           companyId: companyId,
           deletedAt: null
+        },
+        include: {
+          items: true
         }
       });
 
@@ -433,31 +446,138 @@ class InvoiceController {
         });
       }
 
-      // No permitir modificar facturas pagadas o canceladas
-      if (existingInvoice.status === 'paid' || existingInvoice.status === 'cancelled') {
+      // No permitir modificar facturas pagadas o canceladas (excepto para cambios de estado)
+      if ((existingInvoice.status === 'paid' || existingInvoice.status === 'cancelled') && 
+          (type || customerId || items.length > 0)) {
         return res.status(400).json({
           success: false,
-          message: 'No se puede modificar una factura pagada o cancelada'
+          message: 'No se puede modificar el contenido de una factura pagada o cancelada'
         });
       }
 
-      // Actualizar la factura
-      const updatedInvoice = await prisma.invoice.update({
+      // Si se están actualizando items, validar y procesar
+      let processedItems = [];
+      let subtotal = 0;
+      let taxAmount = 0;
+      let total = 0;
+
+      if (items && items.length > 0) {
+        // Validar items
+        for (const item of items) {
+          if (!item.quantity || item.quantity <= 0) {
+            return res.status(400).json({
+              success: false,
+              message: 'La cantidad debe ser mayor a 0'
+            });
+          }
+
+          if (!item.unitPrice || item.unitPrice < 0) {
+            return res.status(400).json({
+              success: false,
+              message: 'El precio unitario debe ser mayor o igual a 0'
+            });
+          }
+
+          const quantity = parseFloat(item.quantity);
+          const unitPrice = parseFloat(item.unitPrice);
+          const discount = parseFloat(item.discount || 0);
+          const taxRate = parseFloat(item.taxRate || 21);
+
+          const itemSubtotal = quantity * unitPrice;
+          const discountAmount = (itemSubtotal * discount) / 100;
+          const itemSubtotalAfterDiscount = itemSubtotal - discountAmount;
+          const itemTaxAmount = (itemSubtotalAfterDiscount * taxRate) / 100;
+          const itemTotal = itemSubtotalAfterDiscount + itemTaxAmount;
+
+          processedItems.push({
+            id: item.id || undefined,
+            productId: item.productId || null,
+            quantity: quantity,
+            unitPrice: unitPrice,
+            discount: discount,
+            taxRate: taxRate,
+            subtotal: itemSubtotalAfterDiscount,
+            taxAmount: itemTaxAmount,
+            total: itemTotal,
+            description: item.description || null
+          });
+
+          subtotal += itemSubtotalAfterDiscount;
+          taxAmount += itemTaxAmount;
+          total += itemTotal;
+        }
+      }
+
+      // Actualizar usando transacción
+      const updatedInvoice = await prisma.$transaction(async (tx) => {
+        // Actualizar la factura principal
+        const invoiceData = {};
+        
+        if (type) invoiceData.type = type;
+        if (customerId) invoiceData.customerId = customerId;
+        if (dueDate) invoiceData.dueDate = new Date(dueDate);
+        if (notes !== undefined) invoiceData.notes = notes;
+        if (status) invoiceData.status = status;
+        if (paidDate) invoiceData.paidDate = new Date(paidDate);
+        
+        // Si hay items, actualizar totales
+        if (processedItems.length > 0) {
+          invoiceData.subtotal = subtotal;
+          invoiceData.taxAmount = taxAmount;
+          invoiceData.total = total;
+        }
+
+        const invoice = await tx.invoice.update({
+          where: { id },
+          data: invoiceData
+        });
+
+        // Si hay items, actualizar los items
+        if (processedItems.length > 0) {
+          // Eliminar items existentes
+          await tx.invoiceItem.deleteMany({
+            where: { invoiceId: id }
+          });
+
+          // Crear nuevos items
+          for (const item of processedItems) {
+            await tx.invoiceItem.create({
+              data: {
+                invoiceId: id,
+                productId: item.productId,
+                description: item.description,
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                discount: item.discount,
+                taxRate: item.taxRate,
+                subtotal: item.subtotal,
+                taxAmount: item.taxAmount,
+                total: item.total
+              }
+            });
+          }
+        }
+
+        return invoice;
+      });
+
+      // Obtener la factura completa actualizada
+      const completeInvoice = await prisma.invoice.findUnique({
         where: { id },
-        data: {
-          ...(status && { status }),
-          ...(notes !== undefined && { notes }),
-          ...(dueDate && { dueDate: new Date(dueDate) }),
-          ...(paidDate && { paidDate: new Date(paidDate) })
-        },
         include: {
           customer: {
             select: {
               id: true,
               name: true,
               email: true,
+              phone: true,
               taxId: true,
-              type: true
+              type: true,
+              address: true,
+              city: true,
+              state: true,
+              country: true,
+              postalCode: true
             }
           },
           items: {
@@ -467,9 +587,32 @@ class InvoiceController {
                   id: true,
                   name: true,
                   code: true,
-                  description: true
+                  description: true,
+                  category: {
+                    select: {
+                      id: true,
+                      name: true
+                    }
+                  }
                 }
               }
+            },
+            orderBy: {
+              createdAt: 'asc'
+            }
+          },
+          company: {
+            select: {
+              id: true,
+              name: true,
+              taxId: true,
+              address: true,
+              city: true,
+              state: true,
+              country: true,
+              postalCode: true,
+              phone: true,
+              email: true
             }
           }
         }
@@ -478,7 +621,7 @@ class InvoiceController {
       res.json({
         success: true,
         message: 'Factura actualizada exitosamente',
-        data: updatedInvoice
+        data: completeInvoice
       });
 
     } catch (error) {
