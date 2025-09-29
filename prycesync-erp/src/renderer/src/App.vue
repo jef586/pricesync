@@ -7,6 +7,9 @@
     <main :class="authStore.isAuthenticated ? 'pt-0' : ''">
       <RouterView />
     </main>
+    
+    <!-- Contenedor de notificaciones global -->
+    <NotificationContainer />
   </div>
 </template>
 
@@ -14,6 +17,7 @@
 import { RouterView } from 'vue-router'
 import { useAuthStore } from './stores/auth'
 import AppNavbar from './components/organisms/AppNavbar.vue'
+import NotificationContainer from './components/molecules/NotificationContainer.vue'
 
 // Composables
 const authStore = useAuthStore()

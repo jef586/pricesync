@@ -220,10 +220,34 @@ class CustomerController {
       }
 
       // Generar código único
-      const customerCount = await prisma.customer.count({
-        where: { companyId, deletedAt: null }
-      });
-      const code = `CLI-${(customerCount + 1).toString().padStart(4, '0')}`;
+      let code;
+      let attempts = 0;
+      const maxAttempts = 100;
+      
+      do {
+        const customerCount = await prisma.customer.count({
+          where: { companyId }
+        });
+        code = `CLI-${(customerCount + attempts + 1).toString().padStart(4, '0')}`;
+        
+        const existingCode = await prisma.customer.findFirst({
+          where: { 
+            companyId, 
+            code,
+            deletedAt: null 
+          }
+        });
+        
+        if (!existingCode) break;
+        attempts++;
+      } while (attempts < maxAttempts);
+      
+      if (attempts >= maxAttempts) {
+        return res.status(500).json({
+          error: 'Error interno',
+          message: 'No se pudo generar un código único para el cliente'
+        });
+      }
 
       const customer = await prisma.customer.create({
         data: {

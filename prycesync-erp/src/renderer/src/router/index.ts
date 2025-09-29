@@ -43,6 +43,30 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/customers',
+      name: 'customers',
+      component: () => import('../views/CustomersView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/customers/new',
+      name: 'customer-new',
+      component: () => import('../views/CustomerNewView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/customers/:id',
+      name: 'customer-detail',
+      component: () => import('../views/CustomerDetailView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/customers/:id/edit',
+      name: 'customer-edit',
+      component: () => import('../views/CustomerEditView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/inventory',
       name: 'inventory',
       component: () => import('../views/InventoryView.vue'),
