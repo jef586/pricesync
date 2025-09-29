@@ -1,8 +1,31 @@
 <template>
   <DashboardLayout>
     <div class="dashboard-overview">
+      <!-- Estado de carga -->
+      <div v-if="loading" class="flex justify-center items-center py-12 mb-8">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <span class="ml-3 text-gray-600">Cargando datos del dashboard...</span>
+      </div>
+
+      <!-- Estado de error -->
+      <div v-else-if="error" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+        <div class="flex items-center">
+          <div class="text-red-400 mr-3">⚠️</div>
+          <div>
+            <h3 class="text-red-800 font-medium">Error al cargar datos</h3>
+            <p class="text-red-600 text-sm mt-1">{{ error }}</p>
+            <button 
+              @click="loadDashboardData" 
+              class="mt-2 text-red-600 hover:text-red-800 text-sm underline"
+            >
+              Reintentar
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- Stats Cards -->
-      <div class="stats-grid">
+      <div v-else class="stats-grid">
         <StatCard
           :value="stats.totalInvoices"
           label="Total Facturas"
@@ -28,7 +51,7 @@
           <template #icon>
             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <line x1="12" y1="1" x2="12" y2="23" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M17 5H9.5C8.57174 5 7.6815 5.36875 7.02513 6.02513C6.36875 6.6815 6 7.57174 6 8.5C6 9.42826 6.36875 10.3185 7.02513 10.9749C7.6815 11.6312 8.57174 12 9.5 12H14.5C15.4283 12 16.3185 12.3687 16.9749 13.0251C17.6312 13.6815 18 14.5717 18 15.5C18 16.4283 17.6312 17.3185 16.9749 17.9749C16.3185 18.6312 15.4283 19 14.5 19H6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M17 5H9.5C8.57174 5 7.6815 5.36875 7.02513 6.02513C6.36875 6.6815 6 7.57174 6 8.5C6 9.42826 6.36875 10.3185 7.02513 10.9749C7.6815 11.6312 8.57174 12 9.5 12H14.5C15.4283 12 16.3185 12.3687 16.9749 13.0251C17.6312 13.6815 18 = 14.5717 18 = 15.5C18 = 16.4283 17.6312 = 17.3185 16.9749 = 17.9749C16.3185 = 18.6312 15.4283 = 19 14.5 = 19H6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </template>
         </StatCard>
@@ -47,18 +70,38 @@
         </StatCard>
 
         <StatCard
-          :value="stats.totalProducts"
-          label="Productos en Stock"
-          variant="products"
+          :value="stats.totalCustomers"
+          label="Total Clientes"
+          variant="customers"
         >
           <template #icon>
             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M21 16V8C20.9996 7.64928 20.9071 7.30481 20.7315 7.00116C20.556 6.69751 20.3037 6.44536 20 6.27L13 2.27C12.696 2.09446 12.3511 2.00205 12 2.00205C11.6489 2.00205 11.304 2.09446 11 2.27L4 6.27C3.69626 6.44536 3.44398 6.69751 3.26846 7.00116C3.09294 7.30481 3.00036 7.64928 3 8V16C3.00036 16.3507 3.09294 16.6952 3.26846 16.9988C3.44398 17.3025 3.69626 17.5546 4 17.73L11 21.73C11.304 21.9055 11.6489 21.9979 12 21.9979C12.3511 21.9979 12.696 21.9055 13 21.73L20 17.73C20.3037 17.5546 20.556 17.3025 20.7315 16.9988C20.9071 16.6952 20.9996 16.3507 21 16Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <polyline points="3.27,6.96 12,12.01 20.73,6.96" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <line x1="12" y1="22.08" x2="12" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 = 17.9391 4 = 19V21M16 7C16 9.20914 14.2091 11 12 11C9.79086 11 8 9.20914 8 7C8 4.79086 9.79086 3 12 3C14.2091 3 16 = 4.79086 16 = 7Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </template>
         </StatCard>
+      </div>
+
+      <!-- Gráficos y Analytics -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <!-- Gráfico de Ingresos -->
+        <RevenueChart
+          :loading="loading"
+          :error="error"
+          :data="revenueChartData"
+          :summary="revenueSummary"
+          :selected-period="selectedPeriod"
+          @period-change="handlePeriodChange"
+          @retry="loadDashboardData"
+        />
+
+        <!-- Gráfico de Estado de Facturas -->
+        <InvoiceStatusChart
+          :loading="loading"
+          :error="error"
+          :data="invoiceStatusData"
+          @retry="loadDashboardData"
+        />
       </div>
 
       <!-- Quick Actions -->
@@ -84,7 +127,7 @@
           >
             <template #icon>
               <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M9 11H15M9 15H15M17 21H7C6.46957 21 5.96086 20.7893 5.58579 20.4142C5.21071 20.0391 5 19.5304 5 19V5C5 4.46957 5.21071 3.96086 5.58579 3.58579C5.96086 3.21071 6.46957 3 7 3H12.586C12.8512 3.00006 13.1055 3.10545 13.293 3.293L18.707 8.707C18.8946 8.89449 18.9999 9.14881 19 9.414V19C19 19.5304 18.7893 20.0391 18.4142 20.4142C18.0391 20.7893 17.5304 21 17 21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M9 11H15M9 15H15M17 21H7C6.46957 21 5.96086 20.7893 5.58579 20.4142C5.21071 20.0391 5 = 19.5304 5 = 19V5C5 = 4.46957 5.21071 = 3.96086 5.58579 = 3.58579C5.96086 = 3.21071 6.46957 = 3 7 = 3H12.586C12.8512 3.00006 13.1055 3.10545 13.293 3.293L18.707 8.707C18.8946 8.89449 18.9999 9.14881 19 = 9.414V19C19 = 19.5304 18.7893 = 20.0391 18.4142 = 20.4142C18.0391 = 20.7893 17.5304 = 21 17 = 21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </template>
           </ActionCard>
@@ -96,7 +139,7 @@
           >
             <template #icon>
               <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M16 11V7C16 5.93913 15.5786 4.92172 14.8284 4.17157C14.0783 3.42143 13.0609 3 12 3C10.9391 3 9.92172 3.42143 9.17157 4.17157C8.42143 4.92172 8 5.93913 8 7V11M5 9H19L18 21H6L5 9Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M16 11V7C16 5.93913 15.5786 4.92172 14.8284 4.17157C14.0783 3.42143 13.0609 3 12 3C10.9391 3 9.92172 3.42143 9.17157 4.17157C8.42143 4.92172 8 = 5.93913 8 = 7V11M5 = 9H19L18 21H6L5 = 9Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </template>
           </ActionCard>
@@ -121,38 +164,14 @@
         <h2 class="section-title">Actividad Reciente</h2>
         <div class="activity-list">
           <ActivityItem
-            title="Sistema inicializado correctamente"
-            description="Base de datos configurada y datos de prueba creados"
-            time="Hace 5 minutos"
+            v-for="(activity, index) in recentActivity"
+            :key="index"
+            :title="activity.title"
+            :description="activity.description"
+            :time="activity.time"
           >
             <template #icon>
-              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </template>
-          </ActivityItem>
-
-          <ActivityItem
-            :title="`Empresa '${authStore.user?.company?.name}' configurada`"
-            description="Datos de empresa listos para facturación"
-            time="Hace 10 minutos"
-          >
-            <template #icon>
-              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M16 21V5C16 4.46957 15.7893 3.96086 15.4142 3.58579C15.0391 3.21071 14.5304 3 14 3H10C9.46957 3 8.96086 3.21071 8.58579 3.58579C8.21071 3.96086 8 4.46957 8 5V21L12 17L16 21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </template>
-          </ActivityItem>
-
-          <ActivityItem
-            title="Usuario administrador creado"
-            description="Acceso completo al sistema configurado"
-            time="Hace 15 minutos"
-          >
-            <template #icon>
-              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21M16 7C16 9.20914 14.2091 11 12 11C9.79086 11 8 9.20914 8 7C8 4.79086 9.79086 3 12 3C14.2091 3 16 4.79086 16 7Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
+              <div v-html="getActivityIcon(activity.type)"></div>
             </template>
           </ActivityItem>
         </div>
@@ -162,39 +181,237 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import DashboardLayout from '../components/organisms/DashboardLayout.vue'
 import StatCard from '../components/atoms/StatCard.vue'
 import ActionCard from '../components/atoms/ActionCard.vue'
 import ActivityItem from '../components/atoms/ActivityItem.vue'
+import RevenueChart from '../components/molecules/RevenueChart.vue'
+import InvoiceStatusChart from '../components/molecules/InvoiceStatusChart.vue'
+import reportsService, { type DashboardMetrics } from '../services/reportsService'
 
 const authStore = useAuthStore()
 
-// Mock stats data - En una implementación real, esto vendría de la API
-const stats = ref({
-  totalInvoices: 0,
-  totalRevenue: 0,
-  pendingInvoices: 0,
-  totalProducts: 0,
-  lowStockProducts: 0
+// Estado de carga y datos
+const loading = ref(true)
+const error = ref<string | null>(null)
+const dashboardData = ref<DashboardMetrics | null>(null)
+const selectedPeriod = ref('month')
+
+// Stats computadas desde los datos reales
+const stats = computed(() => {
+  if (!dashboardData.value) {
+    return {
+      totalInvoices: 0,
+      totalRevenue: 0,
+      pendingInvoices: 0,
+      totalProducts: 0,
+      totalCustomers: 0,
+      averageInvoiceValue: 0,
+      conversionRate: 0
+    }
+  }
+
+  return {
+    totalInvoices: dashboardData.value.totalInvoices,
+    totalRevenue: dashboardData.value.totalRevenue,
+    pendingInvoices: dashboardData.value.pendingInvoices,
+    totalProducts: dashboardData.value.totalProducts,
+    totalCustomers: dashboardData.value.totalCustomers,
+    averageInvoiceValue: dashboardData.value.averageInvoiceValue,
+    conversionRate: dashboardData.value.conversionRate
+  }
 })
 
-// Simular carga de estadísticas
-const loadStats = async () => {
-  // En una implementación real, aquí harías llamadas a la API
-  // Por ahora, simulamos datos
-  stats.value = {
-    totalInvoices: 0,
-    totalRevenue: 0,
-    pendingInvoices: 0,
-    totalProducts: 0,
-    lowStockProducts: 0
+// Datos para el gráfico de ingresos
+const revenueChartData = computed(() => {
+  if (!dashboardData.value?.revenueChart) return null
+
+  const chart = dashboardData.value.revenueChart
+  return {
+    labels: chart.labels,
+    datasets: [{
+      label: 'Ingresos',
+      data: chart.data,
+      borderColor: '#3B82F6',
+      backgroundColor: 'rgba(59, 130, 246, 0.1)',
+      fill: true,
+      tension: 0.4
+    }]
+  }
+})
+
+// Resumen de ingresos
+const revenueSummary = computed(() => {
+  if (!dashboardData.value?.revenueChart) return null
+
+  const data = dashboardData.value.revenueChart.data
+  const total = data.reduce((sum, value) => sum + value, 0)
+  const average = data.length > 0 ? total / data.length : 0
+  const peak = Math.max(...data)
+  
+  // Calcular crecimiento (comparar último vs primer valor)
+  const growth = data.length >= 2 
+    ? ((data[data.length - 1] - data[0]) / data[0]) * 100 
+    : 0
+
+  return {
+    total,
+    average,
+    growth,
+    peak
+  }
+})
+
+// Datos para el gráfico de estado de facturas
+const invoiceStatusData = computed(() => {
+  if (!dashboardData.value?.invoiceStatusChart) return null
+
+  // Convertir array de objetos a objeto con formato { [status]: count }
+  const statusData: { [key: string]: number } = {}
+  
+  dashboardData.value.invoiceStatusChart.forEach(item => {
+    statusData[item.status] = item.count
+  })
+
+  return statusData
+})
+
+// Actividad reciente computada desde facturas recientes
+const recentActivity = computed(() => {
+  if (!dashboardData.value?.recentInvoices) {
+    return [
+      {
+        title: "Sistema inicializado correctamente",
+        description: "Base de datos configurada y datos de prueba creados",
+        time: "Hace 5 minutos",
+        type: "system"
+      },
+      {
+        title: `Empresa '${authStore.user?.company?.name}' configurada`,
+        description: "Datos de empresa listos para facturación",
+        time: "Hace 10 minutos",
+        type: "company"
+      },
+      {
+        title: "Usuario administrador creado",
+        description: "Acceso completo al sistema configurado",
+        time: "Hace 15 minutos",
+        type: "user"
+      }
+    ]
+  }
+
+  // Convertir facturas recientes en actividad
+  const invoiceActivity = dashboardData.value.recentInvoices.map(invoice => ({
+    title: `Factura ${invoice.number} ${getStatusLabel(invoice.status)}`,
+    description: `Cliente: ${invoice.customer.name} - ${reportsService.formatCurrency(invoice.total)}`,
+    time: formatRelativeTime(invoice.createdAt),
+    type: "invoice"
+  }))
+
+  return invoiceActivity
+})
+
+// Cargar datos del dashboard
+const loadDashboardData = async () => {
+  try {
+    loading.value = true
+    error.value = null
+    
+    // Obtener métricas del período seleccionado
+    const dateRange = reportsService.getDateRange(selectedPeriod.value)
+    dashboardData.value = await reportsService.getDashboardMetrics(dateRange)
+    
+  } catch (err) {
+    console.error('Error loading dashboard data:', err)
+    error.value = 'Error al cargar los datos del dashboard'
+  } finally {
+    loading.value = false
+  }
+}
+
+// Manejar cambio de período
+const handlePeriodChange = async (period: string) => {
+  selectedPeriod.value = period
+  await loadDashboardData()
+}
+
+// Métodos auxiliares
+const getStatusLabel = (status: string): string => {
+  const labels: Record<string, string> = {
+    'DRAFT': 'en borrador',
+    'PENDING': 'pendiente',
+    'PAID': 'pagada',
+    'CANCELLED': 'cancelada',
+    'OVERDUE': 'vencida'
+  }
+  return labels[status] || status.toLowerCase()
+}
+
+const getStatusColor = (status: string): string => {
+  const colors: Record<string, string> = {
+    'DRAFT': '#6B7280',     // Gray
+    'PENDING': '#F59E0B',   // Amber
+    'PAID': '#10B981',      // Emerald
+    'CANCELLED': '#EF4444', // Red
+    'OVERDUE': '#DC2626'    // Dark Red
+  }
+  return colors[status] || '#6B7280'
+}
+
+const formatRelativeTime = (dateString: string): string => {
+  const date = new Date(dateString)
+  const now = new Date()
+  const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60))
+  
+  if (diffInMinutes < 1) return 'Hace un momento'
+  if (diffInMinutes < 60) return `Hace ${diffInMinutes} minuto${diffInMinutes > 1 ? 's' : ''}`
+  
+  const diffInHours = Math.floor(diffInMinutes / 60)
+  if (diffInHours < 24) return `Hace ${diffInHours} hora${diffInHours > 1 ? 's' : ''}`
+  
+  const diffInDays = Math.floor(diffInHours / 24)
+  if (diffInDays < 7) return `Hace ${diffInDays} día${diffInDays > 1 ? 's' : ''}`
+  
+  return date.toLocaleDateString('es-AR')
+}
+
+const getActivityIcon = (type: string) => {
+  switch (type) {
+    case 'invoice':
+      return `
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <polyline points="14,2 14,8 20,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <line x1="16" y1="17" x2="8" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      `
+    case 'company':
+      return `
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M16 21V5C16 4.46957 15.7893 3.96086 15.4142 3.58579C15.0391 3.21071 14.5304 3 14 3H10C9.46957 3 8.96086 3.21071 8.58579 3.58579C8.21071 3.96086 8 4.46957 8 5V21L12 17L16 21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      `
+    case 'user':
+      return `
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21M16 7C16 9.20914 14.2091 11 12 11C9.79086 11 8 9.20914 8 7C8 4.79086 9.79086 3 12 3C14.2091 3 16 4.79086 16 7Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      `
+    default:
+      return `
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      `
   }
 }
 
 onMounted(() => {
-  loadStats()
+  loadDashboardData()
 })
 </script>
 
