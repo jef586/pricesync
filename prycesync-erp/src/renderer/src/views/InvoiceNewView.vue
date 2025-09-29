@@ -45,19 +45,15 @@
           </template>
 
           <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <BaseInput
+            <BaseSelect
               v-model="form.type"
               label="Tipo de Factura"
+              placeholder="Seleccionar tipo"
+              :options="invoiceTypeOptions"
               required
-              :error="errors.type"
-            >
-              <select v-model="form.type" class="form-select">
-                <option value="">Seleccionar tipo</option>
-                <option value="A">Factura A</option>
-                <option value="B">Factura B</option>
-                <option value="C">Factura C</option>
-              </select>
-            </BaseInput>
+              :has-error="!!errors.type"
+              :error-message="errors.type"
+            />
 
             <BaseInput
               v-model="form.number"
@@ -333,6 +329,7 @@ import DashboardLayout from '../components/organisms/DashboardLayout.vue'
 import BaseButton from '../components/atoms/BaseButton.vue'
 import BaseCard from '../components/atoms/BaseCard.vue'
 import BaseInput from '../components/atoms/BaseInput.vue'
+import BaseSelect from '../components/atoms/BaseSelect.vue'
 import { useInvoices, type CreateInvoiceData, type InvoiceItem } from '../composables/useInvoices'
 
 const router = useRouter()
@@ -378,6 +375,13 @@ const form = ref<CreateInvoiceData>({
 
 // Validation errors
 const errors = ref<Record<string, string>>({})
+
+// Invoice type options
+const invoiceTypeOptions = [
+  { value: 'A', label: 'Factura A - Responsable Inscripto' },
+  { value: 'B', label: 'Factura B - Responsable Inscripto (menor)' },
+  { value: 'C', label: 'Factura C - Consumidor Final' }
+]
 
 // Computed
 const totals = computed(() => {
@@ -461,31 +465,22 @@ const searchCustomers = async () => {
   }
 
   try {
-    // Mock customer search - replace with actual API call
-    const mockCustomers = [
-      {
-        id: '1',
-        name: 'Empresa ABC S.A.',
-        taxId: '20-12345678-9',
-        email: 'contacto@empresaabc.com',
-        address: 'Av. Corrientes 1234, CABA'
-      },
-      {
-        id: '2',
-        name: 'Comercial XYZ',
-        taxId: '20-87654321-0',
-        email: 'ventas@comercialxyz.com',
-        address: 'San Martín 567, Buenos Aires'
+    const response = await fetch(`http://localhost:3002/api/customers/search?q=${encodeURIComponent(customerSearch.value)}`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Content-Type': 'application/json'
       }
-    ]
+    })
 
-    customerResults.value = mockCustomers.filter(customer =>
-      customer.name.toLowerCase().includes(customerSearch.value.toLowerCase()) ||
-      customer.taxId.includes(customerSearch.value) ||
-      customer.email.toLowerCase().includes(customerSearch.value.toLowerCase())
-    )
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+
+    const customers = await response.json()
+    customerResults.value = customers
   } catch (err) {
     console.error('Error searching customers:', err)
+    customerResults.value = []
   }
 }
 

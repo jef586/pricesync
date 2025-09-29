@@ -32,20 +32,58 @@ class InvoiceController {
         });
       }
 
-      // Generar número de factura secuencial
+      // Generar número de factura secuencial único por compañía
+      let nextNumber;
+      let attempts = 0;
+      const maxAttempts = 50;
+
+      // Obtener el último número para esta compañía y tipo
       const lastInvoice = await prisma.invoice.findFirst({
         where: {
           companyId: companyId,
-          type: type
+          type: type,
+          deletedAt: null
         },
-        orderBy: {
-          number: 'desc'
-        }
+        orderBy: [
+          { number: 'desc' },
+          { createdAt: 'desc' }
+        ]
       });
 
-      const nextNumber = lastInvoice ? 
-        (parseInt(lastInvoice.number) + 1).toString().padStart(8, '0') : 
-        '00000001';
+      let baseNumber = 1;
+      if (lastInvoice && lastInvoice.number) {
+        // Extraer el número secuencial del formato "A-0001-00000002" o "00000001"
+        const numberMatch = lastInvoice.number.match(/(\d+)$/);
+        if (numberMatch) {
+          baseNumber = parseInt(numberMatch[1]) + 1;
+        }
+      }
+
+      // Buscar el próximo número disponible
+      do {
+        nextNumber = baseNumber.toString().padStart(8, '0');
+        
+        // Verificar que el número no existe ya para esta compañía
+        const existingInvoice = await prisma.invoice.findFirst({
+          where: {
+            companyId: companyId,
+            number: nextNumber,
+            deletedAt: null
+          }
+        });
+
+        if (!existingInvoice) {
+          break; // Número único encontrado
+        }
+
+        baseNumber++;
+        attempts++;
+        
+        if (attempts >= maxAttempts) {
+          throw new Error('No se pudo generar un número de factura único después de varios intentos');
+        }
+
+      } while (attempts < maxAttempts);
 
       // Calcular totales de los items
       let subtotal = new Decimal(0);
@@ -349,7 +387,7 @@ class InvoiceController {
               city: true,
               state: true,
               country: true,
-              postalCode: true
+              zipCode: true
             }
           },
           items: {
@@ -382,7 +420,7 @@ class InvoiceController {
               city: true,
               state: true,
               country: true,
-              postalCode: true,
+              zipCode: true,
               phone: true,
               email: true
             }
@@ -577,7 +615,7 @@ class InvoiceController {
               city: true,
               state: true,
               country: true,
-              postalCode: true
+              zipCode: true
             }
           },
           items: {
@@ -610,7 +648,7 @@ class InvoiceController {
               city: true,
               state: true,
               country: true,
-              postalCode: true,
+              zipCode: true,
               phone: true,
               email: true
             }
@@ -713,20 +751,58 @@ class InvoiceController {
         });
       }
 
-      // Generar nuevo número
+      // Generar nuevo número único
+      let nextNumber;
+      let attempts = 0;
+      const maxAttempts = 50;
+
+      // Obtener el último número para esta compañía y tipo
       const lastInvoice = await prisma.invoice.findFirst({
         where: {
           companyId: companyId,
-          type: originalInvoice.type
+          type: originalInvoice.type,
+          deletedAt: null
         },
-        orderBy: {
-          number: 'desc'
-        }
+        orderBy: [
+          { number: 'desc' },
+          { createdAt: 'desc' }
+        ]
       });
 
-      const nextNumber = lastInvoice ? 
-        (parseInt(lastInvoice.number) + 1).toString().padStart(8, '0') : 
-        '00000001';
+      let baseNumber = 1;
+      if (lastInvoice && lastInvoice.number) {
+        // Extraer el número secuencial del formato "A-0001-00000002" o "00000001"
+        const numberMatch = lastInvoice.number.match(/(\d+)$/);
+        if (numberMatch) {
+          baseNumber = parseInt(numberMatch[1]) + 1;
+        }
+      }
+
+      // Buscar el próximo número disponible
+      do {
+        nextNumber = baseNumber.toString().padStart(8, '0');
+        
+        // Verificar que el número no existe ya para esta compañía
+        const existingInvoice = await prisma.invoice.findFirst({
+          where: {
+            companyId: companyId,
+            number: nextNumber,
+            deletedAt: null
+          }
+        });
+
+        if (!existingInvoice) {
+          break; // Número único encontrado
+        }
+
+        baseNumber++;
+        attempts++;
+        
+        if (attempts >= maxAttempts) {
+          throw new Error('No se pudo generar un número de factura único para duplicar');
+        }
+
+      } while (attempts < maxAttempts);
 
       // Duplicar la factura
       const duplicatedInvoice = await prisma.$transaction(async (tx) => {

@@ -1,6 +1,11 @@
 import { body, param, query, validationResult } from 'express-validator';
 
-// Middleware para manejar errores de validación
+// Función auxiliar para validar CUID
+const isCUID = (value) => {
+  return /^c[a-z0-9]{24}$/.test(value);
+};
+
+// Función para manejar errores de validación
 export const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -155,11 +160,6 @@ export const validateUpdateInvoice = [
   
   handleValidationErrors
 ];
-
-// Función auxiliar para validar CUID
-const isCUID = (value) => {
-  return /^c[a-z0-9]{24}$/.test(value);
-};
 
 // Validaciones para obtener factura por ID
 export const validateGetInvoice = [

@@ -49,19 +49,15 @@
           </template>
 
           <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <BaseInput
+            <BaseSelect
               v-model="form.type"
               label="Tipo de Factura"
+              placeholder="Seleccionar tipo"
+              :options="invoiceTypeOptions"
               required
-              :error="errors.type"
-            >
-              <select v-model="form.type" class="form-select">
-                <option value="">Seleccionar tipo</option>
-                <option value="A">Factura A</option>
-                <option value="B">Factura B</option>
-                <option value="C">Factura C</option>
-              </select>
-            </BaseInput>
+              :has-error="!!errors.type"
+              :error-message="errors.type"
+            />
 
             <BaseInput
               v-model="form.number"
@@ -341,6 +337,7 @@ import DashboardLayout from '../components/organisms/DashboardLayout.vue'
 import BaseButton from '../components/atoms/BaseButton.vue'
 import BaseCard from '../components/atoms/BaseCard.vue'
 import BaseInput from '../components/atoms/BaseInput.vue'
+import BaseSelect from '../components/atoms/BaseSelect.vue'
 import { useInvoices, type Invoice, type CreateInvoiceData, type InvoiceItem } from '../composables/useInvoices'
 
 const route = useRoute()
@@ -381,6 +378,13 @@ const form = ref<CreateInvoiceData & { number?: string }>({
 
 // Validation errors
 const errors = ref<Record<string, string>>({})
+
+// Invoice type options
+const invoiceTypeOptions = [
+  { value: 'A', label: 'Factura A' },
+  { value: 'B', label: 'Factura B' },
+  { value: 'C', label: 'Factura C' }
+]
 
 // Computed
 const totals = computed(() => {
