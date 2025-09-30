@@ -18,38 +18,25 @@
       </PageHeader>
 
       <!-- Filters -->
-      <div class="bg-white rounded-lg shadow mb-6">
-        <div class="p-4 border-b border-gray-200">
-          <div class="flex flex-col sm:flex-row gap-4">
-            <div class="flex-1">
-              <BaseInput
-                v-model="filters.search"
-                placeholder="Buscar categorías..."
-                @input="debouncedSearch"
-              >
-                <template #prefix>
-                  <MagnifyingGlassIcon class="w-4 h-4 text-gray-400" />
-                </template>
-              </BaseInput>
-            </div>
-            <div class="flex gap-2">
-              <BaseButton
-                variant="ghost"
-                @click="toggleView"
-              >
-                <component :is="viewMode === 'tree' ? ListBulletIcon : Squares2X2Icon" class="w-4 h-4 mr-2" />
-                {{ viewMode === 'tree' ? 'Vista Lista' : 'Vista Árbol' }}
-              </BaseButton>
-              <BaseButton
-                variant="ghost"
-                @click="resetFilters"
-              >
-                Limpiar
-              </BaseButton>
-            </div>
+      <FilterBar
+        v-model="filters"
+        search-placeholder="Buscar categorías..."
+        @filter-change="applyFilters"
+        @search="debouncedSearch"
+        class="mb-6"
+      >
+        <template #extra-filters>
+          <div class="flex gap-2">
+            <BaseButton
+              variant="ghost"
+              @click="toggleView"
+            >
+              <component :is="viewMode === 'tree' ? ListBulletIcon : Squares2X2Icon" class="w-4 h-4 mr-2" />
+              {{ viewMode === 'tree' ? 'Vista Lista' : 'Vista Árbol' }}
+            </BaseButton>
           </div>
-        </div>
-      </div>
+        </template>
+      </FilterBar>
 
       <!-- Loading State -->
       <div v-if="isLoading && !hasCategories" class="bg-white rounded-lg shadow p-6">
@@ -69,7 +56,7 @@
         <div class="text-center">
           <ExclamationTriangleIcon class="w-12 h-12 text-red-500 mx-auto mb-4" />
           <h3 class="text-lg font-medium text-gray-900 mb-2">Error al cargar categorías</h3>
-          <p class="text-gray-600 mb-4">{{ error }}</p>
+          <p class="text-gray-600 mb-4">{{ categoriesError }}</p>
           <BaseButton @click="loadCategories">
             Reintentar
           </BaseButton>
@@ -254,6 +241,7 @@ import {
 // Components
 import DashboardLayout from '@/components/organisms/DashboardLayout.vue'
 import PageHeader from '@/components/molecules/PageHeader.vue'
+import FilterBar from '@/components/molecules/FilterBar.vue'
 import BaseInput from '@/components/atoms/BaseInput.vue'
 import BaseButton from '@/components/atoms/BaseButton.vue'
 import ConfirmModal from '@/components/atoms/ConfirmModal.vue'
@@ -267,7 +255,7 @@ const {
   categoryTree,
   isLoading,
   hasError,
-  error,
+  error: categoriesError,
   pagination,
   hasCategories,
   fetchCategories,
@@ -297,6 +285,11 @@ const debouncedSearch = debounce(() => {
 }, 300)
 
 // Methods
+const applyFilters = () => {
+  filters.value.page = 1
+  loadCategories()
+}
+
 const loadCategories = async () => {
   try {
     if (viewMode.value === 'tree') {

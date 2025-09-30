@@ -224,7 +224,7 @@ const {
   getHierarchicalOptions
 } = useCategories()
 
-const { success, error } = useNotifications()
+const { success, error: notifyError } = useNotifications()
 
 // State
 const showDeleteModal = ref(false)
@@ -353,7 +353,7 @@ const validateForm = () => {
 
 const handleSubmit = async () => {
   if (!validateForm()) {
-    error('Por favor, corrija los errores en el formulario')
+    notifyError('Por favor, corrija los errores en el formulario')
     return
   }
 
@@ -371,7 +371,7 @@ const handleSubmit = async () => {
     router.push('/categories')
   } catch (err: any) {
     console.error('Error updating category:', err)
-    error(err.message || 'Error al actualizar la categoría')
+    notifyError(err.message || 'Error al actualizar la categoría')
   }
 }
 
@@ -384,7 +384,7 @@ const handleDelete = async () => {
     router.push('/categories')
   } catch (err: any) {
     console.error('Error deleting category:', err)
-    error(err.message || 'Error al eliminar la categoría')
+    notifyError(err.message || 'Error al eliminar la categoría')
   } finally {
     showDeleteModal.value = false
   }

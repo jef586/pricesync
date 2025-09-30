@@ -14,7 +14,6 @@ class CategoryController {
       const categories = await prisma.category.findMany({
         where: {
           companyId,
-          deletedAt: null,
           OR: [
             {
               name: {
@@ -74,7 +73,6 @@ class CategoryController {
 
       const where = {
         companyId,
-        deletedAt: null,
         ...(parentId !== undefined && { parentId: parentId || null }),
         ...(search && {
           OR: [
@@ -104,19 +102,12 @@ class CategoryController {
                   id: true,
                   name: true,
                   description: true
-                },
-                where: {
-                  deletedAt: null
                 }
               }
             }),
             _count: {
               select: {
-                products: {
-                  where: {
-                    deletedAt: null
-                  }
-                }
+                products: true
               }
             },
             createdAt: true,
@@ -159,8 +150,7 @@ class CategoryController {
       const category = await prisma.category.findFirst({
         where: {
           id,
-          companyId,
-          deletedAt: null
+          companyId
         },
         include: {
           parent: {
@@ -175,18 +165,11 @@ class CategoryController {
               id: true,
               name: true,
               description: true
-            },
-            where: {
-              deletedAt: null
             }
           },
           _count: {
             select: {
-              products: {
-                where: {
-                  deletedAt: null
-                }
-              }
+              products: true
             }
           }
         }
@@ -236,8 +219,7 @@ class CategoryController {
         const parentCategory = await prisma.category.findFirst({
           where: {
             id: parentId,
-            companyId,
-            deletedAt: null
+            companyId
           }
         });
 
@@ -254,8 +236,7 @@ class CategoryController {
         where: {
           companyId,
           name: name.trim(),
-          parentId: parentId || null,
-          deletedAt: null
+          parentId: parentId || null
         }
       });
 
@@ -321,8 +302,7 @@ class CategoryController {
       const existingCategory = await prisma.category.findFirst({
         where: {
           id,
-          companyId,
-          deletedAt: null
+          companyId
         }
       });
 
@@ -429,22 +409,13 @@ class CategoryController {
       const category = await prisma.category.findFirst({
         where: {
           id,
-          companyId,
-          deletedAt: null
+          companyId
         },
         include: {
           _count: {
             select: {
-              products: {
-                where: {
-                  deletedAt: null
-                }
-              },
-              children: {
-                where: {
-                  deletedAt: null
-                }
-              }
+              products: true,
+              children: true
             }
           }
         }
@@ -510,11 +481,7 @@ class CategoryController {
           parentId: true,
           _count: {
             select: {
-              products: {
-                where: {
-                  deletedAt: null
-                }
-              }
+              products: true
             }
           }
         },
@@ -576,8 +543,7 @@ async function checkCircularReference(categoryId, parentId, companyId) {
     const parent = await prisma.category.findFirst({
       where: {
         id: currentParentId,
-        companyId,
-        deletedAt: null
+        companyId
       },
       select: {
         parentId: true
