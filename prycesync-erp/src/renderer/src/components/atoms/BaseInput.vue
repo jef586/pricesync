@@ -11,6 +11,9 @@
       :placeholder="placeholder"
       :required="required"
       :disabled="disabled"
+      :step="step"
+      :min="min"
+      :max="max"
       :class="[
         'base-input__field',
         {
@@ -18,7 +21,7 @@
           'base-input__field--disabled': disabled
         }
       ]"
-      @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
+      @input="handleInput"
       @blur="$emit('blur')"
       @focus="$emit('focus')"
     />
@@ -30,19 +33,22 @@
 
 <script setup lang="ts">
 interface Props {
-  modelValue: string
+  modelValue: string | number
   label?: string
-  type?: 'text' | 'email' | 'password' | 'tel'
+  type?: 'text' | 'email' | 'password' | 'tel' | 'number'
   placeholder?: string
   required?: boolean
   disabled?: boolean
   hasError?: boolean
   errorMessage?: string
   id?: string
+  step?: string
+  min?: string | number
+  max?: string | number
 }
 
 interface Emits {
-  (e: 'update:modelValue', value: string): void
+  (e: 'update:modelValue', value: string | number): void
   (e: 'blur'): void
   (e: 'focus'): void
 }
@@ -55,7 +61,20 @@ withDefaults(defineProps<Props>(), {
   id: () => `input-${Math.random().toString(36).substr(2, 9)}`
 })
 
-defineEmits<Emits>()
+const emit = defineEmits<Emits>()
+
+const handleInput = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const value = target.value
+  
+  // Si es un input de tipo number, convertir a número
+  if (target.type === 'number') {
+    const numValue = parseFloat(value)
+    emit('update:modelValue', isNaN(numValue) ? 0 : numValue)
+  } else {
+    emit('update:modelValue', value)
+  }
+}
 </script>
 
 <style scoped>

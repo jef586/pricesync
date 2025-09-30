@@ -1,38 +1,334 @@
 <template>
   <DashboardLayout>
-    <div class="inventory-view">
+    <div class="products-view">
+      <!-- Header -->
       <PageHeader
-        title="Gestión de Inventario"
+        title="Gestión de Productos"
+        subtitle="Administra el inventario y productos de tu empresa"
       >
         <template #actions>
-          <button class="btn-primary">
-            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <BaseButton
+            variant="primary"
+            @click="$router.push('/products/new')"
+          >
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
             </svg>
             Nuevo Producto
-          </button>
+          </BaseButton>
         </template>
       </PageHeader>
 
-      <div class="content-placeholder">
-        <div class="placeholder-icon">
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M21 16V8C20.9996 7.64928 20.9071 7.30481 20.7315 7.00116C20.556 6.69751 20.3037 6.44536 20 6.27L13 2.27C12.696 2.09446 12.3511 2.00205 12 2.00205C11.6489 2.00205 11.304 2.09446 11 2.27L4 6.27C3.69626 6.44536 3.44398 6.69751 3.26846 7.00116C3.09294 7.30481 3.00036 7.64928 3 8V16C3.00036 16.3507 3.09294 16.6952 3.26846 16.9988C3.44398 17.3025 3.69626 17.5546 4 17.73L11 21.73C11.304 21.9055 11.6489 21.9979 12 21.9979C12.3511 21.9979 12.696 21.9055 13 21.73L20 17.73C20.3037 17.5546 20.556 17.3025 20.7315 16.9988C20.9071 16.6952 20.9996 16.3507 21 16Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M3.27 6.96L12 12.01L20.73 6.96" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M12 22.08V12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </div>
-        <h2>Gestión de Inventario</h2>
-        <p>Esta funcionalidad estará disponible próximamente.</p>
-        <p>Aquí podrás gestionar todos los productos, stock y movimientos de inventario.</p>
-      </div>
+      <!-- Filters -->
+      <FilterBar
+        v-model="filters"
+        :status-options="statusOptions"
+        search-placeholder="Buscar por nombre, SKU o descripción..."
+        @filter-change="applyFilters"
+        @search="debouncedSearch"
+        class="mb-6"
+      >
+        <template #extra-filters>
+          <div class="flex items-center gap-4">
+            <label class="flex items-center">
+              <input
+                type="checkbox"
+                v-model="filters.lowStock"
+                @change="applyFilters"
+                class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              >
+              <span class="ml-2 text-sm text-gray-700">Solo stock bajo</span>
+            </label>
+          </div>
+        </template>
+      </FilterBar>
+
+      <!-- Data Table -->
+      <DataTable
+        :data="products || []"
+        :columns="tableColumns"
+        :loading="isLoading"
+        :paginated="true"
+        :page-size="pagination.limit"
+        :show-header="false"
+        @row-click="handleRowClick"
+      >
+        <!-- Custom cell templates -->
+        <template #cell-sku="{ item }">
+          <div class="font-mono text-sm">
+            {{ item.code }}
+          </div>
+        </template>
+
+        <template #cell-name="{ item }">
+          <div>
+            <div class="font-medium text-gray-900">{{ item.name }}</div>
+            <div class="text-sm text-gray-500">{{ item.description }}</div>
+          </div>
+        </template>
+
+        <template #cell-category="{ item }">
+          <span class="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+            {{ item.category?.name || 'Sin categoría' }}
+          </span>
+        </template>
+
+        <template #cell-stock="{ item }">
+          <div class="flex items-center">
+            <span :class="[
+              'font-medium',
+              item.minStock && item.stock <= item.minStock ? 'text-red-600' : 'text-gray-900'
+            ]">
+              {{ item.stock }}
+            </span>
+            <span class="text-gray-500 text-sm ml-1">unid</span>
+            <svg v-if="item.minStock && item.stock <= item.minStock" 
+                 class="w-4 h-4 text-red-500 ml-1" 
+                 fill="currentColor" 
+                 viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+            </svg>
+          </div>
+        </template>
+
+        <template #cell-prices="{ item }">
+          <div class="text-sm">
+            <div class="text-gray-900 font-medium">${{ formatCurrency(item.sale_price || item.salePrice) }}</div>
+            <div class="text-gray-500">Costo: ${{ formatCurrency(item.cost_price || item.costPrice) }}</div>
+          </div>
+        </template>
+
+        <template #cell-status="{ item }">
+          <span :class="[
+            'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
+            getStatusClasses(item.status)
+          ]">
+            {{ getStatusLabel(item.status) }}
+          </span>
+        </template>
+
+        <template #cell-actions="{ item }">
+          <div class="flex items-center gap-2">
+            <BaseButton
+              variant="ghost"
+              size="sm"
+              @click.stop="viewProduct(item.id)"
+              title="Ver detalles"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+            </BaseButton>
+            <BaseButton
+              variant="ghost"
+              size="sm"
+              @click.stop="editProduct(item.id)"
+              title="Editar"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+            </BaseButton>
+            <BaseButton
+              variant="ghost"
+              size="sm"
+              @click.stop="showStockModal(item)"
+              title="Actualizar stock"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4V2a1 1 0 011-1h8a1 1 0 011 1v2h4a1 1 0 110 2h-1v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6H3a1 1 0 110-2h4zM9 6v10h6V6H9z" />
+              </svg>
+            </BaseButton>
+          </div>
+        </template>
+      </DataTable>
+
+      <!-- Pagination -->
+      <Pagination
+        v-if="pagination.totalPages > 1"
+        :current-page="pagination.page"
+        :total-pages="pagination.totalPages"
+        :total-items="pagination.total"
+        :items-per-page="pagination.limit"
+        @page-change="handlePageChange"
+        class="mt-6"
+      />
+
+      <!-- Stock Update Modal -->
+      <StockUpdateModal
+        v-if="showStockUpdateModal"
+        :product="selectedProduct"
+        @close="showStockUpdateModal = false"
+        @updated="handleStockUpdated"
+      />
     </div>
   </DashboardLayout>
 </template>
 
 <script setup lang="ts">
-import DashboardLayout from '../components/organisms/DashboardLayout.vue'
-import PageHeader from '../components/molecules/PageHeader.vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import { useProducts } from '@/composables/useProducts'
+import { debounce } from 'lodash-es'
+
+// Components
+import DashboardLayout from '@/components/organisms/DashboardLayout.vue'
+import PageHeader from '@/components/molecules/PageHeader.vue'
+import FilterBar from '@/components/molecules/FilterBar.vue'
+import BaseButton from '@/components/atoms/BaseButton.vue'
+import DataTable from '@/components/atoms/DataTable.vue'
+import Pagination from '@/components/atoms/Pagination.vue'
+import StatsCard from '@/components/atoms/StatsCard.vue'
+import StockUpdateModal from '@/components/products/StockUpdateModal.vue'
+
+const router = useRouter()
+
+// Composables
+const {
+  products,
+  isLoading,
+  hasError,
+  error,
+  pagination,
+  lowStockProducts,
+  fetchProducts,
+  updateStock
+} = useProducts()
+
+// State
+const filters = ref({
+  search: '',
+  status: '',
+  lowStock: false,
+  page: 1,
+  limit: 10,
+  sortBy: 'name',
+  sortOrder: 'asc' as 'asc' | 'desc'
+})
+
+const showStockUpdateModal = ref(false)
+const selectedProduct = ref(null)
+let searchTimeout: NodeJS.Timeout | null = null
+
+// Options for filters
+const statusOptions = [
+  { value: '', label: 'Todos los estados' },
+  { value: 'active', label: 'Activo' },
+  { value: 'inactive', label: 'Inactivo' },
+  { value: 'discontinued', label: 'Descontinuado' }
+]
+
+// Table columns
+const tableColumns = [
+  { key: 'sku', label: 'SKU', sortable: true },
+  { key: 'name', label: 'Producto', sortable: true },
+  { key: 'category', label: 'Categoría' },
+  { key: 'stock', label: 'Stock', sortable: true },
+  { key: 'prices', label: 'Precios' },
+  { key: 'status', label: 'Estado', sortable: true },
+  { key: 'actions', label: 'Acciones', width: '120px' }
+]
+
+// Computed
+const activeProductsCount = computed(() => 
+  products.value.filter(p => p.status === 'active').length
+)
+
+const totalInventoryValue = computed(() => 
+  products.value.reduce((total, product) => 
+    total + ((product.cost_price || product.costPrice || 0) * (product.stock || product.stockQuantity || 0)), 0
+  )
+)
+
+// Methods
+const applyFilters = () => {
+  filters.value.page = 1
+  fetchProducts(filters.value)
+}
+
+const debouncedSearch = debounce((searchTerm: string) => {
+  filters.value.search = searchTerm
+  applyFilters()
+}, 300)
+
+const handlePageChange = (page: number) => {
+  filters.value.page = page
+  fetchProducts(filters.value)
+}
+
+const handleRowClick = (product: any) => {
+  viewProduct(product.id)
+}
+
+const viewProduct = (id: string) => {
+  router.push(`/products/${id}`)
+}
+
+const editProduct = (id: string) => {
+  router.push(`/products/${id}/edit`)
+}
+
+const showStockModal = (product: any) => {
+  selectedProduct.value = product
+  showStockUpdateModal.value = true
+}
+
+const handleStockUpdated = () => {
+  showStockUpdateModal.value = false
+  selectedProduct.value = null
+  fetchProducts(filters.value)
+}
+
+const getStatusLabel = (status: string) => {
+  const labels = {
+    active: 'Activo',
+    inactive: 'Inactivo',
+    discontinued: 'Descontinuado'
+  }
+  return labels[status] || status
+}
+
+const getStatusClasses = (status: string) => {
+  const classes = {
+    active: 'bg-green-100 text-green-800',
+    inactive: 'bg-gray-100 text-gray-800',
+    discontinued: 'bg-red-100 text-red-800'
+  }
+  return classes[status] || 'bg-gray-100 text-gray-800'
+}
+
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('es-AR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(amount)
+}
+
+// Lifecycle
+onMounted(() => {
+  console.log('InventoryView - onMounted called')
+  fetchProducts(filters.value)
+})
+
+// Watch for route changes to refresh data
+watch(() => router.currentRoute.value.path, (newPath) => {
+  if (newPath === '/inventory') {
+    console.log('InventoryView - Route changed to inventory, refreshing data')
+    fetchProducts(filters.value)
+  }
+})
+
+// Watch for products changes
+watch(() => products.value, (newProducts) => {
+  console.log('InventoryView - products changed:', newProducts)
+  console.log('InventoryView - products length:', newProducts?.length)
+}, { immediate: true })
+
+// Watch for filter changes
+watch(() => filters.value.lowStock, () => {
+  applyFilters()
+})
 </script>
 
 <style scoped>

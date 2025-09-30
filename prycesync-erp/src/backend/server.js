@@ -5,6 +5,8 @@ import prisma from './config/database.js';
 import authRoutes from './routes/auth.js';
 import invoiceRoutes from './routes/invoices.js';
 import customerRoutes from './routes/customers.js';
+import productRoutes from './routes/products.js';
+import categoryRoutes from './routes/categories.js';
 import reportRoutes from './routes/reports.js';
 
 const app = express();
@@ -34,6 +36,8 @@ await connectDatabase();
 app.use('/api/auth', authRoutes);
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/customers', customerRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/categories', categoryRoutes);
 app.use('/api/reports', reportRoutes);
 
 // Endpoint de health check

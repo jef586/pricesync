@@ -73,6 +73,48 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/products',
+      name: 'products',
+      component: () => import('../views/InventoryView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/products/new',
+      name: 'product-new',
+      component: () => import('../views/ProductNewView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/products/:id',
+      name: 'product-detail',
+      component: () => import('../views/ProductDetailView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/products/:id/edit',
+      name: 'product-edit',
+      component: () => import('../views/ProductEditView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/categories',
+      name: 'categories',
+      component: () => import('../views/CategoriesView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/categories/new',
+      name: 'category-new',
+      component: () => import('../views/CategoryNewView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/categories/:id/edit',
+      name: 'category-edit',
+      component: () => import('../views/CategoryEditView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/company',
       name: 'company',
       component: () => import('../views/CompanyView.vue'),

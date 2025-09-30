@@ -62,6 +62,7 @@
           </tr>
         </thead>
         <tbody class="data-table__tbody">
+          {{ console.log('DataTable - rendering tbody, paginatedData:', paginatedData) }}
           <tr
             v-for="(item, index) in paginatedData"
             :key="getRowKey(item, index)"
@@ -73,6 +74,7 @@
             ]"
             @click="handleRowClick(item, index)"
           >
+            {{ console.log('DataTable - rendering row:', index, item) }}
             <td
               v-for="column in columns"
               :key="column.key"
@@ -81,6 +83,7 @@
                 column.class
               ]"
             >
+              {{ console.log('DataTable - rendering cell:', column.key, getNestedValue(item, column.key)) }}
               <slot
                 :name="`cell-${column.key}`"
                 :item="item"
@@ -97,8 +100,16 @@
         </tbody>
       </table>
 
+      <!-- Loading state -->
+      <div v-if="loading" class="data-table__loading">
+        <div class="data-table__loading-content">
+          <div class="data-table__loading-spinner"></div>
+          <p class="data-table__loading-text">Cargando datos...</p>
+        </div>
+      </div>
+
       <!-- Empty state -->
-      <div v-if="paginatedData.length === 0" class="data-table__empty">
+      <div v-else-if="paginatedData.length === 0" class="data-table__empty">
         <slot name="empty">
           <div class="data-table__empty-content">
             <svg class="data-table__empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -174,6 +185,7 @@ interface Props {
   showHeader?: boolean
   clickableRows?: boolean
   rowKey?: string | ((item: any, index: number) => string)
+  loading?: boolean
 }
 
 interface Emits {
@@ -186,7 +198,8 @@ const props = withDefaults(defineProps<Props>(), {
   pageSize: 10,
   showHeader: true,
   clickableRows: false,
-  rowKey: 'id'
+  rowKey: 'id',
+  loading: false
 })
 
 const emit = defineEmits<Emits>()
@@ -198,7 +211,17 @@ const currentPage = ref(1)
 
 // Computed properties
 const sortedData = computed(() => {
+  console.log('DataTable - props.data:', props.data)
+  console.log('DataTable - props.data type:', typeof props.data)
+  console.log('DataTable - props.data isArray:', Array.isArray(props.data))
+  
+  if (!props.data || !Array.isArray(props.data)) {
+    console.log('DataTable - returning empty array')
+    return []
+  }
+
   if (!sortBy.value) {
+    console.log('DataTable - returning unsorted data:', props.data)
     return props.data
   }
 
@@ -218,13 +241,24 @@ const totalItems = computed(() => sortedData.value.length)
 const totalPages = computed(() => Math.ceil(totalItems.value / props.pageSize))
 
 const paginatedData = computed(() => {
+  console.log('DataTable - paginatedData computed called')
+  console.log('DataTable - sortedData.value:', sortedData.value)
+  console.log('DataTable - sortedData.value length:', sortedData.value.length)
+  
   if (!props.paginated) {
+    console.log('DataTable - returning sortedData (no pagination)')
     return sortedData.value
   }
 
   const start = (currentPage.value - 1) * props.pageSize
   const end = start + props.pageSize
-  return sortedData.value.slice(start, end)
+  const result = sortedData.value.slice(start, end)
+  
+  console.log('DataTable - pagination:', { start, end, currentPage: currentPage.value, pageSize: props.pageSize })
+  console.log('DataTable - paginatedData result:', result)
+  console.log('DataTable - paginatedData result length:', result.length)
+  
+  return result
 })
 
 const startItem = computed(() => {
@@ -398,6 +432,22 @@ watch(() => props.data, () => {
 
 .data-table__empty-message {
   @apply text-gray-500;
+}
+
+.data-table__loading {
+  @apply p-12;
+}
+
+.data-table__loading-content {
+  @apply text-center;
+}
+
+.data-table__loading-spinner {
+  @apply w-8 h-8 mx-auto mb-4 border-4 border-gray-200 border-t-blue-600 rounded-full animate-spin;
+}
+
+.data-table__loading-text {
+  @apply text-gray-600 text-sm;
 }
 
 .data-table__pagination {
