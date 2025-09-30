@@ -86,6 +86,9 @@ pricesync-erp/
 │   │   │   │   ├── services/       # Business logic
 │   │   │   │   ├── models/         # Modelos Prisma extend
 │   │   │   │   ├── ai/             # Servicios IA
+│   │   │   │   │   ├── chat/       # Chat IA para consultas inventario
+│   │   │   │   │   ├── pricing/    # IA para análisis de precios
+│   │   │   │   │   └── vision/     # Reconocimiento imágenes
 │   │   │   │   ├── integrations/   # APIs externas
 │   │   │   │   └── routes/         # Rutas específicas
 │   │   │   └── retail/             # Módulo retail (futuro)
@@ -101,8 +104,14 @@ pricesync-erp/
 │   │       │   ├── paraguay/       # SIFEN
 │   │       │   └── bolivia/        # Sistema Virtual
 │   │       ├── ai/                 # Servicios IA
-│   │       │   ├── openai/         # GPT integration
-│   │       │   └── google-vision/  # Vision API
+│       │   ├── openai/         # GPT integration
+│       │   ├── claude/         # Anthropic Claude integration
+│       │   ├── gemini/         # Google Gemini integration
+│       │   └── chat-service/   # Servicio unificado chat IA
+│       │       ├── query-processor.ts    # Procesamiento consultas NL
+│       │       ├── sql-validator.ts      # Validación seguridad SQL
+│       │       ├── response-formatter.ts # Formateo respuestas
+│       │       └── context-manager.ts    # Gestión contexto conversación
 │   │       └── ecommerce/          # Marketplaces
 │   │           └── mercadolibre/   # ML API oficial
 │   └── shared/                     # Código compartido main/renderer
@@ -245,7 +254,8 @@ layout/         # Templates - Layouts de página
 business/       # Pages - Componentes específicos negocio
 ├── InvoiceForm.vue
 ├── CustomerCard.vue
-└── PriceAnalysis.vue
+├── PriceAnalysis.vue
+└── ChatInterface.vue    # Chat IA para consultas (Fase 3)
 ```
 
 ### Design Token System
@@ -305,7 +315,8 @@ modules/
 │   ├── products.ts   # Catálogo productos repuestos
 │   ├── pricing.ts    # IA pricing y análisis ML
 │   ├── suppliers.ts  # Gestión proveedores
-│   └── inventory.ts  # Stock específico repuestos
+│   ├── inventory.ts  # Stock específico repuestos
+│   └── chat.ts       # Estado chat IA y conversaciones (Fase 3)
 └── billing/
     ├── invoices.ts   # Facturas y comprobantes
     ├── customers.ts  # Gestión clientes
@@ -326,6 +337,7 @@ export const ipcHandlers = {
   'api:afip:invoice': async (invoiceData: InvoiceData) => {},
   'api:ml:search': async (query: string) => {},
   'api:vision:analyze': async (image: Buffer) => {},
+  'api:ai:chat': async (query: string, context: ChatContext) => {}, // Fase 3
   
   // File operations
   'file:import-excel': async (filePath: string) => {},
