@@ -660,9 +660,23 @@ class ReportsController {
           message: 'Company ID no encontrado en el usuario'
         });
       }
+
+      const { startDate, endDate } = req.query;
+
+      // Configurar fechas por defecto (último mes)
+      const defaultEndDate = new Date();
+      const defaultStartDate = new Date();
+      defaultStartDate.setMonth(defaultStartDate.getMonth() - 1);
+
+      const start = startDate ? new Date(startDate) : defaultStartDate;
+      const end = endDate ? new Date(endDate) : defaultEndDate;
+
       const distribution = await prisma.invoice.groupBy({
         by: ['status'],
-        where: { companyId },
+        where: { 
+          companyId,
+          createdAt: { gte: start, lte: end }
+        },
         _count: { status: true },
         _sum: { total: true }
       });
@@ -676,7 +690,13 @@ class ReportsController {
 
       res.json({
         success: true,
-        data: formattedData
+        data: {
+          distribution: formattedData,
+          period: {
+            startDate: start.toISOString(),
+            endDate: end.toISOString()
+          }
+        }
       });
 
     } catch (error) {
@@ -700,7 +720,20 @@ class ReportsController {
           message: 'Company ID no encontrado en el usuario'
         });
       }
-      const { year = new Date().getFullYear() } = req.query;
+
+      const { year = new Date().getFullYear(), startDate, endDate } = req.query;
+
+      let whereClause = `company_id = ${companyId}`;
+      
+      if (startDate && endDate) {
+        // Si se proporcionan fechas específicas, usar esas fechas
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        whereClause += ` AND created_at >= '${start.toISOString()}' AND created_at <= '${end.toISOString()}'`;
+      } else {
+        // Si no se proporcionan fechas, usar el año especificado
+        whereClause += ` AND EXTRACT(YEAR FROM created_at) = ${parseInt(year)}`;
+      }
 
       const monthlySummary = await prisma.$queryRaw`
         SELECT 
@@ -712,8 +745,7 @@ class ReportsController {
           SUM(total) as total_amount,
           SUM(CASE WHEN status = 'paid' THEN total ELSE 0 END) as paid_amount
         FROM invoices 
-        WHERE company_id = ${companyId}
-          AND EXTRACT(YEAR FROM created_at) = ${parseInt(year)}
+        WHERE ${whereClause}
         GROUP BY EXTRACT(MONTH FROM created_at)
         ORDER BY month ASC
       `;
@@ -732,11 +764,17 @@ class ReportsController {
       res.json({
         success: true,
         data: {
-          year: parseInt(year),
+          year: startDate && endDate ? null : parseInt(year),
           monthlySummary: formattedData,
           yearTotal: {
             invoices: formattedData.reduce((sum, item) => sum + item.totalInvoices, 0),
             revenue: formattedData.reduce((sum, item) => sum + item.paidAmount, 0)
+          },
+          period: startDate && endDate ? {
+            startDate: new Date(startDate).toISOString(),
+            endDate: new Date(endDate).toISOString()
+          } : {
+            year: parseInt(year)
           }
         }
       });
@@ -834,6 +872,36 @@ class ReportsController {
           message: 'Company ID no encontrado en el usuario'
         });
       }
+
+      const { startDate, endDate, period = '12 months' } = req.query;
+
+      // Configurar fechas
+      let start, end;
+      if (startDate && endDate) {
+        start = new Date(startDate);
+        end = new Date(endDate);
+      } else {
+        end = new Date();
+        start = new Date();
+        
+        // Configurar período por defecto
+        switch (period) {
+          case '3 months':
+            start.setMonth(start.getMonth() - 3);
+            break;
+          case '6 months':
+            start.setMonth(start.getMonth() - 6);
+            break;
+          case '12 months':
+          default:
+            start.setMonth(start.getMonth() - 12);
+            break;
+          case '24 months':
+            start.setMonth(start.getMonth() - 24);
+            break;
+        }
+      }
+
       const activity = await prisma.$queryRaw`
         SELECT 
           DATE_TRUNC('month', created_at) as month,
@@ -843,7 +911,8 @@ class ReportsController {
         FROM invoices 
         WHERE company_id = ${companyId}
           AND status = 'paid'
-          AND created_at >= NOW() - INTERVAL '12 months'
+          AND created_at >= ${start}
+          AND created_at <= ${end}
         GROUP BY DATE_TRUNC('month', created_at)
         ORDER BY month ASC
       `;
@@ -857,7 +926,14 @@ class ReportsController {
 
       res.json({
         success: true,
-        data: formattedData
+        data: {
+          activity: formattedData,
+          period: {
+            startDate: start.toISOString(),
+            endDate: end.toISOString(),
+            periodType: startDate && endDate ? 'custom' : period
+          }
+        }
       });
 
     } catch (error) {
