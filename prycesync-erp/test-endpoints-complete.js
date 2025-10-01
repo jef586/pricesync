@@ -50,7 +50,7 @@ async function testEndpoints() {
     password: 'password123',
     name: 'Usuario de Prueba',
     role: 'user',
-    companyId: 'cmfss4euc0000t4gy495zny53'
+    companyId: 'cmg15vfoq0000ioxcwj4hhofj' // ID correcto de la empresa de prueba
   };
   
   const registerResult = await makeRequest('/auth/register', {

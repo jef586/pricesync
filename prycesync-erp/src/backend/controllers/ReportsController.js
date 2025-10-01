@@ -219,7 +219,7 @@ class ReportsController {
           DATE_TRUNC(${period}, created_at) as period,
           SUM(total) as revenue,
           COUNT(*) as invoice_count
-        FROM core_billing.invoices 
+        FROM invoices 
         WHERE company_id = ${companyId}
           AND status = 'paid'
           AND created_at >= ${start}
@@ -291,7 +291,7 @@ class ReportsController {
         status: item.status,
         count: item._count.status,
         total: parseFloat(item._sum.total) || 0,
-        label: this.getStatusLabel(item.status)
+        label: ReportsController.getStatusLabel(item.status)
       }));
 
       res.json({
@@ -342,9 +342,17 @@ class ReportsController {
             status: 'paid',
             createdAt: { gte: start, lte: end }
           },
-          _sum: { total: true, subtotal: true, tax: true },
-          _count: { id: true },
-          _avg: { total: true }
+          _sum: {
+            total: true,
+            subtotal: true,
+            taxAmount: true
+          },
+          _count: {
+            id: true
+          },
+          _avg: {
+            total: true
+          }
         }),
 
         // Productos más vendidos
@@ -416,7 +424,7 @@ class ReportsController {
           summary: {
             totalRevenue: parseFloat(salesSummary._sum.total) || 0,
             totalSubtotal: parseFloat(salesSummary._sum.subtotal) || 0,
-            totalTax: parseFloat(salesSummary._sum.tax) || 0,
+            totalTax: parseFloat(salesSummary._sum.taxAmount) || 0,
             totalInvoices: salesSummary._count.id,
             averageInvoiceValue: parseFloat(salesSummary._avg.total) || 0
           },
@@ -480,10 +488,10 @@ class ReportsController {
           DATE_TRUNC(${groupBy}, created_at) as period,
           SUM(total) as revenue,
           SUM(subtotal) as subtotal,
-          SUM(tax) as tax,
+          SUM(tax_amount) as tax,
           COUNT(*) as invoice_count,
           AVG(total) as avg_invoice_value
-        FROM core_billing.invoices 
+        FROM invoices 
         WHERE company_id = ${companyId}
           AND status = 'paid'
           AND created_at >= ${start}
@@ -663,7 +671,7 @@ class ReportsController {
         status: item.status,
         count: item._count.status,
         total: parseFloat(item._sum.total) || 0,
-        label: this.getStatusLabel(item.status)
+        label: ReportsController.getStatusLabel(item.status)
       }));
 
       res.json({
@@ -703,7 +711,7 @@ class ReportsController {
           SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled_invoices,
           SUM(total) as total_amount,
           SUM(CASE WHEN status = 'paid' THEN total ELSE 0 END) as paid_amount
-        FROM core_billing.invoices 
+        FROM invoices 
         WHERE company_id = ${companyId}
           AND EXTRACT(YEAR FROM created_at) = ${parseInt(year)}
         GROUP BY EXTRACT(MONTH FROM created_at)
@@ -712,7 +720,7 @@ class ReportsController {
 
       const formattedData = monthlySummary.map(item => ({
         month: parseInt(item.month),
-        monthName: this.getMonthName(parseInt(item.month)),
+        monthName: ReportsController.getMonthName(parseInt(item.month)),
         totalInvoices: parseInt(item.total_invoices),
         paidInvoices: parseInt(item.paid_invoices),
         pendingInvoices: parseInt(item.pending_invoices),
@@ -832,7 +840,7 @@ class ReportsController {
           COUNT(DISTINCT customer_id) as active_customers,
           COUNT(*) as total_invoices,
           SUM(total) as total_revenue
-        FROM core_billing.invoices 
+        FROM invoices 
         WHERE company_id = ${companyId}
           AND status = 'paid'
           AND created_at >= NOW() - INTERVAL '12 months'
