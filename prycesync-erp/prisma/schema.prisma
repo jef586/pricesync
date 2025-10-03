@@ -137,6 +137,7 @@ model Company {
   products    Product[]
   invoices    Invoice[]
   categories  Category[]
+  suppliers   Supplier[]
   
   @@map("companies")
 }
@@ -270,6 +271,7 @@ model Product {
   
   // Relaciones
   invoiceItems InvoiceItem[]
+  supplierProducts SupplierProduct[]
   
   @@unique([companyId, code])
   @@map("products")
@@ -359,4 +361,99 @@ model InvoiceItem {
   updatedAt   DateTime @updatedAt @map("updated_at")
   
   @@map("invoice_items")
+}
+
+// ============================================================================
+// SUPPLIERS SCHEMA
+// ============================================================================
+
+enum SupplierStatus {
+  active
+  inactive
+  blocked
+}
+
+model Supplier {
+  id            String         @id @default(cuid())
+  code          String         // Código interno del proveedor
+  name          String
+  businessName  String?        @map("business_name") // Razón social
+  taxId         String?        @map("tax_id") // CUIT/RUT/Tax ID
+  
+  // Información de contacto
+  email         String?
+  phone         String?
+  website       String?
+  
+  // Dirección
+  address       String?
+  city          String?
+  state         String?
+  postalCode    String?        @map("postal_code")
+  country       String?        @default("Argentina")
+  
+  // Estado y configuración
+  status        SupplierStatus @default(active)
+  paymentTerms  Int?           @map("payment_terms") // Días de pago
+  creditLimit   Decimal?       @map("credit_limit") @db.Decimal(12, 2)
+  
+  // Información adicional
+  notes         String?
+  tags          String[]       @default([])
+  
+  // Relaciones
+  companyId     String         @map("company_id")
+  company       Company        @relation(fields: [companyId], references: [id])
+  
+  // Auditoria
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  deletedAt     DateTime?      @map("deleted_at")
+  
+  // Relaciones
+  products      SupplierProduct[]
+  
+  @@unique([companyId, code])
+  @@unique([companyId, taxId])
+  @@map("suppliers")
+}
+
+model SupplierProduct {
+  id              String    @id @default(cuid())
+  
+  // Información del proveedor
+  supplierCode    String    @map("supplier_code") // Código del producto en el proveedor
+  supplierName    String    @map("supplier_name") // Nombre del producto según el proveedor
+  description     String?   // Descripción adicional
+  
+  // Precios y condiciones
+  costPrice       Decimal   @map("cost_price") @db.Decimal(10, 2)
+  listPrice       Decimal?  @map("list_price") @db.Decimal(10, 2) // Precio de lista
+  currency        String    @default("ARS")
+  minQuantity     Int?      @map("min_quantity") // Cantidad mínima de compra
+  
+  // Información técnica (para autopartes)
+  brand           String?
+  model           String?
+  year            String?
+  oem             String?   // Número OEM
+  
+  // Estado y disponibilidad
+  isActive        Boolean   @default(true) @map("is_active")
+  isAvailable     Boolean   @default(true) @map("is_available")
+  leadTime        Int?      @map("lead_time") // Tiempo de entrega en días
+  
+  // Relaciones
+  supplierId      String    @map("supplier_id")
+  supplier        Supplier  @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  productId       String?   @map("product_id") // Vinculación opcional con producto interno
+  product         Product?  @relation(fields: [productId], references: [id])
+  
+  // Auditoria
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  lastImportDate  DateTime? @map("last_import_date") // Fecha de última importación
+  
+  @@unique([supplierId, supplierCode])
+  @@map("supplier_products")
 }

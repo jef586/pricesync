@@ -1,129 +1,67 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import DashboardView from '../views/DashboardView.vue'
 import AuthView from '../views/AuthView.vue'
+import DashboardView from '../views/DashboardView.vue'
+import InventoryView from '../views/InventoryView.vue'
+import SuppliersView from '../views/SuppliersView.vue'
+import SupplierDetailView from '../views/SupplierDetailView.vue'
+import ProductNewView from '../views/ProductNewView.vue'
+import ProductDetailView from '../views/ProductDetailView.vue'
 
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
+  history: createWebHistory(),
   routes: [
     {
       path: '/',
-      name: 'dashboard',
+      redirect: '/dashboard'
+    },
+    {
+      path: '/login',
+      name: 'Login',
+      component: AuthView,
+      meta: { requiresAuth: false }
+    },
+    {
+      path: '/auth',
+      name: 'Auth',
+      component: AuthView,
+      meta: { requiresAuth: false }
+    },
+    {
+      path: '/dashboard',
+      name: 'Dashboard',
       component: DashboardView,
       meta: { requiresAuth: true }
     },
     {
-      path: '/auth',
-      name: 'auth',
-      component: AuthView,
-      meta: { requiresGuest: true }
-    },
-    {
-      path: '/invoices',
-      name: 'invoices',
-      component: () => import('../views/InvoicesView.vue'),
-      meta: { requiresAuth: true }
-    },
-    {
-      path: '/invoices/new',
-      name: 'invoice-new',
-      component: () => import('../views/InvoiceNewView.vue'),
-      meta: { requiresAuth: true }
-    },
-    {
-      path: '/invoices/:id',
-      name: 'invoice-detail',
-      component: () => import('../views/InvoiceDetailView.vue'),
-      meta: { requiresAuth: true }
-    },
-    {
-      path: '/invoices/:id/edit',
-      name: 'invoice-edit',
-      component: () => import('../views/InvoiceEditView.vue'),
-      meta: { requiresAuth: true }
-    },
-    {
-      path: '/customers',
-      name: 'customers',
-      component: () => import('../views/CustomersView.vue'),
-      meta: { requiresAuth: true }
-    },
-    {
-      path: '/customers/new',
-      name: 'customer-new',
-      component: () => import('../views/CustomerNewView.vue'),
-      meta: { requiresAuth: true }
-    },
-    {
-      path: '/customers/:id',
-      name: 'customer-detail',
-      component: () => import('../views/CustomerDetailView.vue'),
-      meta: { requiresAuth: true }
-    },
-    {
-      path: '/customers/:id/edit',
-      name: 'customer-edit',
-      component: () => import('../views/CustomerEditView.vue'),
-      meta: { requiresAuth: true }
-    },
-    {
       path: '/inventory',
-      name: 'inventory',
-      component: () => import('../views/InventoryView.vue'),
+      name: 'Inventory',
+      component: InventoryView,
       meta: { requiresAuth: true }
     },
     {
-      path: '/products',
-      name: 'products',
-      component: () => import('../views/InventoryView.vue'),
+      path: '/suppliers',
+      name: 'Suppliers',
+      component: SuppliersView,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/suppliers/:id',
+      name: 'SupplierDetail',
+      component: SupplierDetailView,
       meta: { requiresAuth: true }
     },
     {
       path: '/products/new',
-      name: 'product-new',
-      component: () => import('../views/ProductNewView.vue'),
+      name: 'ProductNew',
+      component: ProductNewView,
       meta: { requiresAuth: true }
     },
     {
       path: '/products/:id',
-      name: 'product-detail',
-      component: () => import('../views/ProductDetailView.vue'),
+      name: 'ProductDetail',
+      component: ProductDetailView,
       meta: { requiresAuth: true }
-    },
-    {
-      path: '/products/:id/edit',
-      name: 'product-edit',
-      component: () => import('../views/ProductEditView.vue'),
-      meta: { requiresAuth: true }
-    },
-    {
-      path: '/categories',
-      name: 'categories',
-      component: () => import('../views/CategoriesView.vue'),
-      meta: { requiresAuth: true }
-    },
-    {
-      path: '/categories/new',
-      name: 'category-new',
-      component: () => import('../views/CategoryNewView.vue'),
-      meta: { requiresAuth: true }
-    },
-    {
-      path: '/categories/:id/edit',
-      name: 'category-edit',
-      component: () => import('../views/CategoryEditView.vue'),
-      meta: { requiresAuth: true }
-    },
-    {
-      path: '/company',
-      name: 'company',
-      component: () => import('../views/CompanyView.vue'),
-      meta: { requiresAuth: true }
-    },
-    {
-      path: '/about',
-      name: 'about',
-      component: () => import('../views/AboutView.vue')
     }
   ]
 })
