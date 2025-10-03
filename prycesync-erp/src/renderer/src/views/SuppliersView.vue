@@ -18,7 +18,7 @@
             Importar Excel
           </button>
           <button
-            @click="showNewSupplierModal = true"
+            @click="$router.push('/suppliers/new')"
             class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
           >
             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -133,13 +133,6 @@
         @close="showImportModal = false"
         @success="handleImportSuccess"
       />
-
-      <!-- New Supplier Modal -->
-      <SupplierFormModal
-        v-if="showNewSupplierModal"
-        @close="showNewSupplierModal = false"
-        @supplier-created="handleSupplierCreated"
-      />
     </div>
   </DashboardLayout>
 </template>
@@ -158,7 +151,6 @@ import BaseButton from '@/components/atoms/BaseButton.vue'
 import DataTable from '@/components/atoms/DataTable.vue'
 import StatsCard from '@/components/atoms/StatsCard.vue'
 import UniversalImportModal from '@/components/suppliers/UniversalImportModal.vue'
-import SupplierFormModal from '@/components/suppliers/SupplierFormModal.vue'
 
 const router = useRouter()
 
@@ -183,7 +175,6 @@ const filters = ref({
 })
 
 const showImportModal = ref(false)
-const showNewSupplierModal = ref(false)
 
 // Options for filters
 const statusOptions = [
@@ -261,11 +252,6 @@ const editSupplier = (id: string) => {
 const handleImportSuccess = () => {
   showImportModal.value = false
   // Refrescar la lista de proveedores
-  fetchSuppliers(filters.value)
-}
-
-const handleSupplierCreated = () => {
-  showNewSupplierModal.value = false
   fetchSuppliers(filters.value)
 }
 

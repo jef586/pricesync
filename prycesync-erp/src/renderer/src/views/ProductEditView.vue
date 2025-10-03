@@ -316,7 +316,7 @@ const {
 } = useProducts()
 
 const { fetchCategories, getCategoryOptions } = useCategories()
-const { success, error } = useNotifications()
+const { success, error: notificationError } = useNotifications()
 
 // State
 const showStockModal = ref(false)
@@ -473,7 +473,7 @@ const populateForm = () => {
 
 const handleSubmit = async () => {
   if (!validateForm()) {
-    error('Por favor, corrija los errores en el formulario')
+    notificationError('Por favor, corrija los errores en el formulario')
     return
   }
 
@@ -490,7 +490,7 @@ const handleSubmit = async () => {
     router.push('/inventory')
   } catch (err: any) {
     console.error('Error updating product:', err)
-    error(err.message || 'Error al actualizar el producto')
+    notificationError(err.message || 'Error al actualizar el producto')
   }
 }
 
@@ -503,7 +503,7 @@ const handleDelete = async () => {
     router.push('/inventory')
   } catch (err: any) {
     console.error('Error deleting product:', err)
-    error(err.message || 'Error al eliminar el producto')
+    notificationError(err.message || 'Error al eliminar el producto')
   } finally {
     showDeleteModal.value = false
   }
@@ -519,9 +519,9 @@ onMounted(async () => {
   // Load categories from API
   try {
     await fetchCategories()
-  } catch (error) {
-    console.error('Error loading categories:', error)
-    error('Error al cargar las categorías')
+  } catch (err) {
+    console.error('Error loading categories:', err)
+    notificationError('Error al cargar las categorías')
   }
   
   loadProduct()
