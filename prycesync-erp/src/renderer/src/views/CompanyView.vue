@@ -12,6 +12,9 @@
             </svg>
             Editar Información
           </button>
+          <RouterLink to="/company/pricing" class="btn-primary" style="margin-left: 0.5rem;">
+            Configurar Pricing
+          </RouterLink>
         </template>
       </PageHeader>
 

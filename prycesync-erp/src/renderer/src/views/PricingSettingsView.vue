@@ -1,0 +1,200 @@
+<template>
+  <DashboardLayout>
+    <div class="pricing-settings-view">
+      <PageHeader
+        title="Configuración de Pricing"
+        subtitle="Define márgenes, fuente de precio y reglas de redondeo"
+      >
+        <template #actions>
+          <BaseButton
+            variant="primary"
+            :disabled="isSaving || isLoading"
+            @click="saveSettings"
+          >
+            Guardar Cambios
+          </BaseButton>
+        </template>
+      </PageHeader>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Formulario de configuración -->
+        <div class="lg:col-span-2 bg-white rounded-lg shadow p-6">
+          <h3 class="text-lg font-medium text-gray-900 mb-4">Reglas Generales</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <BaseInput
+              v-model.number="settings.defaultMarginPercent"
+              label="Margen por defecto (%)"
+              type="number"
+              step="0.01"
+              min="0"
+            />
+
+            <BaseSelect
+              v-model="settings.priceSource"
+              label="Fuente de precio"
+              :options="priceSourceOptions"
+            />
+
+            <BaseSelect
+              v-model="settings.roundingMode"
+              label="Modo de redondeo"
+              :options="roundingModeOptions"
+            />
+
+            <BaseInput
+              v-model.number="settings.roundingDecimals"
+              label="Decimales de redondeo"
+              type="number"
+              min="0"
+              max="4"
+            />
+          </div>
+
+          <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <label class="flex items-center gap-2">
+              <input type="checkbox" v-model="settings.applyOnImport" />
+              <span>Aplicar reglas al importar productos</span>
+            </label>
+            <label class="flex items-center gap-2">
+              <input type="checkbox" v-model="settings.applyOnUpdate" />
+              <span>Aplicar reglas al actualizar productos</span>
+            </label>
+            <label class="flex items-center gap-2">
+              <input type="checkbox" v-model="settings.overwriteSalePrice" />
+              <span>Sobre-escribir precio de venta existente</span>
+            </label>
+            <label class="flex items-center gap-2">
+              <input type="checkbox" v-model="settings.allowBelowCost" />
+              <span>Permitir precio por debajo del costo</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Preview -->
+        <div class="bg-white rounded-lg shadow p-6">
+          <h3 class="text-lg font-medium text-gray-900 mb-4">Preview de Cálculo</h3>
+          <div class="space-y-4">
+            <BaseInput
+              v-model.number="previewCost"
+              label="Costo"
+              type="number"
+              step="0.01"
+              min="0"
+            />
+            <BaseInput
+              v-model.number="previewList"
+              label="Precio Lista (opcional)"
+              type="number"
+              step="0.01"
+              min="0"
+            />
+
+            <div class="mt-2 p-4 bg-gray-50 rounded">
+              <p class="text-sm text-gray-600">Precio de Venta calculado:</p>
+              <p class="text-2xl font-semibold text-gray-900">${{ formatCurrency(previewSale) }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </DashboardLayout>
+  
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
+import DashboardLayout from '@/components/organisms/DashboardLayout.vue'
+import PageHeader from '@/components/molecules/PageHeader.vue'
+import BaseInput from '@/components/atoms/BaseInput.vue'
+import BaseSelect from '@/components/atoms/BaseSelect.vue'
+import BaseButton from '@/components/atoms/BaseButton.vue'
+import { useNotifications } from '@/composables/useNotifications'
+import { 
+  getPricingSettings, 
+  updatePricingSettings, 
+  computePreviewSale, 
+  type PricingSettings 
+} from '@/services/settingsService'
+
+const { success, error } = useNotifications()
+const router = useRouter()
+
+const isLoading = ref(false)
+const isSaving = ref(false)
+const settings = ref<PricingSettings>({
+  defaultMarginPercent: 35,
+  priceSource: 'costPrice',
+  applyOnImport: true,
+  applyOnUpdate: true,
+  roundingMode: 'nearest',
+  roundingDecimals: 0,
+  overwriteSalePrice: false,
+  allowBelowCost: false,
+  supplierOverrides: {}
+})
+
+const priceSourceOptions = [
+  { value: 'costPrice', label: 'Costo' },
+  { value: 'listPrice', label: 'Precio Lista' }
+]
+
+const roundingModeOptions = [
+  { value: 'nearest', label: 'Más Cercano' },
+  { value: 'up', label: 'Hacia Arriba' },
+  { value: 'down', label: 'Hacia Abajo' }
+]
+
+// Preview state
+const previewCost = ref(100)
+const previewList = ref<number | null>(null)
+const previewSale = computed(() => {
+  return computePreviewSale(previewCost.value || 0, previewList.value, settings.value)
+})
+
+function formatCurrency(value: number) {
+  return (value || 0).toLocaleString('es-AR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })
+}
+
+async function loadSettings() {
+  isLoading.value = true
+  try {
+    const data = await getPricingSettings()
+    settings.value = data
+  } catch (e) {
+    console.error('Error loading pricing settings', e)
+    error('No se pudieron cargar los settings de pricing')
+  } finally {
+    isLoading.value = false
+  }
+}
+
+async function saveSettings() {
+  isSaving.value = true
+  try {
+    const updated = await updatePricingSettings(settings.value)
+    settings.value = updated
+    success('Configuración guardada correctamente')
+    router.push('/company')
+  } catch (e) {
+    console.error('Error saving pricing settings', e)
+    error('No se pudo guardar la configuración')
+  } finally {
+    isSaving.value = false
+  }
+}
+
+onMounted(() => {
+  loadSettings()
+})
+</script>
+
+<style scoped>
+.pricing-settings-view {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+</style>

@@ -500,6 +500,30 @@ class SupplierController {
         }
       });
 
+      // Aplicar reglas de pricing al producto interno si está vinculado
+      try {
+        if (supplierProduct.product?.id) {
+          const { getCompanyPricing, computeSalePrice } = await import('../services/PricingService.js')
+          const pricing = await getCompanyPricing(companyId)
+          if (pricing.applyOnUpdate || pricing.applyOnImport) {
+            const sale = computeSalePrice({
+              costPrice: supplierProduct.costPrice,
+              listPrice: supplierProduct.listPrice,
+              pricing,
+              supplierId
+            })
+            if (pricing.overwriteSalePrice || supplierProduct.product.salePrice == null) {
+              await prisma.product.update({
+                where: { id: supplierProduct.product.id },
+                data: { salePrice: sale }
+              })
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Pricing warning (addSupplierProduct):', e?.message || e)
+      }
+
       res.status(201).json(supplierProduct);
     } catch (error) {
       console.error('Error adding supplier product:', error);
@@ -559,6 +583,30 @@ class SupplierController {
           }
         }
       });
+
+      // Aplicar reglas de pricing al producto interno si corresponde
+      try {
+        if (supplierProduct.product?.id) {
+          const { getCompanyPricing, computeSalePrice } = await import('../services/PricingService.js')
+          const pricing = await getCompanyPricing(companyId)
+          if (pricing.applyOnUpdate) {
+            const sale = computeSalePrice({
+              costPrice: supplierProduct.costPrice,
+              listPrice: supplierProduct.listPrice,
+              pricing,
+              supplierId
+            })
+            if (pricing.overwriteSalePrice || supplierProduct.product.salePrice == null) {
+              await prisma.product.update({
+                where: { id: supplierProduct.product.id },
+                data: { salePrice: sale }
+              })
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Pricing warning (updateSupplierProduct):', e?.message || e)
+      }
 
       res.json(supplierProduct);
     } catch (error) {
@@ -827,19 +875,73 @@ class SupplierController {
                   lastImportDate: new Date()
                 }
               });
+              // Intentar aplicar pricing al producto vinculado durante importación
+              try {
+                if (existingProduct.productId) {
+                  const { getCompanyPricing, computeSalePrice } = await import('../services/PricingService.js')
+                  const pricing = await getCompanyPricing(companyId)
+                  if (pricing.applyOnImport) {
+                    const sale = computeSalePrice({
+                      costPrice: rowData.costPrice,
+                      listPrice: rowData.listPrice,
+                      pricing,
+                      supplierId
+                    })
+                    const current = await prisma.product.findUnique({
+                      where: { id: existingProduct.productId },
+                      select: { salePrice: true }
+                    })
+                    if (pricing.overwriteSalePrice || current?.salePrice == null) {
+                      await prisma.product.update({
+                        where: { id: existingProduct.productId },
+                        data: { salePrice: sale }
+                      })
+                    }
+                  }
+                }
+              } catch (e) {
+                console.warn('Pricing import warning (update):', e?.message || e)
+              }
               results.updated++;
             } else {
               results.skipped++;
             }
           } else {
             // Crear nuevo producto
-            await prisma.supplierProduct.create({
+            const created = await prisma.supplierProduct.create({
               data: {
                 supplierId,
                 ...rowData,
                 lastImportDate: new Date()
               }
             });
+            // Intentar aplicar pricing al producto vinculado durante importación
+            try {
+              if (created.productId) {
+                const { getCompanyPricing, computeSalePrice } = await import('../services/PricingService.js')
+                const pricing = await getCompanyPricing(companyId)
+                if (pricing.applyOnImport) {
+                  const sale = computeSalePrice({
+                    costPrice: rowData.costPrice,
+                    listPrice: rowData.listPrice,
+                    pricing,
+                    supplierId
+                  })
+                  const current = await prisma.product.findUnique({
+                    where: { id: created.productId },
+                    select: { salePrice: true }
+                  })
+                  if (pricing.overwriteSalePrice || current?.salePrice == null) {
+                    await prisma.product.update({
+                      where: { id: created.productId },
+                      data: { salePrice: sale }
+                    })
+                  }
+                }
+              }
+            } catch (e) {
+              console.warn('Pricing import warning (create):', e?.message || e)
+            }
             results.created++;
           }
 

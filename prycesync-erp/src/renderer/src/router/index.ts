@@ -21,6 +21,7 @@ import InvoiceNewView from '../views/InvoiceNewView.vue'
 import InvoiceEditView from '../views/InvoiceEditView.vue'
 import InvoiceDetailView from '../views/InvoiceDetailView.vue'
 import CompanyView from '../views/CompanyView.vue'
+import PricingSettingsView from '../views/PricingSettingsView.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -34,6 +35,11 @@ const router = createRouter({
       name: 'Login',
       component: AuthView,
       meta: { requiresAuth: false }
+    },
+    {
+      path: '/company/pricing',
+      component: PricingSettingsView,
+      meta: { requiresAuth: true }
     },
     {
       path: '/auth',

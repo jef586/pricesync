@@ -9,6 +9,7 @@ import productRoutes from './routes/products.js';
 import categoryRoutes from './routes/categories.js';
 import reportRoutes from './routes/reports.js';
 import supplierRoutes from './routes/suppliers.js';
+import settingsRoutes from './routes/settings.js';
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -41,6 +42,7 @@ app.use('/api/products', productRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/suppliers', supplierRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // Endpoint de health check
 app.get('/api/health', async (req, res) => {

@@ -385,6 +385,25 @@ class ProductController {
       if (taxRate !== undefined) updateData.taxRate = parseFloat(taxRate) || 21;
       if (categoryId !== undefined) updateData.categoryId = categoryId || null;
 
+      // Si se actualiza costPrice y no se envía salePrice, aplicar reglas de pricing
+      try {
+        if (updateData.costPrice !== undefined && salePrice === undefined) {
+          const { getCompanyPricing, computeSalePrice } = await import('../services/PricingService.js')
+          const pricing = await getCompanyPricing(companyId)
+          if (pricing.applyOnUpdate) {
+            const sale = computeSalePrice({
+              costPrice: updateData.costPrice ?? existingProduct.costPrice,
+              listPrice: null,
+              pricing,
+              supplierId: null
+            })
+            updateData.salePrice = sale
+          }
+        }
+      } catch (e) {
+        console.warn('Pricing warning (updateProduct):', e?.message || e)
+      }
+
       const product = await prisma.product.update({
         where: { id },
         data: updateData,
