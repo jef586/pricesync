@@ -44,6 +44,17 @@
           </li>
 
           <li class="nav-item">
+            <router-link to="/pos" class="nav-link" :class="{ active: $route.path.startsWith('/pos') }">
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 3H21V7H3V3Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M5 7L7 21H17L19 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M9 11H15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span v-if="!sidebarCollapsed" class="nav-text">Ventas</span>
+            </router-link>
+          </li>
+
+          <li class="nav-item">
             <router-link to="/customers" class="nav-link" :class="{ active: $route.path.startsWith('/customers') }">
               <svg class="nav-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -104,6 +115,17 @@
                 <path d="M19 21V5C19 4.46957 18.7893 3.96086 18.4142 3.58579C18.0391 3.21071 17.5304 3 17 3H7C6.46957 3 5.96086 3.21071 5.58579 3.58579C5.21071 3.96086 5 4.46957 5 5V21L12 17L19 21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
               <span v-if="!sidebarCollapsed" class="nav-text">Empresa</span>
+            </router-link>
+          </li>
+
+          <li class="nav-item">
+            <router-link to="/help" class="nav-link" :class="{ active: $route.path.startsWith('/help') }">
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2C6.477 2 2 6.477 2 12C2 17.523 6.477 22 12 22C17.523 22 22 17.523 22 12C22 6.477 17.523 2 12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M9.09 9A3 3 0 0 1 15 10C15 12 12 12.5 12 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="12" cy="18" r="1" fill="currentColor" />
+              </svg>
+              <span v-if="!sidebarCollapsed" class="nav-text">Ayuda</span>
             </router-link>
           </li>
         </ul>

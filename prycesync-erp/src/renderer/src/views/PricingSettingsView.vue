@@ -68,12 +68,65 @@
               <span>Permitir precio por debajo del costo</span>
             </label>
           </div>
+
+          <!-- Overrides por proveedor -->
+          <div class="mt-8">
+            <h3 class="text-lg font-medium text-gray-900">Overrides por proveedor</h3>
+            <p class="text-sm text-gray-500 mb-4">Define márgenes específicos que sobrescriben el margen por defecto.</p>
+
+            <div class="space-y-4">
+              <div
+                v-for="(row, idx) in overridesRows"
+                :key="idx"
+                class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end"
+              >
+                <div class="md:col-span-6">
+                  <EntitySelector
+                    label="Proveedor"
+                    :options="suppliers"
+                    :model-value="row.supplierId"
+                    value-field="id"
+                    label-field="name"
+                    secondary-field="code"
+                    :searchable="true"
+                    :clearable="true"
+                    @update:model-value="val => handleSupplierSelect(idx, val)"
+                  />
+                </div>
+                <div class="md:col-span-4">
+                  <BaseInput
+                    v-model.number="row.marginPercent"
+                    label="Margen (%)"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                  />
+                </div>
+                <div class="md:col-span-2">
+                  <BaseButton variant="ghost" @click="removeOverrideRow(idx)">Eliminar</BaseButton>
+                </div>
+              </div>
+
+              <BaseButton variant="outline" @click="addOverrideRow">Agregar proveedor</BaseButton>
+            </div>
+          </div>
         </div>
 
         <!-- Preview -->
         <div class="bg-white rounded-lg shadow p-6">
           <h3 class="text-lg font-medium text-gray-900 mb-4">Preview de Cálculo</h3>
           <div class="space-y-4">
+            <EntitySelector
+              label="Proveedor (opcional)"
+              :options="suppliers"
+              :model-value="selectedPreviewSupplierId"
+              value-field="id"
+              label-field="name"
+              secondary-field="code"
+              :searchable="true"
+              :clearable="true"
+              @update:model-value="val => selectedPreviewSupplierId = typeof val === 'object' ? val?.id : val"
+            />
             <BaseInput
               v-model.number="previewCost"
               label="Costo"
@@ -109,6 +162,7 @@ import PageHeader from '@/components/molecules/PageHeader.vue'
 import BaseInput from '@/components/atoms/BaseInput.vue'
 import BaseSelect from '@/components/atoms/BaseSelect.vue'
 import BaseButton from '@/components/atoms/BaseButton.vue'
+import EntitySelector from '@/components/molecules/EntitySelector.vue'
 import { useNotifications } from '@/composables/useNotifications'
 import { 
   getPricingSettings, 
@@ -116,6 +170,7 @@ import {
   computePreviewSale, 
   type PricingSettings 
 } from '@/services/settingsService'
+import { useSuppliers } from '@/composables/useSuppliers'
 
 const { success, error } = useNotifications()
 const router = useRouter()
@@ -148,8 +203,14 @@ const roundingModeOptions = [
 // Preview state
 const previewCost = ref(100)
 const previewList = ref<number | null>(null)
+let selectedPreviewSupplierId = ref<string | null>(null)
 const previewSale = computed(() => {
-  return computePreviewSale(previewCost.value || 0, previewList.value, settings.value)
+  return computePreviewSale(
+    previewCost.value || 0,
+    previewList.value,
+    settings.value,
+    selectedPreviewSupplierId.value
+  )
 })
 
 function formatCurrency(value: number) {
@@ -164,6 +225,12 @@ async function loadSettings() {
   try {
     const data = await getPricingSettings()
     settings.value = data
+    // Hidratar filas de overrides desde settings
+    const entries = Object.entries(settings.value.supplierOverrides || {})
+    overridesRows.value = entries.map(([supplierId, conf]: [string, any]) => ({
+      supplierId,
+      marginPercent: Number(conf?.marginPercent ?? 0)
+    }))
   } catch (e) {
     console.error('Error loading pricing settings', e)
     error('No se pudieron cargar los settings de pricing')
@@ -175,6 +242,17 @@ async function loadSettings() {
 async function saveSettings() {
   isSaving.value = true
   try {
+    // Persistir overrides desde filas
+    const overridesObj: Record<string, { marginPercent: number }> = {}
+    for (const row of overridesRows.value) {
+      const sid = String(row.supplierId || '')
+      const mp = Number(row.marginPercent)
+      if (sid && !Number.isNaN(mp) && mp >= 0) {
+        overridesObj[sid] = { marginPercent: mp }
+      }
+    }
+    settings.value.supplierOverrides = overridesObj
+
     const updated = await updatePricingSettings(settings.value)
     settings.value = updated
     success('Configuración guardada correctamente')
@@ -188,8 +266,40 @@ async function saveSettings() {
 }
 
 onMounted(() => {
+  // Cargar settings y proveedores
   loadSettings()
+  fetchSuppliers({ limit: 100, sortBy: 'name', sortOrder: 'asc' })
 })
+
+// --- Overrides por proveedor ---
+type OverrideRow = { supplierId: string | null; marginPercent: number }
+const overridesRows = ref<OverrideRow[]>([])
+
+// Proveedores para selector
+const { suppliers, fetchSuppliers } = useSuppliers()
+
+function addOverrideRow() {
+  overridesRows.value.push({ supplierId: null, marginPercent: Number(settings.value.defaultMarginPercent || 0) })
+}
+
+function removeOverrideRow(index: number) {
+  overridesRows.value.splice(index, 1)
+}
+
+function handleSupplierSelect(index: number, val: any) {
+  const selectedId = typeof val === 'object' ? val?.id : val
+  if (!selectedId) {
+    overridesRows.value[index].supplierId = null
+    return
+  }
+  // Evitar duplicados
+  const existsAt = overridesRows.value.findIndex((r, i) => i !== index && r.supplierId === selectedId)
+  if (existsAt !== -1) {
+    error('Ese proveedor ya tiene un override definido')
+    return
+  }
+  overridesRows.value[index].supplierId = selectedId
+}
 </script>
 
 <style scoped>

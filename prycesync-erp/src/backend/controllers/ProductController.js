@@ -333,7 +333,8 @@ class ProductController {
         minStock,
         maxStock,
         taxRate,
-        categoryId
+        categoryId,
+        supplierId
       } = req.body;
       
       const companyId = req.user.company.id;
@@ -385,7 +386,7 @@ class ProductController {
       if (taxRate !== undefined) updateData.taxRate = parseFloat(taxRate) || 21;
       if (categoryId !== undefined) updateData.categoryId = categoryId || null;
 
-      // Si se actualiza costPrice y no se envía salePrice, aplicar reglas de pricing
+      // Si se actualiza costPrice y no se envía salePrice, aplicar reglas de pricing (con overrides por proveedor)
       try {
         if (updateData.costPrice !== undefined && salePrice === undefined) {
           const { getCompanyPricing, computeSalePrice } = await import('../services/PricingService.js')
@@ -395,7 +396,7 @@ class ProductController {
               costPrice: updateData.costPrice ?? existingProduct.costPrice,
               listPrice: null,
               pricing,
-              supplierId: null
+              supplierId: supplierId ?? null
             })
             updateData.salePrice = sale
           }

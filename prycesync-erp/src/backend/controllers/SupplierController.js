@@ -714,6 +714,17 @@ class SupplierController {
       const errors = [];
       let rowIndex = 0;
 
+      // Preparar pricing y supplierId opcional para vista previa
+      let pricing = null;
+      let supplierIdForPricing = null;
+      try {
+        const { getCompanyPricing } = await import('../services/PricingService.js');
+        pricing = await getCompanyPricing(companyId);
+        supplierIdForPricing = req.body?.supplierId || req.query?.supplierId || null;
+      } catch (e) {
+        console.warn('Pricing warning (previewExcelImport):', e?.message || e);
+      }
+
       worksheet.eachRow((row, rowNumber) => {
         rowIndex++;
         
@@ -747,8 +758,27 @@ class SupplierController {
           rowErrors.push('Precio de costo inválido');
         }
 
+        // Calcular precio de venta sugerido si es válido y se puede aplicar pricing
+        let computedSalePrice = null;
+        if (rowErrors.length === 0 && pricing && pricing.applyOnImport) {
+          try {
+            const { computeSalePrice } = await import('../services/PricingService.js');
+            const cost = parseFloat(rowData.costPrice);
+            const list = rowData.listPrice ? parseFloat(rowData.listPrice) : null;
+            computedSalePrice = computeSalePrice({
+              costPrice: cost,
+              listPrice: list,
+              pricing,
+              supplierId: supplierIdForPricing || null
+            });
+          } catch (e) {
+            console.warn('Pricing compute warning (previewExcelImport):', e?.message || e);
+          }
+        }
+
         preview.push({
           ...rowData,
+          computedSalePrice,
           errors: rowErrors,
           isValid: rowErrors.length === 0
         });
@@ -1217,6 +1247,15 @@ class SupplierController {
       const errors = [];
       let rowIndex = 0;
 
+      // Preparar pricing para vista previa con overrides del proveedor
+      let pricing = null;
+      try {
+        const { getCompanyPricing } = await import('../services/PricingService.js');
+        pricing = await getCompanyPricing(companyId);
+      } catch (e) {
+        console.warn('Pricing warning (previewProductsImport):', e?.message || e);
+      }
+
       worksheet.eachRow((row, rowNumber) => {
         rowIndex++;
         
@@ -1281,8 +1320,27 @@ class SupplierController {
           }
         }
 
+        // Calcular precio de venta sugerido si es válido y se puede aplicar pricing
+        let computedSalePrice = null;
+        if (rowErrors.length === 0 && pricing && pricing.applyOnImport) {
+          try {
+            const { computeSalePrice } = await import('../services/PricingService.js');
+            const cost = parseFloat(rowData.costPrice);
+            const list = rowData.listPrice ? parseFloat(rowData.listPrice) : null;
+            computedSalePrice = computeSalePrice({
+              costPrice: cost,
+              listPrice: list,
+              pricing,
+              supplierId
+            });
+          } catch (e) {
+            console.warn('Pricing compute warning (previewProductsImport):', e?.message || e);
+          }
+        }
+
         preview.push({
           ...rowData,
+          computedSalePrice,
           errors: rowErrors,
           hasErrors: rowErrors.length > 0
         });

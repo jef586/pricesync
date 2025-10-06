@@ -22,6 +22,8 @@ import InvoiceEditView from '../views/InvoiceEditView.vue'
 import InvoiceDetailView from '../views/InvoiceDetailView.vue'
 import CompanyView from '../views/CompanyView.vue'
 import PricingSettingsView from '../views/PricingSettingsView.vue'
+import HelpView from '../views/HelpView.vue'
+import SalesPOSView from '../views/SalesPOSView.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -42,6 +44,12 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/help',
+      name: 'Help',
+      component: HelpView,
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/auth',
       name: 'Auth',
       component: AuthView,
@@ -57,6 +65,13 @@ const router = createRouter({
       path: '/inventory',
       name: 'Inventory',
       component: InventoryView,
+      meta: { requiresAuth: true }
+    },
+    // Alias para evitar pantalla en blanco si el usuario navega a /products
+    {
+      path: '/products',
+      name: 'Products',
+      redirect: '/inventory',
       meta: { requiresAuth: true }
     },
     {
@@ -165,6 +180,12 @@ const router = createRouter({
       path: '/company',
       name: 'Company',
       component: CompanyView,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/pos',
+      name: 'SalesPOS',
+      component: SalesPOSView,
       meta: { requiresAuth: true }
     }
   ]

@@ -26,10 +26,23 @@ export async function updatePricingSettings(settings: Partial<PricingSettings>):
 export function computePreviewSale(
   costPrice: number,
   listPrice: number | null,
-  settings: PricingSettings
+  settings: PricingSettings,
+  supplierId?: string | null
 ): number {
   const source = settings.priceSource === 'listPrice' && listPrice != null ? listPrice : costPrice
-  const margin = source * (1 + (settings.defaultMarginPercent || 0) / 100)
+  const marginPercent = (() => {
+    const sid = supplierId || null
+    if (
+      sid &&
+      settings.supplierOverrides &&
+      settings.supplierOverrides[sid] &&
+      settings.supplierOverrides[sid].marginPercent != null
+    ) {
+      return settings.supplierOverrides[sid].marginPercent
+    }
+    return settings.defaultMarginPercent || 0
+  })()
+  const margin = source * (1 + marginPercent / 100)
   let value = margin
 
   if (!settings.allowBelowCost && value < costPrice) {
