@@ -35,14 +35,14 @@ defineProps<Props>()
 .page-header__title {
   font-size: 2rem;
   font-weight: 700;
-  color: #1f2937;
+  color: var(--ps-text-primary);
   margin: 0 0 0.5rem 0;
   line-height: 1.2;
 }
 
 .page-header__subtitle {
   font-size: 1rem;
-  color: #6b7280;
+  color: var(--ps-text-secondary);
   margin: 0;
   line-height: 1.4;
 }

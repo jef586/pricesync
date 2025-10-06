@@ -345,4 +345,19 @@ const activeFiltersList = computed(() => {
     @apply hidden;
   }
 }
+
+/* Design system overrides for dark/light mode using tokens */
+.filter-bar { background: var(--ps-card); border: var(--ps-border-width) solid var(--ps-border); border-radius: var(--ps-radius-lg); box-shadow: var(--ps-shadow-sm); }
+.filter-bar-header { border-bottom: var(--ps-border-width) solid var(--ps-border); }
+.filter-title { color: var(--ps-text-primary); }
+.clear-filters-btn { color: var(--ps-text-secondary); }
+.clear-filters-btn:hover { color: var(--ps-text-primary); }
+.filter-label { color: var(--ps-text-secondary); }
+.filter-select { background: var(--ps-card); color: var(--ps-text-primary); border: var(--ps-border-width) solid var(--ps-border); border-radius: var(--ps-radius-md); }
+.filter-select:focus { border-color: var(--ps-primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--ps-primary) 30%, transparent); }
+.date-separator { color: var(--ps-text-secondary); }
+.active-filters { border-top: var(--ps-border-width) solid var(--ps-border); }
+.active-filters-label { color: var(--ps-text-secondary); }
+.filter-tag { background: color-mix(in srgb, var(--ps-primary) 15%, transparent); color: var(--ps-primary); border-color: color-mix(in srgb, var(--ps-primary) 35%, transparent); }
+.filter-tag-remove:hover { background: color-mix(in srgb, var(--ps-primary) 18%, transparent); }
 </style>

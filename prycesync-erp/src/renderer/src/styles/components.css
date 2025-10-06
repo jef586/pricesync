@@ -1,0 +1,71 @@
+/* PriceSync ERP component styles built on design tokens */
+
+/* Cards */
+.ps-card {
+  background: var(--ps-card);
+  color: var(--ps-text-primary);
+  border: var(--ps-border-width) solid var(--ps-border);
+  border-radius: var(--ps-radius-lg);
+  box-shadow: var(--ps-shadow-sm);
+  transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+}
+.ps-card:hover { box-shadow: var(--ps-shadow-md); transform: translateY(-1px); }
+
+/* Buttons */
+.ps-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem; /* 8px x 16px */
+  font-weight: var(--ps-weight-medium);
+  border-radius: var(--ps-radius-sm);
+  border: var(--ps-border-width) solid transparent;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.05s ease;
+}
+.ps-btn:active { transform: translateY(1px); }
+
+.ps-btn--primary { background: var(--ps-primary); color: white; }
+.ps-btn--primary:hover { filter: brightness(1.05); box-shadow: var(--ps-shadow-sm); }
+
+.ps-btn--secondary { background: var(--ps-card); color: var(--ps-text-primary); border-color: var(--ps-border); }
+.ps-btn--secondary:hover { box-shadow: var(--ps-shadow-sm); }
+
+.ps-btn--danger { background: var(--ps-error); color: white; }
+.ps-btn--danger:hover { filter: brightness(1.05); box-shadow: var(--ps-shadow-sm); }
+
+/* Alerts */
+.ps-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-radius: var(--ps-radius-md);
+  border: var(--ps-border-width) solid var(--ps-border);
+  background: var(--ps-card);
+}
+.ps-alert__icon { width: 20px; height: 20px; flex-shrink: 0; }
+.ps-alert--warning { border-color: #F59E0B33; background: #FFF7ED; color: #92400E; }
+.dark .ps-alert--warning { background: #2B1E0A; color: #FBBF24; border-color: #F59E0B55; }
+.ps-alert--info { border-color: #5B7EFF33; background: #EEF2FF; color: #1E40AF; }
+.dark .ps-alert--info { background: #162036; color: #93C5FD; border-color: #5B7EFF55; }
+.ps-alert--danger { border-color: #EF444433; background: #FEF2F2; color: #7F1D1D; }
+.dark .ps-alert--danger { background: #2A1212; color: #FCA5A5; border-color: #EF444455; }
+
+/* Tables */
+.ps-table { width: 100%; border-collapse: collapse; overflow: hidden; border-radius: var(--ps-radius-lg); }
+.ps-table thead th {
+  background: var(--ps-card);
+  color: var(--ps-text-secondary);
+  text-align: left;
+  font-weight: var(--ps-weight-semibold);
+  padding: 0.75rem 1rem;
+  border-bottom: var(--ps-border-width) solid var(--ps-border);
+}
+.ps-table tbody td { padding: 0.75rem 1rem; border-bottom: var(--ps-border-width) solid var(--ps-border); }
+.ps-table tbody tr:nth-child(odd) { background: rgba(0,0,0,0.02); }
+.dark .ps-table tbody tr:nth-child(odd) { background: rgba(255,255,255,0.03); }
+
+/* Header & Sidebar helpers */
+.ps-header { height: 64px; display: flex; align-items: center; backdrop-filter: blur(6px); }
+.ps-sidebar { width: 280px; }

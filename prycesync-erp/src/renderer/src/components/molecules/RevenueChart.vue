@@ -1,17 +1,15 @@
 <template>
   <div class="revenue-chart">
     <div class="chart-header mb-4">
-      <h3 class="text-lg font-semibold text-gray-900">{{ title }}</h3>
+      <h3 class="chart-title">{{ title }}</h3>
       <div class="flex space-x-2">
         <button
           v-for="period in periods"
           :key="period.value"
           @click="$emit('period-change', period.value)"
           :class="[
-            'px-3 py-1 text-sm rounded-md transition-colors',
-            selectedPeriod === period.value
-              ? 'bg-blue-100 text-blue-700 border border-blue-200'
-              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+            'period-button',
+            selectedPeriod === period.value ? 'is-selected' : ''
           ]"
         >
           {{ period.label }}
@@ -20,17 +18,17 @@
     </div>
 
     <div v-if="loading" class="flex justify-center items-center h-64">
-      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      <span class="ml-2 text-gray-600">Cargando datos...</span>
+      <div class="animate-spin rounded-full h-8 w-8 border-b-2 loading-spinner"></div>
+      <span class="ml-2 loading-text">Cargando datos...</span>
     </div>
 
-    <div v-else-if="error" class="flex justify-center items-center h-64 text-red-600">
+    <div v-else-if="error" class="flex justify-center items-center h-64 error-text">
       <div class="text-center">
         <div class="text-2xl mb-2">⚠️</div>
         <p>{{ error }}</p>
         <button 
           @click="$emit('retry')"
-          class="mt-2 text-blue-600 hover:text-blue-800 underline"
+          class="mt-2 retry-link"
         >
           Reintentar
         </button>
@@ -71,42 +69,42 @@
 
       <!-- Tabla de datos detallados -->
       <div v-if="data && data.labels && data.datasets" class="mt-6">
-        <h4 class="text-md font-semibold text-gray-900 mb-3">Detalle por Período</h4>
+        <h4 class="table-title">Detalle por Período</h4>
         <div class="overflow-x-auto">
-          <table class="min-w-full bg-white border border-gray-200 rounded-lg">
-            <thead class="bg-gray-50">
+          <table class="min-w-full revenue-table">
+            <thead class="revenue-thead">
               <tr>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th class="px-4 py-3 text-left text-xs font-medium table-th">
                   Período
                 </th>
-                <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th class="px-4 py-3 text-right text-xs font-medium table-th">
                   Ingresos
                 </th>
-                <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th class="px-4 py-3 text-right text-xs font-medium table-th">
                   Variación
                 </th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-gray-200">
+            <tbody class="revenue-tbody">
               <tr 
                 v-for="(label, index) in data.labels" 
                 :key="index"
-                class="hover:bg-gray-50"
+                class="table-row"
               >
-                <td class="px-4 py-3 text-sm font-medium text-gray-900">
+                <td class="px-4 py-3 text-sm font-medium table-td">
                   {{ label }}
                 </td>
-                <td class="px-4 py-3 text-sm text-gray-900 text-right">
+                <td class="px-4 py-3 text-sm table-td text-right">
                   {{ formatCurrency(data.datasets[0].data[index]) }}
                 </td>
                 <td class="px-4 py-3 text-sm text-right">
                   <span v-if="index > 0" :class="[
-                    'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium',
+                    'variation-badge',
                     getVariationClass(data.datasets[0].data[index], data.datasets[0].data[index - 1])
                   ]">
                     {{ getVariationText(data.datasets[0].data[index], data.datasets[0].data[index - 1]) }}
                   </span>
-                  <span v-else class="text-gray-400 text-xs">-</span>
+                  <span v-else class="variation-empty">-</span>
                 </td>
               </tr>
             </tbody>
@@ -115,7 +113,7 @@
       </div>
     </div>
 
-    <div v-else class="text-center py-8 text-gray-500">
+    <div v-else class="text-center py-8 empty-text">
       No hay datos disponibles para mostrar
     </div>
   </div>
@@ -180,12 +178,9 @@ const formatCurrency = (amount: number): string => {
 
 const getVariationClass = (current: number, previous: number): string => {
   const variation = ((current - previous) / previous) * 100
-  if (variation > 0) {
-    return 'bg-green-100 text-green-800'
-  } else if (variation < 0) {
-    return 'bg-red-100 text-red-800'
-  }
-  return 'bg-gray-100 text-gray-800'
+  if (variation > 0) return 'positive'
+  if (variation < 0) return 'negative'
+  return 'neutral'
 }
 
 const getVariationText = (current: number, previous: number): string => {
@@ -197,16 +192,42 @@ const getVariationText = (current: number, previous: number): string => {
 
 <style scoped>
 .revenue-chart {
-  @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6;
+  background: var(--ps-card);
+  border: var(--ps-border-width) solid var(--ps-border);
+  border-radius: var(--ps-radius-lg);
+  box-shadow: var(--ps-shadow-sm);
+  padding: 1.5rem;
 }
 
-.chart-header {
-  @apply flex justify-between items-center;
-}
+.chart-header { display: flex; justify-content: space-between; align-items: center; }
+.chart-title { color: var(--ps-text-primary); font-weight: 600; font-size: 1.125rem; }
+
+.period-button { padding: 0.5rem 0.75rem; font-size: 0.875rem; border-radius: var(--ps-radius-md); transition: color .2s ease, background .2s ease, border-color .2s ease; color: var(--ps-text-secondary); }
+.period-button:hover { color: var(--ps-text-primary); background: color-mix(in srgb, var(--ps-primary) 6%, transparent); }
+.period-button.is-selected { background: color-mix(in srgb, var(--ps-primary) 14%, transparent); color: var(--ps-primary); border: var(--ps-border-width) solid var(--ps-primary); }
+
+.loading-spinner { border-bottom-color: var(--ps-primary); }
+.loading-text { color: var(--ps-text-secondary); }
+.error-text { color: var(--ps-error); }
+.retry-link { color: var(--ps-primary); text-decoration: underline; }
+
+.table-title { font-size: 1rem; font-weight: 600; color: var(--ps-text-primary); margin-bottom: 0.75rem; }
+.revenue-table { background: var(--ps-card); border: var(--ps-border-width) solid var(--ps-border); border-radius: var(--ps-radius-lg); overflow: hidden; }
+.revenue-thead { background: color-mix(in srgb, var(--ps-primary) 6%, transparent); }
+.table-th { color: var(--ps-text-secondary); text-transform: uppercase; letter-spacing: 0.03em; }
+.revenue-tbody { border-top: var(--ps-border-width) solid var(--ps-border); }
+.table-row:hover { background: color-mix(in srgb, var(--ps-primary) 6%, transparent); }
+.table-td { color: var(--ps-text-primary); }
+
+.variation-badge { display: inline-flex; align-items: center; padding: 0.125rem 0.5rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; }
+.variation-badge.positive { background: color-mix(in srgb, var(--ps-success) 15%, transparent); color: var(--ps-success); }
+.variation-badge.negative { background: color-mix(in srgb, var(--ps-error) 15%, transparent); color: var(--ps-error); }
+.variation-badge.neutral { background: color-mix(in srgb, var(--ps-text-secondary) 15%, transparent); color: var(--ps-text-secondary); }
+.variation-empty { color: var(--ps-text-secondary); opacity: 0.7; font-size: 0.75rem; }
+
+.empty-text { color: var(--ps-text-secondary); }
 
 @media (max-width: 768px) {
-  .chart-header {
-    @apply flex-col space-y-3 items-start;
-  }
+  .chart-header { flex-direction: column; gap: 0.75rem; align-items: flex-start; }
 }
 </style>

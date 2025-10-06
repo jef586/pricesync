@@ -473,4 +473,27 @@ watch(() => props.data, () => {
 .data-table__pagination-page--active {
   @apply bg-blue-600 text-white hover:bg-blue-700;
 }
+
+/* Design system overrides for dark/light mode using tokens */
+.data-table { background: var(--ps-card); border: var(--ps-border-width) solid var(--ps-border); border-radius: var(--ps-radius-lg); box-shadow: var(--ps-shadow-sm); }
+.data-table__header { background: var(--ps-card); border-bottom: var(--ps-border-width) solid var(--ps-border); }
+.data-table__thead { background: color-mix(in srgb, var(--ps-bg) 6%, var(--ps-card)); }
+.data-table__th { color: var(--ps-text-secondary); border-color: var(--ps-border); }
+.data-table__th--sortable:hover { background: color-mix(in srgb, var(--ps-bg) 8%, transparent); }
+.data-table__sort-icon { color: var(--ps-text-secondary); }
+.data-table__sort-icon--active { color: var(--ps-text-primary); }
+.data-table__tbody { background: var(--ps-card); border-color: var(--ps-border); }
+.data-table__tr { transition: background-color .2s ease; }
+.data-table__tr:hover { background: color-mix(in srgb, var(--ps-bg) 8%, transparent); }
+.data-table__td { color: var(--ps-text-primary); }
+.data-table__empty-icon { color: var(--ps-text-secondary); }
+.data-table__empty-title { color: var(--ps-text-primary); }
+.data-table__empty-message { color: var(--ps-text-secondary); }
+.data-table__loading-spinner { border-color: var(--ps-border); border-top-color: var(--ps-primary); }
+.data-table__loading-text { color: var(--ps-text-secondary); }
+.data-table__pagination { background: var(--ps-card); border-top: var(--ps-border-width) solid var(--ps-border); }
+.data-table__pagination-info { color: var(--ps-text-secondary); }
+.data-table__pagination-page { background: transparent; color: var(--ps-text-primary); }
+.data-table__pagination-page:hover { background: color-mix(in srgb, var(--ps-bg) 10%, transparent); }
+.data-table__pagination-page--active { background: var(--ps-primary); color: #fff; }
 </style>

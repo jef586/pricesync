@@ -1,9 +1,6 @@
 <template>
-  <div id="app" class="min-h-screen bg-gray-50">
-    <!-- Mostrar navbar solo si el usuario está autenticado -->
-    <AppNavbar v-if="authStore.isAuthenticated" />
-    
-    <!-- Contenido principal -->
+  <div id="app" class="min-h-screen">
+    <!-- Contenido principal (el navbar ahora vive dentro de DashboardLayout) -->
     <main :class="authStore.isAuthenticated ? 'pt-0' : ''">
       <RouterView />
     </main>
@@ -16,7 +13,6 @@
 <script setup lang="ts">
 import { RouterView } from 'vue-router'
 import { useAuthStore } from './stores/auth'
-import AppNavbar from './components/organisms/AppNavbar.vue'
 import NotificationContainer from './components/molecules/NotificationContainer.vue'
 
 // Composables
@@ -32,6 +28,8 @@ const authStore = useAuthStore()
 body {
   margin: 0;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: var(--ps-bg);
+  color: var(--ps-text-primary);
 }
 
 #app {

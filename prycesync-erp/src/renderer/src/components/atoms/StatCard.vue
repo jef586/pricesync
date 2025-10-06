@@ -60,11 +60,11 @@ const changeText = computed(() => {
 
 <style scoped>
 .stat-card {
-  background: white;
-  border-radius: 0.75rem;
+  background: var(--ps-card);
+  border-radius: var(--ps-radius-lg);
   padding: 1.5rem;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
-  border: 1px solid #e2e8f0;
+  box-shadow: var(--ps-shadow-sm);
+  border: var(--ps-border-width) solid var(--ps-border);
   display: flex;
   align-items: center;
   gap: 1rem;
@@ -72,14 +72,14 @@ const changeText = computed(() => {
 }
 
 .stat-card:hover {
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--ps-shadow-md);
   transform: translateY(-1px);
 }
 
 .stat-icon {
   width: 48px;
   height: 48px;
-  border-radius: 0.75rem;
+  border-radius: var(--ps-radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -92,69 +92,53 @@ const changeText = computed(() => {
 }
 
 .stat-icon.invoices {
-  background: linear-gradient(135deg, #3b82f6, #60a5fa);
-  color: white;
+  background: color-mix(in srgb, var(--ps-primary) 20%, transparent);
+  color: var(--ps-primary);
 }
 
 .stat-icon.revenue {
-  background: linear-gradient(135deg, #10b981, #34d399);
-  color: white;
+  background: color-mix(in srgb, var(--ps-success) 20%, transparent);
+  color: var(--ps-success);
 }
 
 .stat-icon.pending {
-  background: linear-gradient(135deg, #f59e0b, #fbbf24);
-  color: white;
+  background: color-mix(in srgb, var(--ps-warning) 20%, transparent);
+  color: var(--ps-warning);
 }
 
 .stat-icon.products {
-  background: linear-gradient(135deg, #8b5cf6, #a78bfa);
-  color: white;
+  background: color-mix(in srgb, var(--ps-primary) 10%, transparent);
+  color: var(--ps-primary);
 }
 
-.stat-content {
-  flex: 1;
-}
+.stat-content { flex: 1; }
 
 .stat-value {
   font-size: 2rem;
-  font-weight: 700;
-  color: #1f2937;
+  font-weight: var(--ps-weight-bold);
+  color: var(--ps-text-primary);
   line-height: 1;
   margin-bottom: 0.25rem;
 }
 
 .stat-label {
   font-size: 0.875rem;
-  color: #6b7280;
-  font-weight: 500;
+  color: var(--ps-text-secondary);
+  font-weight: var(--ps-weight-medium);
   margin-bottom: 0.5rem;
 }
 
 .stat-change {
   font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: var(--ps-weight-medium);
 }
 
-.stat-change.positive {
-  color: #10b981;
-}
+.stat-change.positive { color: var(--ps-success); }
+.stat-change.negative { color: var(--ps-error); }
+.stat-change.neutral { color: var(--ps-text-secondary); }
 
-.stat-change.negative {
-  color: #ef4444;
-}
-
-.stat-change.neutral {
-  color: #6b7280;
-}
-
-/* Responsive Design */
 @media (max-width: 768px) {
-  .stat-card {
-    padding: 1rem;
-  }
-
-  .stat-value {
-    font-size: 1.5rem;
-  }
+  .stat-card { padding: 1rem; }
+  .stat-value { font-size: 1.5rem; }
 }
 </style>

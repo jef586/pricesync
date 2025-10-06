@@ -1,19 +1,15 @@
 <template>
   <div class="auth-view">
     <div class="auth-view__container">
-      <div class="auth-view__brand">
-        <div class="auth-view__logo">
-          <svg class="auth-view__logo-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-            <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-            <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-          </svg>
-          <span class="auth-view__logo-text">PryceSync ERP</span>
-        </div>
-        <p class="auth-view__tagline">
-          Sistema integral de gestión empresarial
-        </p>
-      </div>
+  <div class="auth-view__brand">
+    <div class="auth-view__logo">
+      <img :src="logoUrl" alt="IberaSoft" class="auth-view__logo-icon" />
+      <span class="auth-view__logo-text">PryceSync ERP</span>
+    </div>
+    <p class="auth-view__tagline">
+      Sistema integral de gestión empresarial
+    </p>
+  </div>
 
       <div class="auth-view__form">
         <AuthCard
@@ -33,6 +29,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import AuthCard from '../components/organisms/AuthCard.vue'
+import logoUrl from '@/assets/iberasoft-logo.png'
 
 interface LoginData {
   email: string
@@ -97,7 +94,7 @@ onMounted(() => {
 }
 
 .auth-view__logo-icon {
-  @apply w-16 h-16 text-blue-600;
+  @apply w-16 h-16 object-contain;
 }
 
 .auth-view__logo-text {

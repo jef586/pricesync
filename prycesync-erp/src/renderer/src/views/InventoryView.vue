@@ -62,8 +62,8 @@
 
         <template #cell-name="{ item }">
           <div>
-            <div class="font-medium text-gray-900">{{ item.name }}</div>
-            <div class="text-sm text-gray-500">{{ item.description }}</div>
+            <div class="product-name font-medium">{{ item.name }}</div>
+            <div class="product-desc text-sm">{{ item.description }}</div>
           </div>
         </template>
 
@@ -77,11 +77,11 @@
           <div class="flex items-center">
             <span :class="[
               'font-medium',
-              item.minStock && item.stock <= item.minStock ? 'text-red-600' : 'text-gray-900'
+              item.minStock && item.stock <= item.minStock ? 'text-red-600' : 'stock-value'
             ]">
               {{ item.stock }}
             </span>
-            <span class="text-gray-500 text-sm ml-1">unid</span>
+            <span class="stock-unit text-sm ml-1">unid</span>
             <svg v-if="item.minStock && item.stock <= item.minStock" 
                  class="w-4 h-4 text-red-500 ml-1" 
                  fill="currentColor" 
@@ -93,8 +93,8 @@
 
         <template #cell-prices="{ item }">
           <div class="text-sm">
-            <div class="text-gray-900 font-medium">${{ formatCurrency(item.sale_price || item.salePrice) }}</div>
-            <div class="text-gray-500">Costo: ${{ formatCurrency(item.cost_price || item.costPrice) }}</div>
+            <div class="price-value font-medium">${{ formatCurrency(item.sale_price || item.salePrice) }}</div>
+            <div class="price-cost">Costo: ${{ formatCurrency(item.cost_price || item.costPrice) }}</div>
           </div>
         </template>
 
@@ -397,4 +397,13 @@ watch(() => filters.value.lowStock, () => {
   margin-left: auto;
   margin-right: auto;
 }
+</style>
+<style scoped>
+/* Mejorar visibilidad en modo claro/oscuro usando tokens del sistema */
+.product-name { color: var(--ps-text-primary); }
+.product-desc { color: var(--ps-text-secondary); }
+.stock-value { color: var(--ps-text-primary); }
+.stock-unit { color: var(--ps-text-secondary); }
+.price-value { color: var(--ps-text-primary); font-weight: 600; }
+.price-cost { color: var(--ps-text-secondary); }
 </style>

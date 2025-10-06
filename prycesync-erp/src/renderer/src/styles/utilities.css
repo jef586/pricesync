@@ -1,0 +1,28 @@
+/* PriceSync ERP utility classes built on tokens */
+
+.text-secondary { color: var(--ps-text-secondary); }
+.text-primary { color: var(--ps-text-primary); }
+
+.icon-success { color: var(--ps-success); }
+.icon-warning { color: var(--ps-warning); }
+.icon-error { color: var(--ps-error); }
+.icon-primary { color: var(--ps-primary); }
+
+.surface { background: var(--ps-card); color: var(--ps-text-primary); }
+.shadow-sm { box-shadow: var(--ps-shadow-sm); }
+.shadow-md { box-shadow: var(--ps-shadow-md); }
+.shadow-lg { box-shadow: var(--ps-shadow-lg); }
+
+.rounded-sm { border-radius: var(--ps-radius-sm); }
+.rounded-md { border-radius: var(--ps-radius-md); }
+.rounded-lg { border-radius: var(--ps-radius-lg); }
+
+.border-default { border: var(--ps-border-width) solid var(--ps-border); }
+
+/* Spacing shortcuts (margin/padding multiples of 8px) */
+.m-1 { margin: var(--ps-space-1); }
+.m-2 { margin: var(--ps-space-2); }
+.m-3 { margin: var(--ps-space-3); }
+.p-1 { padding: var(--ps-space-1); }
+.p-2 { padding: var(--ps-space-2); }
+.p-3 { padding: var(--ps-space-3); }

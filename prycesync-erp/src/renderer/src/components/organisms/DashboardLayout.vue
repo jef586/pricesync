@@ -4,11 +4,7 @@
     <aside class="dashboard-sidebar" :class="{ 'collapsed': sidebarCollapsed }">
       <div class="sidebar-header">
         <div class="logo">
-          <svg class="logo-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-            <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-            <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-          </svg>
+          <img :src="logoUrl" alt="IberaSoft" class="logo-img" />
           <span v-if="!sidebarCollapsed" class="logo-text">PryceSync</span>
         </div>
         <button @click="toggleSidebar" class="sidebar-toggle">
@@ -154,6 +150,8 @@
 
     <!-- Main Content -->
     <main class="dashboard-main" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
+      <!-- Navbar dentro del área principal, alineado a la derecha del sidebar -->
+      <AppNavbar />
       <div class="dashboard-content">
         <slot />
       </div>
@@ -165,6 +163,8 @@
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
+import AppNavbar from './AppNavbar.vue'
+import logoUrl from '@/assets/iberasoft-logo.png'
 
 const route = useRoute()
 const router = useRouter()
@@ -191,14 +191,14 @@ const userInitials = computed(() => {
 .dashboard-layout {
   display: flex;
   height: 100vh;
-  background-color: #f8fafc;
+  background-color: var(--ps-bg);
 }
 
 /* Sidebar Styles */
 .dashboard-sidebar {
   width: 280px;
-  background: linear-gradient(180deg, #1e293b 0%, #334155 100%);
-  color: white;
+  background: var(--ps-sidebar);
+  color: var(--ps-text-primary);
   display: flex;
   flex-direction: column;
   transition: width 0.3s ease;
@@ -212,7 +212,7 @@ const userInitials = computed(() => {
 
 .sidebar-header {
   padding: 1.5rem;
-  border-bottom: 1px solid #475569;
+  border-bottom: 1px solid var(--ps-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -224,22 +224,22 @@ const userInitials = computed(() => {
   gap: 0.75rem;
 }
 
-.logo-icon {
-  width: 32px;
-  height: 32px;
-  color: #60a5fa;
+.logo-img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
 }
 
 .logo-text {
   font-size: 1.25rem;
   font-weight: 700;
-  color: white;
+  color: var(--ps-text-primary);
 }
 
 .sidebar-toggle {
   background: none;
   border: none;
-  color: #94a3b8;
+  color: var(--ps-text-secondary);
   cursor: pointer;
   padding: 0.5rem;
   border-radius: 0.375rem;
@@ -247,8 +247,7 @@ const userInitials = computed(() => {
 }
 
 .sidebar-toggle:hover {
-  background-color: #475569;
-  color: white;
+  background-color: rgba(0,0,0,0.06);
 }
 
 .sidebar-toggle svg {
@@ -277,21 +276,21 @@ const userInitials = computed(() => {
   align-items: center;
   gap: 0.75rem;
   padding: 0.75rem 1.5rem;
-  color: #cbd5e1;
+  color: var(--ps-text-secondary);
   text-decoration: none;
   transition: all 0.2s;
   border-right: 3px solid transparent;
 }
 
 .nav-link:hover {
-  background-color: #475569;
-  color: white;
+  background-color: rgba(0,0,0,0.06);
+  color: var(--ps-text-primary);
 }
 
 .nav-link.active {
-  background-color: #3b82f6;
+  background-color: var(--ps-primary);
   color: white;
-  border-right-color: #60a5fa;
+  border-right-color: var(--ps-primary);
 }
 
 .nav-icon {
@@ -307,7 +306,7 @@ const userInitials = computed(() => {
 /* Sidebar Footer */
 .sidebar-footer {
   padding: 1rem;
-  border-top: 1px solid #475569;
+  border-top: 1px solid var(--ps-border);
 }
 
 .user-info {
@@ -316,7 +315,7 @@ const userInitials = computed(() => {
   gap: 0.75rem;
   margin-bottom: 1rem;
   padding: 0.75rem;
-  background-color: #475569;
+  background-color: var(--ps-card);
   border-radius: 0.5rem;
 }
 
@@ -345,13 +344,13 @@ const userInitials = computed(() => {
 .user-name {
   font-weight: 600;
   font-size: 0.875rem;
-  color: white;
+  color: var(--ps-text-primary);
   truncate: true;
 }
 
 .user-role {
   font-size: 0.75rem;
-  color: #94a3b8;
+  color: var(--ps-text-secondary);
   text-transform: capitalize;
 }
 

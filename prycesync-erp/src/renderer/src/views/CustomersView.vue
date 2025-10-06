@@ -64,8 +64,8 @@
 
         <template #cell-name="{ item }">
           <div>
-            <div class="font-medium text-gray-900">{{ item.name }}</div>
-            <div class="text-sm text-gray-500">{{ item.email }}</div>
+            <div class="customer-name font-medium">{{ item.name }}</div>
+            <div class="customer-email text-sm">{{ item.email }}</div>
           </div>
         </template>
 
@@ -362,4 +362,9 @@ onMounted(() => {
 .customers-view {
   @apply p-6;
 }
+</style>
+<style scoped>
+/* Mejora de visibilidad para columna Cliente usando tokens del sistema */
+.customer-name { color: var(--ps-text-primary); }
+.customer-email { color: var(--ps-text-secondary); }
 </style>

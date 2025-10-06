@@ -79,22 +79,22 @@
                 </th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-gray-200">
+            <tbody class="invoice-tbody">
               <tr 
                 v-for="(count, status) in data" 
                 :key="status"
-                class="hover:bg-gray-50"
+                class="table-row"
               >
                 <td class="px-4 py-3 text-sm font-medium text-gray-900">
                   <div class="flex items-center">
-                    <div :class="['w-3 h-3 rounded-full mr-3', getStatusDotColor(status)]"></div>
+                    <div :class="['status-dot', getStatusDotClass(status)]"></div>
                     {{ getStatusLabel(status) }}
                   </div>
                 </td>
-                <td class="px-4 py-3 text-sm text-gray-900 text-right">
+                <td class="px-4 py-3 text-sm table-td text-right">
                   {{ count }}
                 </td>
-                <td class="px-4 py-3 text-sm text-gray-900 text-right">
+                <td class="px-4 py-3 text-sm table-td text-right">
                   {{ getPercentage(count) }}%
                 </td>
               </tr>
@@ -104,7 +104,7 @@
       </div>
     </div>
 
-    <div v-else class="text-center py-8 text-gray-500">
+    <div v-else class="text-center py-8 empty-text">
       No hay datos de facturas disponibles
     </div>
   </div>
@@ -181,42 +181,63 @@ const getStatusStyle = (status: string): string => {
   return styles[status] || 'bg-gray-50 border-gray-200'
 }
 
+// Color de texto por estado (usado en el template)
 const getStatusTextColor = (status: string): string => {
-  const colors: Record<string, string> = {
-    'draft': 'text-gray-600',
-    'pending': 'text-yellow-600',
-    'sent': 'text-blue-600',
-    'paid': 'text-green-600',
-    'cancelled': 'text-red-600',
-    'overdue': 'text-red-700',
-    // Versiones en mayúsculas
-    'DRAFT': 'text-gray-600',
-    'PENDING': 'text-yellow-600',
-    'SENT': 'text-blue-600',
-    'PAID': 'text-green-600',
-    'CANCELLED': 'text-red-600',
-    'OVERDUE': 'text-red-700'
+  const map: Record<string, string> = {
+    draft: 'text-gray-700',
+    pending: 'text-yellow-700',
+    sent: 'text-blue-700',
+    paid: 'text-green-700',
+    cancelled: 'text-red-700',
+    overdue: 'text-red-700',
+    // Mayúsculas
+    DRAFT: 'text-gray-700',
+    PENDING: 'text-yellow-700',
+    SENT: 'text-blue-700',
+    PAID: 'text-green-700',
+    CANCELLED: 'text-red-700',
+    OVERDUE: 'text-red-700'
   }
-  return colors[status] || 'text-gray-600'
+  return map[status] || 'text-gray-700'
 }
 
-const getStatusDotColor = (status: string): string => {
-  const colors: Record<string, string> = {
-    'draft': 'bg-gray-400',
-    'pending': 'bg-yellow-400',
-    'sent': 'bg-blue-400',
-    'paid': 'bg-green-400',
-    'cancelled': 'bg-red-400',
-    'overdue': 'bg-red-600',
-    // Versiones en mayúsculas
-    'DRAFT': 'bg-gray-400',
-    'PENDING': 'bg-yellow-400',
-    'SENT': 'bg-blue-400',
-    'PAID': 'bg-green-400',
-    'CANCELLED': 'bg-red-400',
-    'OVERDUE': 'bg-red-600'
+const getStatusDotClass = (status: string): string => {
+  const map: Record<string, string> = {
+    draft: 'draft',
+    pending: 'pending',
+    sent: 'sent',
+    paid: 'paid',
+    cancelled: 'cancelled',
+    overdue: 'overdue',
+    // Mayúsculas
+    DRAFT: 'draft',
+    PENDING: 'pending',
+    SENT: 'sent',
+    PAID: 'paid',
+    CANCELLED: 'cancelled',
+    OVERDUE: 'overdue'
   }
-  return colors[status] || 'bg-gray-400'
+  return map[status] || 'draft'
+}
+
+// Color de fondo de indicador por estado (usado en el template)
+const getStatusDotColor = (status: string): string => {
+  const map: Record<string, string> = {
+    draft: 'bg-gray-400',
+    pending: 'bg-yellow-500',
+    sent: 'bg-blue-500',
+    paid: 'bg-green-500',
+    cancelled: 'bg-red-500',
+    overdue: 'bg-red-600',
+    // Mayúsculas
+    DRAFT: 'bg-gray-400',
+    PENDING: 'bg-yellow-500',
+    SENT: 'bg-blue-500',
+    PAID: 'bg-green-500',
+    CANCELLED: 'bg-red-500',
+    OVERDUE: 'bg-red-600'
+  }
+  return map[status] || 'bg-gray-400'
 }
 
 const getPercentage = (count: number): string => {
@@ -227,16 +248,29 @@ const getPercentage = (count: number): string => {
 
 <style scoped>
 .invoice-status-chart {
-  @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6;
+  background: var(--ps-card);
+  border: var(--ps-border-width) solid var(--ps-border);
+  border-radius: var(--ps-radius-lg);
+  box-shadow: var(--ps-shadow-sm);
+  padding: 1.5rem;
 }
 
-.chart-header {
-  @apply flex justify-between items-center;
-}
+.chart-header { display: flex; justify-content: space-between; align-items: center; }
+
+.invoice-tbody { border-top: var(--ps-border-width) solid var(--ps-border); }
+.table-row:hover { background: color-mix(in srgb, var(--ps-primary) 6%, transparent); }
+.table-td { color: var(--ps-text-primary); }
+.empty-text { color: var(--ps-text-secondary); }
+
+.status-dot { width: 0.75rem; height: 0.75rem; border-radius: 9999px; margin-right: 0.75rem; }
+.status-dot.draft { background: var(--ps-text-secondary); }
+.status-dot.pending { background: var(--ps-warning); }
+.status-dot.sent { background: var(--ps-primary); }
+.status-dot.paid { background: var(--ps-success); }
+.status-dot.cancelled { background: var(--ps-error); }
+.status-dot.overdue { background: var(--ps-error); filter: saturate(1.2); }
 
 @media (max-width: 768px) {
-  .invoice-status-chart {
-    @apply p-4;
-  }
+  .invoice-status-chart { padding: 1rem; }
 }
 </style>

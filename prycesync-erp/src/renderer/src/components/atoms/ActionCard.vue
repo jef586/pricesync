@@ -44,11 +44,11 @@ const handleClick = () => {
 
 <style scoped>
 .action-card {
-  background: white;
-  border-radius: 0.75rem;
+  background: var(--ps-card);
+  border-radius: var(--ps-radius-lg);
   padding: 1.5rem;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
-  border: 1px solid #e2e8f0;
+  box-shadow: var(--ps-shadow-sm);
+  border: var(--ps-border-width) solid var(--ps-border);
   display: flex;
   align-items: center;
   gap: 1rem;
@@ -59,11 +59,7 @@ const handleClick = () => {
   width: 100%;
 }
 
-.action-card:hover:not(:disabled) {
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  transform: translateY(-1px);
-  border-color: #3b82f6;
-}
+.action-card:hover:not(:disabled) { box-shadow: var(--ps-shadow-md); transform: translateY(-1px); border-color: var(--ps-primary); }
 
 .action-card:disabled {
   opacity: 0.6;
@@ -73,12 +69,12 @@ const handleClick = () => {
 .action-icon {
   width: 48px;
   height: 48px;
-  background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
-  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--ps-primary) 12%, transparent);
+  border-radius: var(--ps-radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #3b82f6;
+  color: var(--ps-primary);
   flex-shrink: 0;
 }
 
@@ -90,13 +86,13 @@ const handleClick = () => {
 .action-content h3 {
   font-size: 1.125rem;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--ps-text-primary);
   margin: 0 0 0.25rem 0;
 }
 
 .action-content p {
   font-size: 0.875rem;
-  color: #6b7280;
+  color: var(--ps-text-secondary);
   margin: 0;
 }
 

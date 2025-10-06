@@ -3,14 +3,8 @@
     <div class="navbar-container">
       <!-- Logo y título a la izquierda -->
       <div class="navbar-brand">
-        <div class="brand-logo">
-          <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2L2 7L12 12L22 7L12 2Z"/>
-            <path d="M2 17L12 22L22 17"/>
-            <path d="M2 12L12 17L22 12"/>
-          </svg>
-        </div>
-        <div class="brand-text">PryceSync ERP</div>
+        <!-- <img :src="logoUrl" alt="IberaSoft" class="brand-logo-img" />
+        <div class="brand-text">PryceSync ERP</div> -->
       </div>
 
       <!-- Buscador global centrado -->
@@ -23,18 +17,19 @@
       </div>
 
       <!-- Información del usuario a la derecha -->
-      <div class="navbar-user">
-        <div class="company-info">
-          <div class="company-name">{{ companyName }}</div>
-          <div class="company-subtitle">Sistema de Facturación</div>
-        </div>
-        
-        <div class="user-section">
-          <UserAvatar 
-            :name="user?.name || 'Usuario'"
-            :role="user?.role || 'user'"
-            size="sm"
-          />
+  <div class="navbar-user">
+    <div class="company-info">
+      <div class="company-name">{{ companyName }}</div>
+      <div class="company-subtitle">Sistema de Facturación</div>
+    </div>
+
+    <div class="user-section">
+      <ThemeSwitcher />
+      <UserAvatar 
+        :name="user?.name || 'Usuario'"
+        :role="user?.role || 'user'"
+        size="sm"
+      />
           <UserDropdown 
             :user="user"
             @logout="handleLogout"
@@ -52,6 +47,8 @@ import { useRouter } from 'vue-router'
 import UserAvatar from '@/components/atoms/UserAvatar.vue'
 import UserDropdown from '@/components/atoms/UserDropdown.vue'
 import SearchBar from '@/components/atoms/SearchBar.vue'
+import ThemeSwitcher from '@/components/ThemeSwitcher.vue'
+import logoUrl from '@/assets/iberasoft-logo.png'
 
 const authStore = useAuthStore()
 const router = useRouter()
@@ -77,8 +74,9 @@ const handleSearchSelect = (result: any) => {
 
 <style scoped>
 .navbar {
-  @apply sticky top-0 z-40 w-full bg-white border-b border-gray-200;
-  @apply backdrop-blur-sm bg-white/95;
+  @apply sticky top-0 z-40 w-full border-b border-gray-200;
+  @apply backdrop-blur-sm;
+  background: var(--ps-card);
 }
 
 .navbar-container {
@@ -91,12 +89,13 @@ const handleSearchSelect = (result: any) => {
   @apply flex items-center gap-3 flex-shrink-0;
 }
 
-.brand-logo {
-  @apply w-8 h-8 text-primary-600;
+.brand-logo-img {
+  @apply w-8 h-8 object-contain;
 }
 
 .brand-text {
-  @apply text-xl font-bold text-gray-900;
+  @apply text-xl font-bold;
+  color: var(--ps-text-primary);
 }
 
 .navbar-search {
@@ -112,11 +111,13 @@ const handleSearchSelect = (result: any) => {
 }
 
 .company-name {
-  @apply text-sm font-medium text-gray-900;
+  @apply text-sm font-medium;
+  color: var(--ps-text-primary);
 }
 
 .company-subtitle {
-  @apply text-xs text-gray-500;
+  @apply text-xs;
+  color: var(--ps-text-secondary);
 }
 
 .user-section {
