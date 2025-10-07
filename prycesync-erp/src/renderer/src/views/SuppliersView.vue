@@ -4,8 +4,8 @@
       <!-- Header -->
       <div class="flex justify-between items-center mb-6">
         <div>
-          <h1 class="text-2xl font-bold text-gray-900">Proveedores</h1>
-          <p class="text-gray-600">Gestiona los proveedores de tu empresa</p>
+          <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">Gestión de Proveedores</h1>
+          <p class="text-gray-600 dark:text-gray-300">Gestiona los proveedores de tu empresa</p>
         </div>
         <div class="flex gap-3">
           <button
