@@ -10,13 +10,34 @@
         </ol>
       </nav>
       <div class="flex gap-2">
+        <button class="px-3 py-2 rounded-md bg-blue-600 hover:bg-blue-700 text-white" @click="openNewSaleTab" data-testid="new-sale-btn">Agregar nueva venta</button>
         <button class="px-3 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white" @click="confirmAndCharge" data-testid="pay-btn">Confirmar y Cobrar (F2)</button>
         <button class="px-3 py-2 rounded-md bg-slate-200 hover:bg-slate-300 text-slate-900 dark:bg-slate-800 dark:text-slate-100" @click="cancelSale">Cancelar (ESC)</button>
       </div>
     </div>
 
+    <!-- Barra de pestañas internas: no abre nuevas ventanas, crea formularios locales -->
+    <div class="mb-2 border-b border-slate-200 dark:border-slate-800">
+      <ul class="flex items-center gap-1">
+        <li v-for="tab in tabs" :key="tab.id" class="relative">
+          <button
+            class="px-3 py-1 text-sm rounded-t-md border border-b-0 transition-colors"
+            :class="tab.id === activeTabId
+              ? 'bg-amber-100 dark:bg-amber-900/30 text-slate-900 dark:text-slate-100 border-amber-200 dark:border-amber-700'
+              : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'"
+            @click="activateTab(tab.id)"
+          >{{ tab.title }}</button>
+          <button
+            class="absolute -right-2 -top-2 w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs flex items-center justify-center"
+            title="Cerrar pestaña"
+            @click="closeTab(tab.id)"
+          >×</button>
+        </li>
+      </ul>
+    </div>
+
     <!-- Layout principal: A/B/C -->
-    <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 font-inter">
+    <div v-show="activeTabId === baseTabId" class="grid grid-cols-1 xl:grid-cols-12 gap-6 font-inter">
       <!-- Card A: Encabezado / Cliente -->
       <section class="xl:col-span-3 bg-white dark:bg-slate-900 rounded-xl shadow-md border border-slate-200 dark:border-slate-800 p-4" aria-label="Encabezado del comprobante">
         <div class="flex items-center justify-between mb-3">
@@ -48,9 +69,33 @@
 
           <div>
             <label class="block text-xs text-slate-600 dark:text-slate-300">Cliente</label>
-            <div class="flex gap-2 mt-1">
-              <input type="text" v-model="header.client" class="flex-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100" aria-label="Cliente" tabindex="3" />
-              <button class="px-3 py-2 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-900 dark:bg-slate-700 dark:text-white" @click="searchClient" aria-label="Buscar cliente" tabindex="4">Buscar</button>
+            <div class="relative mt-1">
+              <input
+                type="text"
+                v-model="customerQuery"
+                @input="debouncedSearchCustomer"
+                placeholder="Buscar por nombre, CUIT o email..."
+                class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                aria-label="Cliente"
+                tabindex="3"
+              />
+              <!-- Resultados: overlay absoluto que no empuja los demás inputs -->
+              <div
+                v-if="customerResults.length > 0"
+                class="absolute left-0 right-0 top-full mt-1 z-20 max-h-64 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg"
+              >
+                <ul>
+                  <li
+                    v-for="cust in customerResults"
+                    :key="cust.id"
+                    class="px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer"
+                    @click="onCustomerSelected(cust)"
+                  >
+                    <div class="text-sm font-medium text-slate-900 dark:text-slate-100">{{ cust.name }}</div>
+                    <div class="text-xs text-slate-500 dark:text-slate-300">CUIT: {{ cust.taxId }}</div>
+                  </li>
+                </ul>
+              </div>
             </div>
           </div>
 
@@ -80,9 +125,36 @@
       <!-- Card B: Productos -->
       <section class="xl:col-span-6 bg-white dark:bg-slate-900 rounded-xl shadow-md border border-slate-200 dark:border-slate-800 p-4" aria-label="Productos">
         <div class="flex flex-wrap items-end gap-3 mb-4">
-          <div class="flex-1 min-w-[220px]">
+          <div class="flex-1 min-w-[220px] relative">
             <label class="block text-xs text-slate-600 dark:text-slate-300">Buscar producto</label>
-            <input type="text" v-model="searchQuery" @input="debouncedSearch" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100" aria-label="Buscar producto" tabindex="7" />
+            <input
+              type="text"
+              v-model="searchQuery"
+              @input="debouncedSearch"
+              placeholder="Buscar por nombre o SKU..."
+              class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+              aria-label="Buscar producto"
+              tabindex="7"
+            />
+            <!-- Resultados: overlay absoluto que no empuja los demás inputs -->
+            <div
+              v-if="productResults.length > 0"
+              class="absolute left-0 right-0 top-full mt-1 z-20 max-h-64 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg"
+            >
+              <ul>
+                <li
+                  v-for="prod in productResults"
+                  :key="prod.id"
+                  class="px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer flex items-center justify-between"
+                  @click="onProductSelected(prod)"
+                >
+                  <div>
+                    <div class="text-sm font-medium text-slate-900 dark:text-slate-100">{{ prod.name }}</div>
+                    <div class="text-xs text-slate-500 dark:text-slate-300">SKU: {{ prod.sku || prod.code }}</div>
+                  </div>
+                </li>
+              </ul>
+            </div>
           </div>
           <div class="w-40">
             <label class="block text-xs text-slate-600 dark:text-slate-300">Código de barras</label>
@@ -141,10 +213,10 @@
       <section class="xl:col-span-3 bg-white dark:bg-slate-900 rounded-xl shadow-md border border-slate-200 dark:border-slate-800 p-4" aria-label="Resumen y Pago">
         <h2 class="text-base font-semibold text-slate-900 dark:text-slate-100 mb-3">Resumen</h2>
         <dl class="space-y-2 text-sm">
-          <div class="flex justify-between"><dt class="text-slate-600 dark:text-slate-300">Subtotal</dt><dd class="font-mono">${{ subtotal.toLocaleString('es-AR') }}</dd></div>
-          <div class="flex justify-between"><dt class="text-slate-600 dark:text-slate-300">Descuento total</dt><dd class="font-mono">${{ totalDiscount.toLocaleString('es-AR') }}</dd></div>
-          <div class="flex justify-between"><dt class="text-slate-600 dark:text-slate-300">Impuestos</dt><dd class="font-mono">—</dd></div>
-          <div class="flex justify-between items-center pt-2 border-t border-slate-200 dark:border-slate-800"><dt class="text-slate-900 dark:text-slate-100 font-semibold">TOTAL</dt><dd class="text-3xl font-bold" data-testid="total-amount">${{ grandTotal.toLocaleString('es-AR') }}</dd></div>
+          <div class="flex justify-between"><dt class="text-slate-600 dark:text-slate-300">Subtotal</dt><dd class="font-mono text-xl">${{ subtotal.toLocaleString('es-AR') }}</dd></div>
+          <div class="flex justify-between"><dt class="text-slate-600 dark:text-slate-300">Descuento total</dt><dd class="font-mono text-xl">${{ totalDiscount.toLocaleString('es-AR') }}</dd></div>
+          <div class="flex justify-between"><dt class="text-slate-600 dark:text-slate-300">Impuestos</dt><dd class="font-mono text-xl">—</dd></div>
+          <div class="flex justify-between items-center pt-2 border-t border-slate-200 dark:border-slate-800"><dt class="text-slate-900 dark:text-slate-100 font-semibold">TOTAL</dt><dd class="text-5xl font-extrabold" data-testid="total-amount">${{ grandTotal.toLocaleString('es-AR') }}</dd></div>
         </dl>
 
         <div class="mt-4">
@@ -177,6 +249,13 @@
       </section>
     </div>
 
+    <!-- Formularios adicionales: mantener montadas las pestañas y mostrar solo la activa -->
+    <div v-show="activeTabId !== baseTabId">
+      <template v-for="tab in tabs" :key="tab.id">
+        <SalesForm v-if="tab.id !== baseTabId" v-show="tab.id === activeTabId" :key="tab.id" />
+      </template>
+    </div>
+
     <!-- Modal cambio lista -->
     <div v-if="modal.show" class="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
       <div class="bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 p-4 w-[90%] max-w-md">
@@ -197,6 +276,27 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import DashboardLayout from '@/components/organisms/DashboardLayout.vue'
+import SalesForm from '@/components/sales/SalesForm.vue'
+import { useProducts } from '@/composables/useProducts'
+import { useCustomers } from '@/composables/useCustomers'
+import { useRouter } from 'vue-router'
+// Pestañas locales
+type Tab = { id: string; title: string }
+const tabs = ref<Tab[]>([])
+const activeTabId = ref<string>('')
+const baseTabId = ref<string>('')
+let counter = 0
+const activateTab = (id: string) => { activeTabId.value = id }
+const closeTab = (id: string) => {
+  const idx = tabs.value.findIndex(t => t.id === id)
+  if (idx === -1) return
+  const wasActive = tabs.value[idx].id === activeTabId.value
+  tabs.value.splice(idx, 1)
+  if (wasActive) {
+    const next = tabs.value[idx] || tabs.value[idx - 1] || tabs.value[0]
+    activeTabId.value = next?.id || ''
+  }
+}
 
 type PriceList = { id: string; name: string; multiplier?: number; priceMap?: Record<string, number> }
 type Row = { id: string; sku: string; desc: string; qty: number; price: number; manualLocked: boolean; disc: number }
@@ -226,11 +326,68 @@ const selectedPriceList = computed(() => priceLists.value.find(p => p.id === sel
 // Productos y filas
 const rows = ref<Row[]>([])
 const searchQuery = ref('')
+const productResults = ref<any[]>([])
+let searchTimer: any = null
 const barcode = ref('')
 const newQty = ref(1)
 
-// Autosuggest mock
-const debouncedSearch = () => {/* hook GET /products?query=abc */}
+// Productos API
+const { searchProducts } = useProducts()
+const { searchCustomers } = useCustomers()
+const router = useRouter()
+
+// Búsqueda con debounce
+const debouncedSearch = () => {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(async () => {
+    if (!searchQuery.value || searchQuery.value.length < 2) {
+      productResults.value = []
+      return
+    }
+    productResults.value = await searchProducts(searchQuery.value, 10)
+  }, 300)
+}
+
+// Al seleccionar, insertar fila en la tabla
+const onProductSelected = (p: any) => {
+  addRowFromProduct(p)
+  productResults.value = []
+  searchQuery.value = ''
+}
+
+// Cliente
+const customerQuery = ref('')
+const customerResults = ref<any[]>([])
+let customerSearchTimer: any = null
+const selectedCustomer = ref<any | null>(null)
+
+const debouncedSearchCustomer = () => {
+  if (customerSearchTimer) clearTimeout(customerSearchTimer)
+  customerSearchTimer = setTimeout(async () => {
+    if (!customerQuery.value || customerQuery.value.length < 2) {
+      customerResults.value = []
+      return
+    }
+    customerResults.value = await searchCustomers(customerQuery.value, 10)
+  }, 300)
+}
+
+const onCustomerSelected = (cust: any) => {
+  selectedCustomer.value = cust
+  header.value.client = cust?.name || ''
+  customerQuery.value = cust?.name || ''
+  customerResults.value = []
+}
+
+// Abrir nueva pestaña interna (formulario local)
+const cryptoRandom = () => Math.random().toString(36).slice(2)
+const openNewSaleTab = () => {
+  counter += 1
+  const id = cryptoRandom()
+  const title = `Comprobante Nuevo ${counter}`
+  tabs.value.push({ id, title })
+  activeTabId.value = id
+}
 
 // Base price mock
 const basePriceForSku = (sku: string): number => {
@@ -240,14 +397,7 @@ const basePriceForSku = (sku: string): number => {
 
 // Añadir producto seleccionado (mock)
 const addSelectedProduct = () => {
-  const sku = searchQuery.value.trim() || 'SKU-001'
-  const desc = 'Producto ' + (searchQuery.value || 'Genérico')
-  const pl = selectedPriceList.value
-  const price = computePriceForSku(sku, pl)
-  rows.value.push({ id: cryptoRandom(), sku, desc, qty: newQty.value || 1, price, manualLocked: false, disc: 0 })
-  searchQuery.value = ''
-  newQty.value = 1
-  syncTotals()
+  showToast('Seleccioná un producto de la lista y hacé clic en el resultado')
 }
 
 const addRowFromBarcode = () => {
@@ -261,10 +411,29 @@ const addRowFromBarcode = () => {
   syncTotals()
 }
 
+const addRowFromProduct = (product: any) => {
+  const sku = product.sku || product.code || product.id
+  const desc = product.name || 'Producto'
+  const pl = selectedPriceList.value
+  const price = computePriceForProduct(product, pl)
+  rows.value.push({ id: cryptoRandom(), sku, desc, qty: newQty.value || 1, price, manualLocked: false, disc: 0 })
+  newQty.value = 1
+  syncTotals()
+}
+
 const computePriceForSku = (sku: string, pl?: PriceList): number => {
   if (!pl) return basePriceForSku(sku)
   if (pl.priceMap && pl.priceMap[sku] !== undefined) return pl.priceMap[sku]
   const base = basePriceForSku(sku)
+  const mult = pl.multiplier ?? 1
+  return Math.round(base * mult)
+}
+
+const computePriceForProduct = (p: any, pl?: PriceList): number => {
+  if (!pl) return Math.round(p?.salePrice || 0)
+  const sku = p?.sku || p?.code
+  if (sku && pl.priceMap && pl.priceMap[sku] !== undefined) return pl.priceMap[sku]
+  const base = Number(p?.salePrice || 0)
   const mult = pl.multiplier ?? 1
   return Math.round(base * mult)
 }
@@ -326,10 +495,17 @@ const handleKey = (e: KeyboardEvent) => {
   if (e.key === 'Escape') { e.preventDefault(); cancelSale() }
 }
 onMounted(() => { window.addEventListener('keydown', handleKey) })
+// Inicializar con una pestaña base que usa el formulario actual de la vista
+onMounted(() => {
+  counter = 1
+  const id = cryptoRandom()
+  baseTabId.value = id
+  tabs.value.push({ id, title: `Comprobante Nuevo ${counter}` })
+  activeTabId.value = id
+})
 watch(() => selectedPriceListId.value, () => { header.value; /* keep header sync if needed */ })
 
 // Utils
-const cryptoRandom = () => Math.random().toString(36).slice(2)
 </script>
 
 <style scoped>

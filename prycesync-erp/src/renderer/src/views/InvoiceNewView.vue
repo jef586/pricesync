@@ -244,7 +244,7 @@
 
                 <div class="md:col-span-1">
                   <label class="block text-sm font-medium text-gray-700 mb-1">Subtotal</label>
-                  <div class="text-lg font-semibold text-gray-900">
+                  <div class="text-xl font-semibold text-gray-900">
                     {{ formatCurrency(item.subtotal || 0) }}
                   </div>
                 </div>
@@ -277,16 +277,16 @@
           <div class="space-y-3">
             <div class="flex justify-between items-center">
               <span class="text-gray-600">Subtotal:</span>
-              <span class="font-medium">{{ formatCurrency(totals.subtotal) }}</span>
+              <span class="text-xl font-semibold">{{ formatCurrency(totals.subtotal) }}</span>
             </div>
             <div class="flex justify-between items-center">
               <span class="text-gray-600">IVA:</span>
-              <span class="font-medium">{{ formatCurrency(totals.tax) }}</span>
+              <span class="text-xl font-semibold">{{ formatCurrency(totals.tax) }}</span>
             </div>
             <div class="border-t pt-3">
               <div class="flex justify-between items-center">
                 <span class="text-lg font-semibold text-gray-900">Total:</span>
-                <span class="text-xl font-bold text-gray-900">{{ formatCurrency(totals.total) }}</span>
+                <span class="text-4xl font-extrabold text-gray-900">{{ formatCurrency(totals.total) }}</span>
               </div>
             </div>
           </div>

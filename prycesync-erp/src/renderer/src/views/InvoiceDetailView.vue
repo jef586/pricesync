@@ -142,15 +142,15 @@
             <div class="space-y-3">
               <div class="flex justify-between">
                 <p class="text-sm font-medium text-gray-500">Subtotal</p>
-                <p class="text-sm text-gray-900">{{ formatCurrency(invoice.subtotal) }}</p>
+                <p class="text-lg font-semibold text-gray-900">{{ formatCurrency(invoice.subtotal) }}</p>
               </div>
               <div class="flex justify-between">
                 <p class="text-sm font-medium text-gray-500">Impuestos</p>
-                <p class="text-sm text-gray-900">{{ formatCurrency(invoice.taxAmount) }}</p>
+                <p class="text-lg font-semibold text-gray-900">{{ formatCurrency(invoice.taxAmount) }}</p>
               </div>
               <div class="flex justify-between border-t pt-3">
                 <p class="text-base font-semibold text-gray-900">Total</p>
-                <p class="text-base font-semibold text-gray-900">{{ formatCurrency(invoice.total) }}</p>
+                <p class="text-3xl font-bold text-gray-900">{{ formatCurrency(invoice.total) }}</p>
               </div>
             </div>
           </BaseCard>
