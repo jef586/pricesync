@@ -1,4 +1,5 @@
 import prisma from '../config/database.js';
+import { getCompanyPricing, computeSalePrice } from '../services/PricingService.js'
 
 class ProductController {
   // Buscar productos
@@ -389,7 +390,7 @@ class ProductController {
       // Si se actualiza costPrice y no se envía salePrice, aplicar reglas de pricing (con overrides por proveedor)
       try {
         if (updateData.costPrice !== undefined && salePrice === undefined) {
-          const { getCompanyPricing, computeSalePrice } = await import('../services/PricingService.js')
+          
           const pricing = await getCompanyPricing(companyId)
           if (pricing.applyOnUpdate) {
             const sale = computeSalePrice({

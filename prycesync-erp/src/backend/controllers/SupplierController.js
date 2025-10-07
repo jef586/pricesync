@@ -1,6 +1,7 @@
 import prisma from '../config/database.js';
 import ExcelJS from 'exceljs';
 import { Readable } from 'stream';
+import { getCompanyPricing, computeSalePrice } from '../services/PricingService.js'
 
 class SupplierController {
   // Obtener todos los proveedores con filtros y paginación
@@ -503,7 +504,7 @@ class SupplierController {
       // Aplicar reglas de pricing al producto interno si está vinculado
       try {
         if (supplierProduct.product?.id) {
-          const { getCompanyPricing, computeSalePrice } = await import('../services/PricingService.js')
+          
           const pricing = await getCompanyPricing(companyId)
           if (pricing.applyOnUpdate || pricing.applyOnImport) {
             const sale = computeSalePrice({
@@ -587,7 +588,7 @@ class SupplierController {
       // Aplicar reglas de pricing al producto interno si corresponde
       try {
         if (supplierProduct.product?.id) {
-          const { getCompanyPricing, computeSalePrice } = await import('../services/PricingService.js')
+          
           const pricing = await getCompanyPricing(companyId)
           if (pricing.applyOnUpdate) {
             const sale = computeSalePrice({
@@ -718,7 +719,7 @@ class SupplierController {
       let pricing = null;
       let supplierIdForPricing = null;
       try {
-        const { getCompanyPricing } = await import('../services/PricingService.js');
+        
         pricing = await getCompanyPricing(companyId);
         supplierIdForPricing = req.body?.supplierId || req.query?.supplierId || null;
       } catch (e) {
@@ -762,7 +763,7 @@ class SupplierController {
         let computedSalePrice = null;
         if (rowErrors.length === 0 && pricing && pricing.applyOnImport) {
           try {
-            const { computeSalePrice } = await import('../services/PricingService.js');
+        
             const cost = parseFloat(rowData.costPrice);
             const list = rowData.listPrice ? parseFloat(rowData.listPrice) : null;
             computedSalePrice = computeSalePrice({
@@ -908,7 +909,7 @@ class SupplierController {
               // Intentar aplicar pricing al producto vinculado durante importación
               try {
                 if (existingProduct.productId) {
-                  const { getCompanyPricing, computeSalePrice } = await import('../services/PricingService.js')
+                  
                   const pricing = await getCompanyPricing(companyId)
                   if (pricing.applyOnImport) {
                     const sale = computeSalePrice({
@@ -948,7 +949,7 @@ class SupplierController {
             // Intentar aplicar pricing al producto vinculado durante importación
             try {
               if (created.productId) {
-                const { getCompanyPricing, computeSalePrice } = await import('../services/PricingService.js')
+                
                 const pricing = await getCompanyPricing(companyId)
                 if (pricing.applyOnImport) {
                   const sale = computeSalePrice({
@@ -1250,7 +1251,7 @@ class SupplierController {
       // Preparar pricing para vista previa con overrides del proveedor
       let pricing = null;
       try {
-        const { getCompanyPricing } = await import('../services/PricingService.js');
+        
         pricing = await getCompanyPricing(companyId);
       } catch (e) {
         console.warn('Pricing warning (previewProductsImport):', e?.message || e);
@@ -1324,7 +1325,7 @@ class SupplierController {
         let computedSalePrice = null;
         if (rowErrors.length === 0 && pricing && pricing.applyOnImport) {
           try {
-            const { computeSalePrice } = await import('../services/PricingService.js');
+              
             const cost = parseFloat(rowData.costPrice);
             const list = rowData.listPrice ? parseFloat(rowData.listPrice) : null;
             computedSalePrice = computeSalePrice({

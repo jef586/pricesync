@@ -57,8 +57,8 @@ interface StockUpdateData {
   reason?: string
 }
 
-// API Base URL
-const API_BASE_URL = 'http://localhost:3002/api'
+// API Base URL (use env when available, fallback to localhost)
+const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3002/api'
 
 // Create axios instance
 const apiClient = axios.create({
@@ -151,18 +151,24 @@ export function useProducts() {
       
       // La API de productos devuelve { success, data, pagination }
       // mientras que otras APIs devuelven { items, pagination }
-      const productsData = response.data.data || response.data.products || response.data
+      const productsData = response.data.data || response.data.products || response.data.items || response.data
       products.value = Array.isArray(productsData) ? productsData : []
       
       console.log('useProducts - products.value after assignment:', products.value)
       console.log('useProducts - products.value type:', typeof products.value)
       console.log('useProducts - products.value isArray:', Array.isArray(products.value))
       
+      // Fallback robusto si la API no entrega 'pagination'
+      const rawPagination = response.data.pagination || response.data.meta?.pagination || null
+      const limit = rawPagination?.limit ?? filters.limit ?? 10
+      const total = rawPagination?.total ?? (Array.isArray(productsData) ? productsData.length : 0)
+      const pages = rawPagination?.pages ?? rawPagination?.totalPages ?? Math.ceil(total / (limit || 10))
+
       pagination.value = {
-        page: response.data.pagination.page,
-        limit: response.data.pagination.limit,
-        total: response.data.pagination.total,
-        totalPages: response.data.pagination.pages
+        page: rawPagination?.page ?? filters.page ?? 1,
+        limit,
+        total,
+        totalPages: pages
       }
     } catch (err: any) {
       console.error('useProducts - fetchProducts error:', err)

@@ -77,8 +77,9 @@ interface InvoiceFilters {
   sortOrder?: 'asc' | 'desc'
 }
 
-// API Base URL
-const API_BASE_URL = 'http://localhost:3002/api'
+// API Base URL (compatible con Docker y Vite)
+const rawBase = (import.meta as any).env?.VITE_API_URL || (import.meta as any).env?.API_URL || 'http://localhost:3002'
+const API_BASE_URL = rawBase.endsWith('/api') ? rawBase : `${rawBase}/api`
 
 // Create axios instance
 const apiClient = axios.create({
@@ -160,17 +161,21 @@ export function useInvoices() {
       })
 
       const response = await apiClient.get(`/invoices?${params.toString()}`)
-      
-      if (response.data.success) {
-        invoices.value = response.data.data.invoices
+
+      if (response.data?.success) {
+        const payload = response.data?.data || {}
+        const list = Array.isArray(payload.invoices) ? payload.invoices : []
+        const pag = payload.pagination || {}
+
+        invoices.value = list
         pagination.value = {
-          page: response.data.data.pagination.page,
-          limit: response.data.data.pagination.limit,
-          total: response.data.data.pagination.total,
-          totalPages: response.data.data.pagination.totalPages
+          page: Number(pag.page) || Number(filters.page) || 1,
+          limit: Number(pag.limit) || Number(filters.limit) || 10,
+          total: Number(pag.total) || list.length,
+          totalPages: Number(pag.pages) || Number(pag.totalPages) || Math.max(1, Math.ceil((Number(pag.total) || list.length) / (Number(pag.limit) || Number(filters.limit) || 10)))
         }
       } else {
-        throw new Error(response.data.message || 'Error al cargar facturas')
+        throw new Error(response.data?.message || 'Error al cargar facturas')
       }
     } catch (err: any) {
       error.value = err.response?.data?.message || err.message || 'Error al cargar facturas'

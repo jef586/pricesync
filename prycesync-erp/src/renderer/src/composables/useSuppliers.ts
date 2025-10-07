@@ -49,8 +49,9 @@ export function useSuppliers() {
   // Computed
   const hasError = computed(() => !!error.value)
 
-  // API Base URL
-  const API_BASE = 'http://localhost:3002/api'
+  // API Base URL (compatible con Docker y Vite)
+  const rawBase = (import.meta as any).env?.VITE_API_URL || (import.meta as any).env?.API_URL || 'http://localhost:3002'
+  const API_BASE = rawBase.endsWith('/api') ? rawBase : `${rawBase}/api`
 
   // Helper function to get auth headers
   const getAuthHeaders = () => {

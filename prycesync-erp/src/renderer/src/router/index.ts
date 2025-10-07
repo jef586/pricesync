@@ -24,6 +24,7 @@ import CompanyView from '../views/CompanyView.vue'
 import PricingSettingsView from '../views/PricingSettingsView.vue'
 import HelpView from '../views/HelpView.vue'
 import SalesPOSView from '../views/SalesPOSView.vue'
+import SalesNewView from '../views/SalesNewView.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -187,6 +188,12 @@ const router = createRouter({
       name: 'SalesPOS',
       component: SalesPOSView,
       meta: { requiresAuth: true }
+    }
+    ,{
+      path: '/sales/new',
+      name: 'SalesNew',
+      component: SalesNewView,
+      meta: { requiresAuth: false }
     }
   ]
 })

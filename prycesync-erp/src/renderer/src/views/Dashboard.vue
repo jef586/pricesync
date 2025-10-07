@@ -16,11 +16,11 @@
       <div class="space-y-3">
         <h2 class="text-base font-semibold text-gray-900 dark:text-white">Acciones rápidas</h2>
         <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          <button class="card flex items-center gap-3 hover:shadow-md transition" @click="goTo('/invoices/new')">
+          <button class="card flex items-center gap-3 hover:shadow-md transition" @click="goTo('/sales/new')">
             <DocumentTextIcon class="h-6 w-6 text-[#3B82F6]" />
             <div>
-              <div class="font-semibold text-gray-900 dark:text-white">Nueva Factura</div>
-              <div class="text-xs text-gray-500 dark:text-[#9CA3AF]">Crear una factura para cliente</div>
+              <div class="font-semibold text-gray-900 dark:text-white">Nueva Venta</div>
+              <div class="text-xs text-gray-500 dark:text-[#9CA3AF]">Crear una venta para cliente</div>
             </div>
           </button>
           <button class="card flex items-center gap-3 hover:shadow-md transition" @click="goTo('/company/pricing')">

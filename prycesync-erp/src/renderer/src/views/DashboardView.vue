@@ -32,9 +32,9 @@
           <h2 class="section-title">Acciones Rápidas</h2>
           <div class="actions-grid">
             <ActionCard
-              title="Nueva Factura"
-              description="Crear una nueva factura para un cliente"
-              to="/invoices/new"
+              title="Nueva Venta"
+              description="Crear una nueva venta para un cliente"
+              to="/sales/new"
             >
               <template #icon>
                 <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
