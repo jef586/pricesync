@@ -181,22 +181,8 @@
             <span class="text-xs text-gray-600 dark:text-[#9CA3AF]">Pico: Lunes $18k | Bajo: Dom $8k</span>
           </div>
           <div class="h-40 w-full">
-            <!-- Simple SVG line chart -->
-            <svg viewBox="0 0 100 40" preserveAspectRatio="none" class="w-full h-full">
-              <polyline
-                :points="lineChartPoints"
-                fill="none"
-                stroke="#2563eb"
-                stroke-width="2"
-              />
-              <polyline
-                :points="lineChartBaseline"
-                fill="none"
-                stroke="#93c5fd"
-                stroke-width="1"
-                stroke-dasharray="2,2"
-              />
-            </svg>
+            <!-- Chart.js line chart via vue-chartjs -->
+            <Line :data="salesChartData" :options="salesChartOptions" />
           </div>
         </div>
 
@@ -283,6 +269,9 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { Line } from 'vue-chartjs'
+import { Chart, LineElement, PointElement, LinearScale, CategoryScale, Title, Tooltip, Legend, Filler } from 'chart.js'
+Chart.register(LineElement, PointElement, LinearScale, CategoryScale, Title, Tooltip, Legend, Filler)
 import { useRouter } from 'vue-router'
 import DashboardLayout from '@/components/organisms/DashboardLayout.vue'
 
@@ -366,15 +355,56 @@ const recentActions = ref<Array<{ date: string; action: string; user: string; en
   { date: 'Ayer 11:48', action: 'Nuevo cliente', user: 'Ana', entity: 'Taller López', status: 'Completado' },
 ])
 
-// Chart simple
+// Chart.js data
 const weeklySales = ref([8, 14, 12, 15, 18, 11, 9])
-const lineChartPoints = computed(() => {
-  const max = Math.max(...weeklySales.value)
-  const min = Math.min(...weeklySales.value)
-  const norm = (v: number) => 35 - ((v - min) / (max - min || 1)) * 30
-  return weeklySales.value.map((v, i) => `${(i / 6) * 100},${norm(v)}`).join(' ')
-})
-const lineChartBaseline = computed(() => weeklySales.value.map((_, i) => `${(i / 6) * 100},35`).join(' '))
+const isDark = computed(() => document.documentElement.classList.contains('dark'))
+const baseline = computed(() => Math.min(...weeklySales.value) * 0.9)
+const salesChartData = computed(() => ({
+  labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
+  datasets: [
+    {
+      label: 'Ventas',
+      data: weeklySales.value,
+      borderColor: isDark.value ? '#60A5FA' : '#2563eb',
+      backgroundColor: isDark.value ? 'rgba(96,165,250,0.15)' : 'rgba(37,99,235,0.12)',
+      fill: false,
+      tension: 0.35,
+      borderWidth: 3,
+      pointRadius: 0
+    },
+    {
+      label: 'Base',
+      data: weeklySales.value.map(() => baseline.value),
+      borderColor: isDark.value ? '#93c5fd' : '#93c5fd',
+      borderDash: [6, 6],
+      borderWidth: 2,
+      pointRadius: 0
+    }
+  ]
+}))
+const salesChartOptions = computed(() => ({
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: { display: false },
+    tooltip: {
+      enabled: true,
+      callbacks: {
+        label: (ctx: any) => ` $${ctx.parsed.y}k`
+      }
+    }
+  },
+  scales: {
+    x: {
+      grid: { display: false },
+      ticks: { color: isDark.value ? '#9CA3AF' : '#6B7280' }
+    },
+    y: {
+      grid: { color: isDark.value ? 'rgba(255,255,255,0.06)' : '#E5E7EB' },
+      ticks: { color: isDark.value ? '#9CA3AF' : '#6B7280' }
+    }
+  }
+}))
 
 // Progreso hacia el target de margen
 const marginProgress = computed(() => {
