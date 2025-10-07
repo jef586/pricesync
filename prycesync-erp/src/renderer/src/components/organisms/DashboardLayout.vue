@@ -225,8 +225,8 @@ const userInitials = computed(() => {
 }
 
 .logo-img {
-  width: 28px;
-  height: 28px;
+  width: 70px;
+  height: 70px;
   object-fit: contain;
 }
 

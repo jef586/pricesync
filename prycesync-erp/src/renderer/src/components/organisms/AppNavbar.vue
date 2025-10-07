@@ -3,8 +3,8 @@
     <div class="navbar-container">
       <!-- Logo y título a la izquierda -->
       <div class="navbar-brand">
-        <!-- <img :src="logoUrl" alt="IberaSoft" class="brand-logo-img" />
-        <div class="brand-text">PryceSync ERP</div> -->
+        <!-- <img :src="logoUrl" alt="PryceSync" class="brand-logo-img" /> -->
+        <!-- <div class="brand-text">PryceSync ERP</div> -->
       </div>
 
       <!-- Buscador global centrado -->
@@ -90,7 +90,7 @@ const handleSearchSelect = (result: any) => {
 }
 
 .brand-logo-img {
-  @apply w-8 h-8 object-contain;
+  @apply w-12 h-12 object-contain;
 }
 
 .brand-text {
