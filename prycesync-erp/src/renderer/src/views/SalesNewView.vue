@@ -21,12 +21,14 @@
       <ul class="flex items-center gap-1">
         <li v-for="tab in tabs" :key="tab.id" class="relative">
           <button
-            class="px-3 py-1 text-sm rounded-t-md border border-b-0 transition-colors"
+            class="px-3 py-1 text-sm rounded-t-md border border-b-0 transition-all duration-150"
             :class="tab.id === activeTabId
-              ? 'bg-amber-100 dark:bg-amber-900/30 text-slate-900 dark:text-slate-100 border-amber-200 dark:border-amber-700'
-              : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'"
+              ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-200 border-emerald-300 dark:border-emerald-600 font-semibold shadow-sm ring-2 ring-emerald-400'
+              : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-slate-100'"
             @click="activateTab(tab.id)"
+            :aria-current="tab.id === activeTabId ? 'page' : undefined"
           >{{ tab.title }}</button>
+          <!-- Indicador inferior eliminado para integrar visualmente la pestaña con el formulario -->
           <button
             class="absolute -right-2 -top-2 w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs flex items-center justify-center"
             title="Cerrar pestaña"
@@ -37,7 +39,7 @@
     </div>
 
     <!-- Layout principal: A/B/C -->
-    <div v-show="activeTabId === baseTabId" class="grid grid-cols-1 xl:grid-cols-12 gap-6 font-inter">
+    <div v-show="activeTabId === baseTabId" class="grid grid-cols-1 xl:grid-cols-12 gap-6 font-inter rounded-xl ring-2 ring-emerald-500 border border-emerald-500 p-3">
       <!-- Card A: Encabezado / Cliente -->
       <section class="xl:col-span-3 bg-white dark:bg-slate-900 rounded-xl shadow-md border border-slate-200 dark:border-slate-800 p-4" aria-label="Encabezado del comprobante">
         <div class="flex items-center justify-between mb-3">
@@ -249,11 +251,14 @@
       </section>
     </div>
 
-    <!-- Formularios adicionales: mantener montadas las pestañas y mostrar solo la activa -->
-    <div v-show="activeTabId !== baseTabId">
-      <template v-for="tab in tabs" :key="tab.id">
-        <SalesForm v-if="tab.id !== baseTabId" v-show="tab.id === activeTabId" :key="tab.id" />
-      </template>
+    <!-- Formularios adicionales: una sola instancia por pestaña activa, cacheada -->
+    <div v-show="activeTabId !== baseTabId" class="rounded-xl ring-2 ring-emerald-500 border border-emerald-500 p-3">
+      <keep-alive>
+        <SalesForm
+          v-if="activeTabId && activeTabId !== baseTabId"
+          :key="activeTabId"
+        />
+      </keep-alive>
     </div>
 
     <!-- Modal cambio lista -->
