@@ -1,0 +1,57 @@
+﻿{
+  "info": {
+    "name": "PryceSync ERP API - Sales",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Create Sale",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"customerId\": \"{{customer_id}}\",\n  \"items\": [{ \"description\": \"Producto Demo\", \"quantity\": 1, \"unitPrice\": 1000, \"taxRate\": 21 }],\n  \"payments\": [{ \"method\": \"cash\", \"amount\": 1000 }]\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/sales",
+          "host": ["{{base_url}}"],
+          "path": ["api", "sales"]
+        }
+      },
+      "event": [
+        { "listen": "test", "script": { "type": "text/javascript", "exec": [
+          "pm.test(\"Status code is 201\", function () { pm.response.to.have.status(201); });",
+          "var jsonData = pm.response.json(); pm.environment.set(\"sale_id\", jsonData.data?.id || '');"
+        ] } }
+      ]
+    },
+    {
+      "name": "Get Sale by ID",
+      "request": {
+        "method": "GET",
+        "header": [ { "key": "Authorization", "value": "Bearer {{auth_token}}" } ],
+        "url": {
+          "raw": "{{base_url}}/api/sales/{{sale_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "sales", "{{sale_id}}"]
+        }
+      },
+      "event": [
+        { "listen": "test", "script": { "type": "text/javascript", "exec": [
+          "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });",
+          "var jsonData = pm.response.json(); pm.expect(jsonData.success).to.eql(true);"
+        ] } }
+      ]
+    }
+  ],
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:3002", "type": "string" },
+    { "key": "auth_token", "value": "", "type": "string" },
+    { "key": "sale_id", "value": "", "type": "string" },
+    { "key": "customer_id", "value": "", "type": "string" }
+  ]
+}

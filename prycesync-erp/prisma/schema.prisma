@@ -457,3 +457,86 @@ model SupplierProduct {
   @@unique([supplierId, supplierCode])
   @@map("supplier_products")
 }
+// ============================================================================
+// CORE SALES SCHEMA
+// ============================================================================
+
+enum SalesOrderStatus {
+  draft
+  completed
+  cancelled
+}
+
+model SalesOrder {
+  id            String           @id @default(cuid())
+  number        String           @unique
+
+  // Importes
+  subtotal      Decimal          @db.Decimal(10, 2)
+  taxAmount     Decimal          @map("tax_amount") @db.Decimal(10, 2)
+  discountAmount Decimal         @map("discount_amount") @db.Decimal(10, 2)
+  total         Decimal          @db.Decimal(10, 2)
+  totalRounded  Decimal          @map("total_rounded") @db.Decimal(10, 2)
+
+  status        SalesOrderStatus @default(completed)
+  notes         String?
+
+  // Relaciones
+  companyId     String           @map("company_id")
+  company       Company          @relation(fields: [companyId], references: [id])
+  customerId    String           @map("customer_id")
+  customer      Customer         @relation(fields: [customerId], references: [id])
+
+  // Auditoría
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
+
+  // Relaciones
+  items         SalesOrderItem[]
+  payments      SalesPayment[]
+
+  @@map("sales_orders")
+  @@unique([companyId, number])
+}
+
+model SalesOrderItem {
+  id           String   @id @default(cuid())
+  description  String?
+  quantity     Decimal  @db.Decimal(10, 3)
+  unitPrice    Decimal  @map("unit_price") @db.Decimal(10, 2)
+  discount     Decimal  @default(0) @db.Decimal(5, 2)
+  taxRate      Decimal  @map("tax_rate") @db.Decimal(5, 2)
+
+  // Calculados
+  subtotal     Decimal  @db.Decimal(10, 2)
+  taxAmount    Decimal  @map("tax_amount") @db.Decimal(10, 2)
+  total        Decimal  @db.Decimal(10, 2)
+
+  // Relaciones
+  salesOrderId String   @map("sales_order_id")
+  salesOrder   SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+  productId    String?  @map("product_id")
+  product      Product? @relation(fields: [productId], references: [id])
+
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("sales_order_items")
+}
+
+model SalesPayment {
+  id           String   @id @default(cuid())
+  method       String
+  amount       Decimal  @db.Decimal(10, 2)
+  currency     String   @default("ARS")
+  reference    String?
+  paidAt       DateTime @map("paid_at")
+
+  // Relaciones
+  salesOrderId String   @map("sales_order_id")
+  salesOrder   SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("sales_payments")
+}

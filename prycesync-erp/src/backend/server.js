@@ -1,4 +1,4 @@
-import express from 'express';
+﻿import express from 'express';
 import cors from 'cors';
 import { connectDatabase } from './config/database.js';
 import prisma from './config/database.js';
@@ -9,7 +9,8 @@ import productRoutes from './routes/products.js';
 import categoryRoutes from './routes/categories.js';
 import reportRoutes from './routes/reports.js';
 import supplierRoutes from './routes/suppliers.js';
-import settingsRoutes from './routes/settings.js';
+
+import salesRoutes from './routes/sales.js';
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -24,7 +25,7 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Middleware de logging básico
+// Middleware de logging bÃ¡sico
 app.use((req, res, next) => {
   const timestamp = new Date().toISOString();
   console.log(`[${timestamp}] ${req.method} ${req.url} - ${req.ip}`);
@@ -42,12 +43,13 @@ app.use('/api/products', productRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/suppliers', supplierRoutes);
-app.use('/api/settings', settingsRoutes);
+app.use('/api/sales', salesRoutes);
+
 
 // Endpoint de health check
 app.get('/api/health', async (req, res) => {
   try {
-    // Verificar conexión a la base de datos
+    // Verificar conexiÃ³n a la base de datos
     await prisma.$queryRaw`SELECT 1`;
     res.json({ 
       status: 'ok',
@@ -64,7 +66,7 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
-// Endpoint raíz
+// Endpoint raÃ­z
 app.get('/', (req, res) => {
   res.json({ 
     message: 'PryceSync ERP API Server',
@@ -97,9 +99,9 @@ app.use((err, req, res, next) => {
 
 // Iniciar servidor
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 API Server running on http://localhost:${PORT}`);
-  console.log(`📊 Health check available at http://localhost:${PORT}/api/health`);
-  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`ðŸš€ API Server running on http://localhost:${PORT}`);
+  console.log(`ðŸ“Š Health check available at http://localhost:${PORT}/api/health`);
+  console.log(`ðŸŒ Environment: ${process.env.NODE_ENV || 'development'}`);
 });
 
 export default app;
