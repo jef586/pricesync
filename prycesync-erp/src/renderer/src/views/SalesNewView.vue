@@ -276,15 +276,26 @@
     <!-- Toast -->
     <div v-if="toast.show" class="fixed bottom-4 right-4 px-3 py-2 rounded-md bg-slate-900 text-white shadow-md">{{ toast.message }}</div>
   </DashboardLayout>
+  <!-- Modal de Split Payments -->
+  <SplitPaymentsModal
+    :open="paymentsModalOpen"
+    :sale-id="saleId"
+    :total="grandTotal"
+    :already-paid="paidTotal"
+    @close="paymentsModalOpen = false"
+    @confirmed="onPaymentsConfirmed"
+  />
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import DashboardLayout from '@/components/organisms/DashboardLayout.vue'
 import SalesForm from '@/components/sales/SalesForm.vue'
+import SplitPaymentsModal from '@/components/sales/SplitPaymentsModal.vue'
 import { useProducts } from '@/composables/useProducts'
 import { useCustomers } from '@/composables/useCustomers'
 import { useRouter } from 'vue-router'
+import { apiClient } from '@/services/api'
 // Pestañas locales
 type Tab = { id: string; title: string }
 const tabs = ref<Tab[]>([])
@@ -491,8 +502,52 @@ const syncTotals = () => {/* no-op, computeds se actualizan solos */}
 // Acciones
 const removeRow = (idx: number) => { rows.value.splice(idx, 1) }
 const cancelSale = () => { rows.value = []; pay.value = { type: 'Efectivo', received: 0 }; showToast('Venta cancelada') }
-const saveSale = () => { /* POST /sales */ showToast('Venta guardada') }
-const confirmAndCharge = () => { /* POST /sales */ showToast('Venta cobrada') }
+// Estado de venta persistida y pagos
+const saleId = ref<string>('')
+const saleStatus = ref<string>('open')
+const paidTotal = ref<number>(0)
+const paymentsModalOpen = ref(false)
+
+const buildSalePayload = () => ({
+  customerId: selectedCustomer.value?.id,
+  items: rows.value.map(r => ({
+    productId: null,
+    description: r.desc,
+    quantity: r.qty,
+    unitPrice: r.price,
+    discount: Math.round((r.disc || 0) * r.qty * r.price) // backend recalcula
+  })),
+  notes: 'Venta POS'
+})
+
+const saveSale = async () => {
+  try {
+    const payload = buildSalePayload()
+    const res = await apiClient.post('/sales', payload)
+    const data = res.data?.data
+    saleId.value = data?.id
+    saleStatus.value = data?.status || 'open'
+    paidTotal.value = Number(data?.paidTotal || 0)
+    showToast('Venta guardada')
+  } catch (e: any) {
+    console.error('Error guardando venta', e?.response?.data || e)
+    alert(e?.response?.data?.message || 'Error guardando venta')
+  }
+}
+
+const confirmAndCharge = async () => {
+  if (!saleId.value) {
+    await saveSale()
+  }
+  if (!saleId.value) return
+  paymentsModalOpen.value = true
+}
+
+function onPaymentsConfirmed(payload: any) {
+  paidTotal.value = Number(payload?.paid_total || paidTotal.value)
+  saleStatus.value = payload?.status || saleStatus.value
+  showToast(saleStatus.value === 'paid' ? 'Venta cobrada' : 'Pago registrado (parcial)')
+}
 
 // Atajos de teclado
 const handleKey = (e: KeyboardEvent) => {

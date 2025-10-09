@@ -1,4 +1,4 @@
-﻿import prisma from "../config/database.js";
+import prisma from "../config/database.js";
 import SalesService from "../services/SalesService.js";
 
 class SalesController {
@@ -60,7 +60,7 @@ class SalesController {
             discountAmount: totals.discountAmount.toNumber(),
             total: totals.total.toNumber(),
             totalRounded: totals.totalRounded.toNumber(),
-            status: "COMPLETED",
+            status: "open",
             notes: notes || null,
             items: {
               create: items.map((i) => ({

@@ -1,4 +1,4 @@
-﻿import { z } from "zod";
+import { z } from "zod";
 
 const SaleItemSchema = z.object({
   productId: z.string().cuid().optional(),
@@ -49,3 +49,36 @@ export const validateGetSale = (req, res, next) => {
   }
   next();
 };
+
+// Validación para POST /api/sales/:id/payments
+const SplitPaymentSchema = z.object({
+  payments: z.array(z.object({
+    method: z.enum(['CASH', 'CARD', 'TRANSFER', 'MERCADO_PAGO']).or(z.string().min(1)),
+    amount: z.number().positive(),
+    currency: z.string().min(1).default('ARS'),
+    method_details: z.record(z.any()).optional()
+  })).min(1)
+})
+
+export const validateAddPayments = (req, res, next) => {
+  const idSchema = z.object({ id: z.string().cuid() });
+  const idParsed = idSchema.safeParse(req.params);
+  if (!idParsed.success) {
+    return res.status(400).json({
+      success: false,
+      message: "ID inválido",
+      errors: idParsed.error.errors.map(e => ({ field: e.path.join('.'), message: e.message }))
+    });
+  }
+
+  const parsed = SplitPaymentSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({
+      success: false,
+      message: "Errores de validación",
+      errors: parsed.error.errors.map(e => ({ field: e.path.join('.'), message: e.message }))
+    });
+  }
+  req.body = parsed.data;
+  next();
+}

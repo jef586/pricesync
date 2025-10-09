@@ -28,46 +28,46 @@ enum UserStatus {
 }
 
 model User {
-  id           String    @id @default(cuid())
-  email        String    @unique
-  passwordHash String    @map("password_hash")
+  id           String     @id @default(cuid())
+  email        String     @unique
+  passwordHash String     @map("password_hash")
   name         String
-  avatarUrl    String?   @map("avatar_url")
-  role         UserRole  @default(user)
+  avatarUrl    String?    @map("avatar_url")
+  role         UserRole   @default(user)
   status       UserStatus @default(active)
-  
+
   // Relaciones
-  companyId    String    @map("company_id")
-  company      Company   @relation(fields: [companyId], references: [id])
-  
+  companyId String  @map("company_id")
+  company   Company @relation(fields: [companyId], references: [id])
+
   // Auditoria
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
-  deletedAt    DateTime? @map("deleted_at")
-  lastLogin    DateTime? @map("last_login")
-  
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+  lastLogin DateTime? @map("last_login")
+
   // Configuración personal
-  preferences  Json      @default("{}")
-  timezone     String    @default("America/Argentina/Buenos_Aires")
-  
+  preferences Json   @default("{}")
+  timezone    String @default("America/Argentina/Buenos_Aires")
+
   // Relaciones
-  sessions     UserSession[]
-  
+  sessions UserSession[]
+
   @@map("users")
 }
 
 model Permission {
-  id          String   @id @default(cuid())
-  name        String   @unique // 'billing:create', 'inventory:read'
+  id          String  @id @default(cuid())
+  name        String  @unique // 'billing:create', 'inventory:read'
   description String?
-  module      String   // 'core', 'auto-parts', 'retail'
-  
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-  
+  module      String // 'core', 'auto-parts', 'retail'
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
   // Relaciones
   rolePermissions RolePermission[]
-  
+
   @@map("permissions")
 }
 
@@ -76,9 +76,9 @@ model RolePermission {
   role         UserRole
   permissionId String     @map("permission_id")
   permission   Permission @relation(fields: [permissionId], references: [id])
-  
-  createdAt    DateTime   @default(now()) @map("created_at")
-  
+
+  createdAt DateTime @default(now()) @map("created_at")
+
   @@unique([role, permissionId])
   @@map("role_permissions")
 }
@@ -92,10 +92,10 @@ model UserSession {
   expiresAt   DateTime @map("expires_at")
   ipAddress   String?  @map("ip_address")
   userAgent   String?  @map("user_agent")
-  
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-  
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
   @@map("user_sessions")
 }
 
@@ -110,27 +110,27 @@ enum CompanyStatus {
 }
 
 model Company {
-  id          String        @id @default(cuid())
-  name        String
-  taxId       String        @unique @map("tax_id") // CUIT/RUT/NIT
-  email       String?
-  phone       String?
-  address     String?
-  city        String?
-  state       String?
-  country     String        @default("AR") // ISO 3166-1 alpha-2
-  zipCode     String?       @map("zip_code")
-  
-  status      CompanyStatus @default(active)
-  
+  id      String  @id @default(cuid())
+  name    String
+  taxId   String  @unique @map("tax_id") // CUIT/RUT/NIT
+  email   String?
+  phone   String?
+  address String?
+  city    String?
+  state   String?
+  country String  @default("AR") // ISO 3166-1 alpha-2
+  zipCode String? @map("zip_code")
+
+  status CompanyStatus @default(active)
+
   // Configuración fiscal
-  fiscalConfig Json         @default("{}") @map("fiscal_config")
-  
+  fiscalConfig Json @default("{}") @map("fiscal_config")
+
   // Auditoria
-  createdAt   DateTime      @default(now()) @map("created_at")
-  updatedAt   DateTime      @updatedAt @map("updated_at")
-  deletedAt   DateTime?     @map("deleted_at")
-  
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
   // Relaciones
   users       User[]
   customers   Customer[]
@@ -138,7 +138,9 @@ model Company {
   invoices    Invoice[]
   categories  Category[]
   suppliers   Supplier[]
-  
+  // Ventas
+  salesOrders SalesOrder[]
+
   @@map("companies")
 }
 
@@ -158,46 +160,48 @@ enum CustomerStatus {
 }
 
 model Customer {
-  id          String         @id @default(cuid())
-  code        String         // Código interno del cliente
-  name        String
-  type        CustomerType   @default(individual)
-  status      CustomerStatus @default(active)
-  
+  id     String         @id @default(cuid())
+  code   String // Código interno del cliente
+  name   String
+  type   CustomerType   @default(individual)
+  status CustomerStatus @default(active)
+
   // Información fiscal
-  taxId       String?        @map("tax_id") // CUIT/DNI/RUT/NIT
-  taxCategory String?        @map("tax_category") // Responsable Inscripto, Monotributo, etc.
-  
+  taxId       String? @map("tax_id") // CUIT/DNI/RUT/NIT
+  taxCategory String? @map("tax_category") // Responsable Inscripto, Monotributo, etc.
+
   // Contacto
-  email       String?
-  phone       String?
-  mobile      String?
-  website     String?
-  
+  email   String?
+  phone   String?
+  mobile  String?
+  website String?
+
   // Dirección
-  address     String?
-  city        String?
-  state       String?
-  country     String         @default("AR")
-  zipCode     String?        @map("zip_code")
-  
+  address String?
+  city    String?
+  state   String?
+  country String  @default("AR")
+  zipCode String? @map("zip_code")
+
   // Comercial
-  creditLimit Decimal?       @map("credit_limit") @db.Decimal(10, 2)
-  paymentTerms Int?          @map("payment_terms") // días
-  discount    Decimal?       @default(0) @db.Decimal(5, 2) // porcentaje
-  
+  creditLimit  Decimal? @map("credit_limit") @db.Decimal(10, 2)
+  paymentTerms Int?     @map("payment_terms") // días
+  discount     Decimal? @default(0) @db.Decimal(5, 2) // porcentaje
+
   // Relaciones
-  companyId   String         @map("company_id")
-  company     Company        @relation(fields: [companyId], references: [id])
-  
+  companyId String  @map("company_id")
+  company   Company @relation(fields: [companyId], references: [id])
+
   // Auditoria
-  createdAt   DateTime       @default(now()) @map("created_at")
-  updatedAt   DateTime       @updatedAt @map("updated_at")
-  deletedAt   DateTime?      @map("deleted_at")
-  
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
   // Relaciones
   invoices    Invoice[]
-  
+  // Ventas
+  salesOrders SalesOrder[]
+
   @@unique([companyId, code])
   @@map("customers")
 }
@@ -218,61 +222,63 @@ enum ProductStatus {
 }
 
 model Category {
-  id          String    @id @default(cuid())
+  id          String     @id @default(cuid())
   name        String
   description String?
-  parentId    String?   @map("parent_id")
-  parent      Category? @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  parentId    String?    @map("parent_id")
+  parent      Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
   children    Category[] @relation("CategoryHierarchy")
-  
+
   // Relaciones
-  companyId   String    @map("company_id")
-  company     Company   @relation(fields: [companyId], references: [id])
-  
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-  
+  companyId String  @map("company_id")
+  company   Company @relation(fields: [companyId], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
   // Relaciones
-  products    Product[]
-  
+  products Product[]
+
   @@map("categories")
 }
 
 model Product {
   id          String        @id @default(cuid())
-  code        String        // SKU/Código interno
+  code        String // SKU/Código interno
   name        String
   description String?
   type        ProductType   @default(product)
   status      ProductStatus @default(active)
-  
+
   // Precios
-  costPrice   Decimal?      @map("cost_price") @db.Decimal(10, 2)
-  salePrice   Decimal       @map("sale_price") @db.Decimal(10, 2)
-  
+  costPrice Decimal? @map("cost_price") @db.Decimal(10, 2)
+  salePrice Decimal  @map("sale_price") @db.Decimal(10, 2)
+
   // Inventario
-  stock       Int           @default(0)
-  minStock    Int?          @map("min_stock")
-  maxStock    Int?          @map("max_stock")
-  
+  stock    Int  @default(0)
+  minStock Int? @map("min_stock")
+  maxStock Int? @map("max_stock")
+
   // Impuestos
-  taxRate     Decimal       @default(21) @map("tax_rate") @db.Decimal(5, 2) // IVA %
-  
+  taxRate Decimal @default(21) @map("tax_rate") @db.Decimal(5, 2) // IVA %
+
   // Relaciones
-  companyId   String        @map("company_id")
-  company     Company       @relation(fields: [companyId], references: [id])
-  categoryId  String?       @map("category_id")
-  category    Category?     @relation(fields: [categoryId], references: [id])
-  
+  companyId  String    @map("company_id")
+  company    Company   @relation(fields: [companyId], references: [id])
+  categoryId String?   @map("category_id")
+  category   Category? @relation(fields: [categoryId], references: [id])
+
   // Auditoria
-  createdAt   DateTime      @default(now()) @map("created_at")
-  updatedAt   DateTime      @updatedAt @map("updated_at")
-  deletedAt   DateTime?     @map("deleted_at")
-  
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
   // Relaciones
-  invoiceItems InvoiceItem[]
+  invoiceItems     InvoiceItem[]
   supplierProducts SupplierProduct[]
-  
+  // Ventas
+  salesOrderItems  SalesOrderItem[]
+
   @@unique([companyId, code])
   @@map("products")
 }
@@ -282,11 +288,11 @@ model Product {
 // ============================================================================
 
 enum InvoiceType {
-  A  // Factura A
-  B  // Factura B
-  C  // Factura C
-  E  // Factura E (Exportación)
-  M  // Factura M (Monotributo)
+  A // Factura A
+  B // Factura B
+  C // Factura C
+  E // Factura E (Exportación)
+  M // Factura M (Monotributo)
 }
 
 enum InvoiceStatus {
@@ -299,41 +305,41 @@ enum InvoiceStatus {
 }
 
 model Invoice {
-  id            String        @id @default(cuid())
-  number        String        // Número de factura
-  type          InvoiceType   @default(B)
-  status        InvoiceStatus @default(draft)
-  
+  id     String        @id @default(cuid())
+  number String // Número de factura
+  type   InvoiceType   @default(B)
+  status InvoiceStatus @default(draft)
+
   // Fechas
-  issueDate     DateTime      @map("issue_date")
-  dueDate       DateTime?     @map("due_date")
-  paidDate      DateTime?     @map("paid_date")
-  
+  issueDate DateTime  @map("issue_date")
+  dueDate   DateTime? @map("due_date")
+  paidDate  DateTime? @map("paid_date")
+
   // Importes
-  subtotal      Decimal       @db.Decimal(10, 2)
-  taxAmount     Decimal       @map("tax_amount") @db.Decimal(10, 2)
-  total         Decimal       @db.Decimal(10, 2)
-  
+  subtotal  Decimal @db.Decimal(10, 2)
+  taxAmount Decimal @map("tax_amount") @db.Decimal(10, 2)
+  total     Decimal @db.Decimal(10, 2)
+
   // Observaciones
-  notes         String?
-  
+  notes String?
+
   // Información fiscal
-  fiscalData    Json?         @map("fiscal_data") // CAE, CAI, etc.
-  
+  fiscalData Json? @map("fiscal_data") // CAE, CAI, etc.
+
   // Relaciones
-  companyId     String        @map("company_id")
-  company       Company       @relation(fields: [companyId], references: [id])
-  customerId    String        @map("customer_id")
-  customer      Customer      @relation(fields: [customerId], references: [id])
-  
+  companyId  String   @map("company_id")
+  company    Company  @relation(fields: [companyId], references: [id])
+  customerId String   @map("customer_id")
+  customer   Customer @relation(fields: [customerId], references: [id])
+
   // Auditoria
-  createdAt     DateTime      @default(now()) @map("created_at")
-  updatedAt     DateTime      @updatedAt @map("updated_at")
-  deletedAt     DateTime?     @map("deleted_at")
-  
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
   // Relaciones
-  items         InvoiceItem[]
-  
+  items InvoiceItem[]
+
   @@unique([companyId, number])
   @@map("invoices")
 }
@@ -345,21 +351,21 @@ model InvoiceItem {
   unitPrice   Decimal @map("unit_price") @db.Decimal(10, 2)
   discount    Decimal @default(0) @db.Decimal(5, 2) // porcentaje
   taxRate     Decimal @map("tax_rate") @db.Decimal(5, 2)
-  
+
   // Calculados
-  subtotal    Decimal @db.Decimal(10, 2)
-  taxAmount   Decimal @map("tax_amount") @db.Decimal(10, 2)
-  total       Decimal @db.Decimal(10, 2)
-  
+  subtotal  Decimal @db.Decimal(10, 2)
+  taxAmount Decimal @map("tax_amount") @db.Decimal(10, 2)
+  total     Decimal @db.Decimal(10, 2)
+
   // Relaciones
-  invoiceId   String  @map("invoice_id")
-  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  productId   String? @map("product_id") // Hacer opcional para permitir items sin producto
-  product     Product? @relation(fields: [productId], references: [id])
-  
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-  
+  invoiceId String   @map("invoice_id")
+  invoice   Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  productId String?  @map("product_id") // Hacer opcional para permitir items sin producto
+  product   Product? @relation(fields: [productId], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
   @@map("invoice_items")
 }
 
@@ -374,169 +380,175 @@ enum SupplierStatus {
 }
 
 model Supplier {
-  id            String         @id @default(cuid())
-  code          String         // Código interno del proveedor
-  name          String
-  businessName  String?        @map("business_name") // Razón social
-  taxId         String?        @map("tax_id") // CUIT/RUT/Tax ID
-  
+  id           String  @id @default(cuid())
+  code         String // Código interno del proveedor
+  name         String
+  businessName String? @map("business_name") // Razón social
+  taxId        String? @map("tax_id") // CUIT/RUT/Tax ID
+
   // Información de contacto
-  email         String?
-  phone         String?
-  website       String?
-  
+  email   String?
+  phone   String?
+  website String?
+
   // Dirección
-  address       String?
-  city          String?
-  state         String?
-  postalCode    String?        @map("postal_code")
-  country       String?        @default("Argentina")
-  
+  address    String?
+  city       String?
+  state      String?
+  postalCode String? @map("postal_code")
+  country    String? @default("Argentina")
+
   // Estado y configuración
-  status        SupplierStatus @default(active)
-  paymentTerms  Int?           @map("payment_terms") // Días de pago
-  creditLimit   Decimal?       @map("credit_limit") @db.Decimal(12, 2)
-  
+  status       SupplierStatus @default(active)
+  paymentTerms Int?           @map("payment_terms") // Días de pago
+  creditLimit  Decimal?       @map("credit_limit") @db.Decimal(12, 2)
+
   // Información adicional
-  notes         String?
-  tags          String[]       @default([])
-  
+  notes String?
+  tags  String[] @default([])
+
   // Relaciones
-  companyId     String         @map("company_id")
-  company       Company        @relation(fields: [companyId], references: [id])
-  
+  companyId String  @map("company_id")
+  company   Company @relation(fields: [companyId], references: [id])
+
   // Auditoria
-  createdAt     DateTime       @default(now()) @map("created_at")
-  updatedAt     DateTime       @updatedAt @map("updated_at")
-  deletedAt     DateTime?      @map("deleted_at")
-  
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
   // Relaciones
-  products      SupplierProduct[]
-  
+  products SupplierProduct[]
+
   @@unique([companyId, code])
   @@unique([companyId, taxId])
   @@map("suppliers")
 }
 
 model SupplierProduct {
-  id              String    @id @default(cuid())
-  
+  id String @id @default(cuid())
+
   // Información del proveedor
-  supplierCode    String    @map("supplier_code") // Código del producto en el proveedor
-  supplierName    String    @map("supplier_name") // Nombre del producto según el proveedor
-  description     String?   // Descripción adicional
-  
+  supplierCode String  @map("supplier_code") // Código del producto en el proveedor
+  supplierName String  @map("supplier_name") // Nombre del producto según el proveedor
+  description  String? // Descripción adicional
+
   // Precios y condiciones
-  costPrice       Decimal   @map("cost_price") @db.Decimal(10, 2)
-  listPrice       Decimal?  @map("list_price") @db.Decimal(10, 2) // Precio de lista
-  currency        String    @default("ARS")
-  minQuantity     Int?      @map("min_quantity") // Cantidad mínima de compra
-  
+  costPrice   Decimal  @map("cost_price") @db.Decimal(10, 2)
+  listPrice   Decimal? @map("list_price") @db.Decimal(10, 2) // Precio de lista
+  currency    String   @default("ARS")
+  minQuantity Int?     @map("min_quantity") // Cantidad mínima de compra
+
   // Información técnica (para autopartes)
-  brand           String?
-  model           String?
-  year            String?
-  oem             String?   // Número OEM
-  
+  brand String?
+  model String?
+  year  String?
+  oem   String? // Número OEM
+
   // Estado y disponibilidad
-  isActive        Boolean   @default(true) @map("is_active")
-  isAvailable     Boolean   @default(true) @map("is_available")
-  leadTime        Int?      @map("lead_time") // Tiempo de entrega en días
-  
+  isActive    Boolean @default(true) @map("is_active")
+  isAvailable Boolean @default(true) @map("is_available")
+  leadTime    Int?    @map("lead_time") // Tiempo de entrega en días
+
   // Relaciones
-  supplierId      String    @map("supplier_id")
-  supplier        Supplier  @relation(fields: [supplierId], references: [id], onDelete: Cascade)
-  productId       String?   @map("product_id") // Vinculación opcional con producto interno
-  product         Product?  @relation(fields: [productId], references: [id])
-  
+  supplierId String   @map("supplier_id")
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  productId  String?  @map("product_id") // Vinculación opcional con producto interno
+  product    Product? @relation(fields: [productId], references: [id])
+
   // Auditoria
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
-  lastImportDate  DateTime? @map("last_import_date") // Fecha de última importación
-  
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  lastImportDate DateTime? @map("last_import_date") // Fecha de última importación
+
   @@unique([supplierId, supplierCode])
   @@map("supplier_products")
 }
+
 // ============================================================================
 // CORE SALES SCHEMA
 // ============================================================================
 
 enum SalesOrderStatus {
+  open
+  partially_paid
+  paid
   draft
   completed
   cancelled
 }
 
 model SalesOrder {
-  id            String           @id @default(cuid())
-  number        String           @unique
+  id     String @id @default(cuid())
+  number String @unique
 
   // Importes
-  subtotal      Decimal          @db.Decimal(10, 2)
-  taxAmount     Decimal          @map("tax_amount") @db.Decimal(10, 2)
-  discountAmount Decimal         @map("discount_amount") @db.Decimal(10, 2)
-  total         Decimal          @db.Decimal(10, 2)
-  totalRounded  Decimal          @map("total_rounded") @db.Decimal(10, 2)
+  subtotal       Decimal @db.Decimal(10, 2)
+  taxAmount      Decimal @map("tax_amount") @db.Decimal(10, 2)
+  discountAmount Decimal @map("discount_amount") @db.Decimal(10, 2)
+  total          Decimal @db.Decimal(10, 2)
+  totalRounded   Decimal @map("total_rounded") @db.Decimal(10, 2)
+  paidTotal      Decimal @default(0) @map("paid_total") @db.Decimal(10, 2)
 
-  status        SalesOrderStatus @default(completed)
-  notes         String?
+  status SalesOrderStatus @default(open)
+  notes  String?
 
   // Relaciones
-  companyId     String           @map("company_id")
-  company       Company          @relation(fields: [companyId], references: [id])
-  customerId    String           @map("customer_id")
-  customer      Customer         @relation(fields: [customerId], references: [id])
+  companyId  String   @map("company_id")
+  company    Company  @relation(fields: [companyId], references: [id])
+  customerId String   @map("customer_id")
+  customer   Customer @relation(fields: [customerId], references: [id])
 
   // Auditoría
-  createdAt     DateTime         @default(now()) @map("created_at")
-  updatedAt     DateTime         @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relaciones
-  items         SalesOrderItem[]
-  payments      SalesPayment[]
+  items    SalesOrderItem[]
+  payments SalesPayment[]
 
-  @@map("sales_orders")
   @@unique([companyId, number])
+  @@map("sales_orders")
 }
 
 model SalesOrderItem {
-  id           String   @id @default(cuid())
-  description  String?
-  quantity     Decimal  @db.Decimal(10, 3)
-  unitPrice    Decimal  @map("unit_price") @db.Decimal(10, 2)
-  discount     Decimal  @default(0) @db.Decimal(5, 2)
-  taxRate      Decimal  @map("tax_rate") @db.Decimal(5, 2)
+  id          String  @id @default(cuid())
+  description String?
+  quantity    Decimal @db.Decimal(10, 3)
+  unitPrice   Decimal @map("unit_price") @db.Decimal(10, 2)
+  discount    Decimal @default(0) @db.Decimal(5, 2)
+  taxRate     Decimal @map("tax_rate") @db.Decimal(5, 2)
 
   // Calculados
-  subtotal     Decimal  @db.Decimal(10, 2)
-  taxAmount    Decimal  @map("tax_amount") @db.Decimal(10, 2)
-  total        Decimal  @db.Decimal(10, 2)
+  subtotal  Decimal @db.Decimal(10, 2)
+  taxAmount Decimal @map("tax_amount") @db.Decimal(10, 2)
+  total     Decimal @db.Decimal(10, 2)
 
   // Relaciones
-  salesOrderId String   @map("sales_order_id")
+  salesOrderId String     @map("sales_order_id")
   salesOrder   SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
-  productId    String?  @map("product_id")
-  product      Product? @relation(fields: [productId], references: [id])
+  productId    String?    @map("product_id")
+  product      Product?   @relation(fields: [productId], references: [id])
 
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("sales_order_items")
 }
 
 model SalesPayment {
-  id           String   @id @default(cuid())
-  method       String
-  amount       Decimal  @db.Decimal(10, 2)
-  currency     String   @default("ARS")
-  reference    String?
-  paidAt       DateTime @map("paid_at")
+  id            String   @id @default(cuid())
+  method        String
+  amount        Decimal  @db.Decimal(10, 2)
+  currency      String   @default("ARS")
+  reference     String?
+  paidAt        DateTime @map("paid_at")
+  methodDetails Json?    @map("method_details")
 
   // Relaciones
-  salesOrderId String   @map("sales_order_id")
+  salesOrderId String     @map("sales_order_id")
   salesOrder   SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
 
-  createdAt    DateTime @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@map("sales_payments")
 }
