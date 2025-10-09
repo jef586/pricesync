@@ -1,948 +1,742 @@
-# PriceSync ERP - Database Schema
+# PriceSync ERP - Database Schema (Actualizado 2025 Q4)
+
+> **Alcance:** Este esquema fusiona el **original** con los **nuevos requerimientos**: Ventas POS como core, lector/impresora, subcategorías, combos/ofertas, comisiones, licencias + monitoreo, Padrón AFIP, migraciones, métricas físicas, móvil offline, seguridad.
+
+---
 
 ## 🗄️ Arquitectura de Base de Datos
 
-### Estrategia Multi-Schema
-Utilizamos esquemas separados para mantener modularidad y permitir expansión fácil:
+### Estrategia Multi‑Schema (PostgreSQL)
 
 ```sql
--- Core schemas (universales - todos los módulos)
-CREATE SCHEMA core_auth;        -- Usuarios, roles, permisos
-CREATE SCHEMA core_billing;     -- Facturación universal  
-CREATE SCHEMA core_inventory;   -- Inventario universal
-CREATE SCHEMA core_customers;   -- Gestión de clientes (CRM)
-CREATE SCHEMA core_reports;     -- Sistema de reportes
-CREATE SCHEMA core_companies;   -- Multi-empresa
-CREATE SCHEMA core_system;      -- Configuración sistema
+-- Core (universales)
+CREATE SCHEMA core_auth;        -- Usuarios, roles, permisos, sesiones
+CREATE SCHEMA core_companies;   -- Empresas, sucursales, secuencias
+CREATE SCHEMA core_customers;   -- Clientes, direcciones, validación AFIP
+CREATE SCHEMA core_inventory;   -- Productos, categorías, stock y movimientos
+CREATE SCHEMA core_pricing;     -- Listas de precios
+CREATE SCHEMA core_promotions;  -- Promos/ofertas
+CREATE SCHEMA core_sales;       -- Ventas POS, pagos, caja
+CREATE SCHEMA core_billing;     -- Facturación (AFIP) - Fase 2
+CREATE SCHEMA core_commissions; -- Vendedores y comisiones
+CREATE SCHEMA core_licensing;   -- Licencias locales y activaciones
+CREATE SCHEMA core_mobile;      -- Sync móvil/offline
+CREATE SCHEMA core_reports;     -- Reportes y schedulers
+CREATE SCHEMA core_system;      -- Settings, módulos, versiones
 
--- Módulo-specific schemas
-CREATE SCHEMA mod_auto_parts;   -- Específico repuestos
-CREATE SCHEMA mod_retail;       -- Específico retail (futuro)
-CREATE SCHEMA mod_pharmacy;     -- Específico farmacia (futuro)
+-- Verticales
+CREATE SCHEMA mod_auto_parts;   -- Específico repuestos (compatibilidad, ML, etc.)
+CREATE SCHEMA mod_retail;       -- Futuro
+CREATE SCHEMA mod_pharmacy;     -- Futuro
 ```
 
 ### Principios de Diseño
-- **Normalización**: 3NF mínimo para integridad datos
-- **Auditabilidad**: created_at, updated_at, deleted_at en todas las tablas
-- **Soft Deletes**: deleted_at para mantener integridad referencial
-- **UUIDs**: Claves primarias tipo CUID para distribución futura
-- **Indexes**: Optimizados para queries frecuentes
-- **Constraints**: Foreign keys y check constraints para data integrity
 
-## 📋 Core Schema: Authentication & Authorization
+* **3NF** mínima y tipos fuertes (ENUM/CHECK).
+* **Auditoría**: `created_at`, `updated_at`, `deleted_at` (soft delete) donde aplique.
+* **CUID/UUID** como PK (`TEXT` con `gen_random_uuid()` o función CUID según extensión).
+* **Índices** para búsquedas, joins y ordenamientos críticos.
+* **RLS opcional** por `company_id` (no habilitado por defecto).
 
-### core_auth.users
+> **Nota:** se reemplaza `products.images TEXT[]` por **tabla normalizada** `product_images`. Mantener el campo legacy temporalmente.
+
+---
+
+## 👤 core_auth (Auth & Permisos)
+
+### Enums
+
+```sql
+CREATE TYPE user_role   AS ENUM ('superadmin','admin','manager','cashier','salesperson','user','viewer');
+CREATE TYPE user_status AS ENUM ('active','inactive','suspended');
+```
+
+### users
+
 ```sql
 CREATE TABLE core_auth.users (
-    id            TEXT PRIMARY KEY DEFAULT gen_random_cuid(),
-    email         TEXT UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
-    name          TEXT NOT NULL,
-    avatar_url    TEXT,
-    role          user_role NOT NULL DEFAULT 'user',
-    status        user_status NOT NULL DEFAULT 'active',
-    
-    -- Relaciones
-    company_id    TEXT NOT NULL REFERENCES core_companies.companies(id),
-    
-    -- Auditoria
-    created_at    TIMESTAMP DEFAULT NOW(),
-    updated_at    TIMESTAMP DEFAULT NOW(),
-    deleted_at    TIMESTAMP,
-    last_login    TIMESTAMP,
-    
-    -- Configuración personal
-    preferences   JSONB DEFAULT '{}',
-    timezone      TEXT DEFAULT 'America/Argentina/Buenos_Aires'
+  id            TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id    TEXT NOT NULL REFERENCES core_companies.companies(id),
+  email         TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  name          TEXT NOT NULL,
+  avatar_url    TEXT,
+  role          user_role   NOT NULL DEFAULT 'user',
+  status        user_status NOT NULL DEFAULT 'active',
+  preferences   JSONB       NOT NULL DEFAULT '{}',
+  timezone      TEXT        NOT NULL DEFAULT 'America/Argentina/Buenos_Aires',
+  last_login    TIMESTAMP,
+  created_at    TIMESTAMP   NOT NULL DEFAULT NOW(),
+  updated_at    TIMESTAMP   NOT NULL DEFAULT NOW(),
+  deleted_at    TIMESTAMP
 );
-
--- Enums
-CREATE TYPE user_role AS ENUM ('admin', 'manager', 'user', 'viewer');
-CREATE TYPE user_status AS ENUM ('active', 'inactive', 'suspended');
 ```
 
-### core_auth.permissions
+### permissions & role_permissions
+
 ```sql
 CREATE TABLE core_auth.permissions (
-    id          TEXT PRIMARY KEY DEFAULT gen_random_cuid(),
-    name        TEXT UNIQUE NOT NULL, -- 'billing:create', 'inventory:read'
-    description TEXT,
-    module      TEXT NOT NULL, -- 'core', 'auto-parts', 'retail'
-    
-    created_at  TIMESTAMP DEFAULT NOW(),
-    updated_at  TIMESTAMP DEFAULT NOW()
+  id          TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  name        TEXT UNIQUE NOT NULL,   -- p.ej. 'sales:create'
+  description TEXT,
+  module      TEXT NOT NULL,          -- 'core','sales','inventory','auto-parts'
+  created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMP NOT NULL DEFAULT NOW()
 );
-```
 
-### core_auth.role_permissions
-```sql
 CREATE TABLE core_auth.role_permissions (
-    id            TEXT PRIMARY KEY DEFAULT gen_random_cuid(),
-    role          user_role NOT NULL,
-    permission_id TEXT NOT NULL REFERENCES core_auth.permissions(id),
-    
-    created_at    TIMESTAMP DEFAULT NOW(),
-    
-    UNIQUE(role, permission_id)
+  id            TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  role          user_role NOT NULL,
+  permission_id TEXT NOT NULL REFERENCES core_auth.permissions(id) ON DELETE CASCADE,
+  created_at    TIMESTAMP NOT NULL DEFAULT NOW(),
+  UNIQUE(role, permission_id)
 );
 ```
 
-### core_auth.user_sessions
+### user_sessions
+
 ```sql
 CREATE TABLE core_auth.user_sessions (
-    id           TEXT PRIMARY KEY DEFAULT gen_random_cuid(),
-    user_id      TEXT NOT NULL REFERENCES core_auth.users(id) ON DELETE CASCADE,
-    token_hash   TEXT NOT NULL,
-    refresh_hash TEXT NOT NULL,
-    expires_at   TIMESTAMP NOT NULL,
-    ip_address   INET,
-    user_agent   TEXT,
-    
-    created_at   TIMESTAMP DEFAULT NOW(),
-    updated_at   TIMESTAMP DEFAULT NOW()
+  id           TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id      TEXT NOT NULL REFERENCES core_auth.users(id) ON DELETE CASCADE,
+  token_hash   TEXT NOT NULL,
+  refresh_hash TEXT NOT NULL,
+  expires_at   TIMESTAMP NOT NULL,
+  ip_address   INET,
+  user_agent   TEXT,
+  created_at   TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at   TIMESTAMP NOT NULL DEFAULT NOW()
 );
-```
-
-## 🏢 Core Schema: Companies & Multi-tenant
-
-### core_companies.companies
-```sql
-CREATE TABLE core_companies.companies (
-    id                  TEXT PRIMARY KEY DEFAULT gen_random_cuid(),
-    name                TEXT NOT NULL,
-    legal_name          TEXT,
-    tax_id              TEXT UNIQUE NOT NULL, -- CUIT en Argentina
-    tax_type            TEXT NOT NULL, -- 'monotributo', 'responsable_inscripto'
-    
-    -- Contacto
-    email               TEXT,
-    phone               TEXT,
-    website             TEXT,
-    
-    -- Dirección fiscal
-    address_street      TEXT NOT NULL,
-    address_number      TEXT,
-    address_floor       TEXT,
-    address_apartment   TEXT,
-    address_city        TEXT NOT NULL,
-    address_state       TEXT NOT NULL,
-    address_country     TEXT NOT NULL DEFAULT 'AR',
-    address_postal_code TEXT,
-    
-    -- Configuración fiscal
-    fiscal_config       JSONB DEFAULT '{}', -- Configuración por país
-    
-    -- Estado y auditoría
-    status              company_status NOT NULL DEFAULT 'active',
-    created_at          TIMESTAMP DEFAULT NOW(),
-    updated_at          TIMESTAMP DEFAULT NOW(),
-    deleted_at          TIMESTAMP
-);
-
-CREATE TYPE company_status AS ENUM ('active', 'inactive', 'suspended', 'trial');
-```
-
-### core_companies.branches
-```sql
-CREATE TABLE core_companies.branches (
-    id             TEXT PRIMARY KEY DEFAULT gen_random_cuid(),
-    company_id     TEXT NOT NULL REFERENCES core_companies.companies(id),
-    name           TEXT NOT NULL,
-    code           TEXT NOT NULL, -- Punto de venta AFIP
-    
-    -- Dirección sucursal
-    address_street      TEXT NOT NULL,
-    address_number      TEXT,
-    address_city        TEXT NOT NULL,
-    address_state       TEXT NOT NULL,
-    address_country     TEXT NOT NULL DEFAULT 'AR',
-    address_postal_code TEXT,
-    
-    -- Contacto
-    phone          TEXT,
-    email          TEXT,
-    manager_name   TEXT,
-    
-    -- Configuración fiscal
-    afip_point_of_sale INTEGER, -- Punto de venta AFIP
-    
-    is_main        BOOLEAN DEFAULT FALSE,
-    status         branch_status DEFAULT 'active',
-    
-    created_at     TIMESTAMP DEFAULT NOW(),
-    updated_at     TIMESTAMP DEFAULT NOW(),
-    deleted_at     TIMESTAMP,
-    
-    UNIQUE(company_id, code)
-);
-
-CREATE TYPE branch_status AS ENUM ('active', 'inactive');
-```
-
-## 👥 Core Schema: Customer Management (CRM)
-
-### core_customers.customers
-```sql
-CREATE TABLE core_customers.customers (
-    id              TEXT PRIMARY KEY DEFAULT gen_random_cuid(),
-    company_id      TEXT NOT NULL REFERENCES core_companies.companies(id),
-    
-    -- Información básica
-    name            TEXT NOT NULL,
-    legal_name      TEXT,
-    tax_id          TEXT, -- CUIT/DNI
-    tax_type        customer_tax_type,
-    customer_type   customer_type NOT NULL DEFAULT 'individual',
-    
-    -- Contacto
-    email           TEXT,
-    phone           TEXT,
-    mobile          TEXT,
-    website         TEXT,
-    
-    -- Dirección principal
-    address_street      TEXT,
-    address_number      TEXT,
-    address_floor       TEXT,
-    address_apartment   TEXT,
-    address_city        TEXT,
-    address_state       TEXT,
-    address_country     TEXT DEFAULT 'AR',
-    address_postal_code TEXT,
-    
-    -- Configuración comercial
-    credit_limit    DECIMAL(12,2) DEFAULT 0,
-    payment_terms   INTEGER DEFAULT 0, -- Días
-    discount_rate   DECIMAL(5,2) DEFAULT 0, -- Porcentaje
-    
-    -- Clasificación
-    category        TEXT, -- 'mayorista', 'minorista', 'taller'
-    rating          INTEGER CHECK (rating >= 1 AND rating <= 5),
-    
-    -- Metadatos
-    notes           TEXT,
-    tags            TEXT[],
-    
-    status          customer_status NOT NULL DEFAULT 'active',
-    created_at      TIMESTAMP DEFAULT NOW(),
-    updated_at      TIMESTAMP DEFAULT NOW(),
-    deleted_at      TIMESTAMP
-);
-
-CREATE TYPE customer_type AS ENUM ('individual', 'company');
-CREATE TYPE customer_tax_type AS ENUM ('monotributo', 'responsable_inscripto', 'exento', 'consumidor_final');
-CREATE TYPE customer_status AS ENUM ('active', 'inactive', 'blocked');
-```
-
-### core_customers.customer_addresses
-```sql
-CREATE TABLE core_customers.customer_addresses (
-    id             TEXT PRIMARY KEY DEFAULT gen_random_cuid(),
-    customer_id    TEXT NOT NULL REFERENCES core_customers.customers(id) ON DELETE CASCADE,
-    
-    type           address_type NOT NULL DEFAULT 'billing',
-    name           TEXT, -- 'Oficina Central', 'Depósito Norte'
-    
-    street         TEXT NOT NULL,
-    number         TEXT,
-    floor          TEXT,
-    apartment      TEXT,
-    city           TEXT NOT NULL,
-    state          TEXT NOT NULL,
-    country        TEXT NOT NULL DEFAULT 'AR',
-    postal_code    TEXT,
-    
-    is_default     BOOLEAN DEFAULT FALSE,
-    
-    created_at     TIMESTAMP DEFAULT NOW(),
-    updated_at     TIMESTAMP DEFAULT NOW()
-);
-
-CREATE TYPE address_type AS ENUM ('billing', 'shipping', 'both');
-```
-
-## 📦 Core Schema: Inventory Management
-
-### core_inventory.products
-```sql
-CREATE TABLE core_inventory.products (
-    id                    TEXT PRIMARY KEY DEFAULT gen_random_cuid(),
-    company_id            TEXT NOT NULL REFERENCES core_companies.companies(id),
-    
-    -- Información básica
-    sku                   TEXT NOT NULL,
-    barcode               TEXT,
-    name                  TEXT NOT NULL,
-    description           TEXT,
-    short_description     TEXT,
-    
-    -- Categorización
-    category_id           TEXT REFERENCES core_inventory.categories(id),
-    brand                 TEXT,
-    model                 TEXT,
-    
-    -- Precios y costos
-    cost_price            DECIMAL(12,4) DEFAULT 0, -- Precio de costo
-    selling_price         DECIMAL(12,4) DEFAULT 0, -- Precio de venta
-    min_price             DECIMAL(12,4) DEFAULT 0, -- Precio mínimo
-    suggested_price       DECIMAL(12,4), -- Precio sugerido por IA
-    
-    -- Control de stock
-    track_stock           BOOLEAN DEFAULT TRUE,
-    stock_quantity        DECIMAL(10,3) DEFAULT 0,
-    stock_reserved        DECIMAL(10,3) DEFAULT 0, -- Stock reservado
-    stock_minimum         DECIMAL(10,3) DEFAULT 0, -- Stock mínimo
-    stock_maximum         DECIMAL(10,3), -- Stock máximo
-    
-    -- Unidades de medida
-    unit_type             TEXT DEFAULT 'unit', -- 'unit', 'kg', 'liter', 'meter'
-    unit_weight           DECIMAL(8,3), -- Peso en kg
-    unit_dimensions       JSONB, -- {length, width, height} en cm
-    
-    -- Configuración
-    is_active             BOOLEAN DEFAULT TRUE,
-    is_taxable            BOOLEAN DEFAULT TRUE,
-    tax_rate              DECIMAL(5,2) DEFAULT 21.00, -- IVA 21%
-    
-    -- Metadatos
-    tags                  TEXT[],
-    images                TEXT[], -- URLs de imágenes
-    specifications        JSONB DEFAULT '{}', -- Especificaciones técnicas
-    
-    -- Auditoría
-    created_at            TIMESTAMP DEFAULT NOW(),
-    updated_at            TIMESTAMP DEFAULT NOW(),
-    deleted_at            TIMESTAMP,
-    
-    UNIQUE(company_id, sku)
-);
-```
-
-### core_inventory.categories
-```sql
-CREATE TABLE core_inventory.categories (
-    id          TEXT PRIMARY KEY DEFAULT gen_random_cuid(),
-    company_id  TEXT NOT NULL REFERENCES core_companies.companies(id),
-    
-    name        TEXT NOT NULL,
-    code        TEXT,
-    description TEXT,
-    
-    -- Jerarquía
-    parent_id   TEXT REFERENCES core_inventory.categories(id),
-    level       INTEGER DEFAULT 0,
-    path        TEXT, -- Materialized path: '1.2.3'
-    
-    -- Configuración
-    margin_rate DECIMAL(5,2), -- Margen por defecto para esta categoría
-    is_active   BOOLEAN DEFAULT TRUE,
-    
-    created_at  TIMESTAMP DEFAULT NOW(),
-    updated_at  TIMESTAMP DEFAULT NOW(),
-    deleted_at  TIMESTAMP,
-    
-    UNIQUE(company_id, name, parent_id)
-);
-```
-
-### core_inventory.stock_movements
-```sql
-CREATE TABLE core_inventory.stock_movements (
-    id           TEXT PRIMARY KEY DEFAULT gen_random_cuid(),
-    company_id   TEXT NOT NULL REFERENCES core_companies.companies(id),
-    product_id   TEXT NOT NULL REFERENCES core_inventory.products(id),
-    branch_id    TEXT REFERENCES core_companies.branches(id),
-    
-    -- Movimiento
-    movement_type movement_type NOT NULL,
-    quantity      DECIMAL(10,3) NOT NULL, -- Positivo = entrada, Negativo = salida
-    cost_price    DECIMAL(12,4), -- Precio de costo en este movimiento
-    
-    -- Referencias
-    reference_type TEXT, -- 'invoice', 'purchase', 'adjustment', 'transfer'
-    reference_id   TEXT, -- ID del documento relacionado
-    
-    -- Información adicional
-    notes         TEXT,
-    batch_number  TEXT, -- Número de lote
-    expiry_date   DATE, -- Fecha vencimiento
-    
-    -- Usuario que realizó el movimiento
-    user_id       TEXT NOT NULL REFERENCES core_auth.users(id),
-    
-    created_at    TIMESTAMP DEFAULT NOW()
-);
-
-CREATE TYPE movement_type AS ENUM (
-    'initial_stock',    -- Stock inicial
-    'purchase',         -- Compra
-    'sale',            -- Venta
-    'adjustment_plus', -- Ajuste positivo
-    'adjustment_minus',-- Ajuste negativo
-    'transfer_in',     -- Transferencia entrada
-    'transfer_out',    -- Transferencia salida
-    'return_in',       -- Devolución entrada
-    'return_out'       -- Devolución salida
-);
-```
-
-## 💰 Core Schema: Billing System
-
-### core_billing.invoices
-```sql
-CREATE TABLE core_billing.invoices (
-    id                TEXT PRIMARY KEY DEFAULT gen_random_cuid(),
-    company_id        TEXT NOT NULL REFERENCES core_companies.companies(id),
-    branch_id         TEXT NOT NULL REFERENCES core_companies.branches(id),
-    customer_id       TEXT NOT NULL REFERENCES core_customers.customers(id),
-    
-    -- Numeración
-    invoice_type      invoice_type NOT NULL,
-    point_of_sale     INTEGER NOT NULL, -- Punto de venta AFIP
-    invoice_number    BIGINT NOT NULL, -- Número secuencial
-    full_number       TEXT GENERATED ALWAYS AS (
-        LPAD(point_of_sale::TEXT, 5, '0') || '-' || 
-        LPAD(invoice_number::TEXT, 8, '0')
-    ) STORED,
-    
-    -- Fechas
-    invoice_date      DATE NOT NULL DEFAULT CURRENT_DATE,
-    due_date          DATE,
-    service_from      DATE, -- Para servicios
-    service_to        DATE,
-    
-    -- AFIP
-    cae               TEXT, -- Código Autorización Electrónica
-    cae_expiry        DATE, -- Vencimiento CAE
-    afip_status       afip_status DEFAULT 'pending',
-    afip_response     JSONB, -- Respuesta completa AFIP
-    
-    -- Montos
-    subtotal          DECIMAL(12,2) NOT NULL DEFAULT 0,
-    tax_amount        DECIMAL(12,2) NOT NULL DEFAULT 0, -- IVA
-    discount_amount   DECIMAL(12,2) NOT NULL DEFAULT 0,
-    total_amount      DECIMAL(12,2) NOT NULL DEFAULT 0,
-    
-    -- Configuración
-    currency          TEXT DEFAULT 'ARS',
-    exchange_rate     DECIMAL(10,4) DEFAULT 1,
-    payment_terms     INTEGER DEFAULT 0, -- Días
-    
-    -- Estado y observaciones
-    status            invoice_status NOT NULL DEFAULT 'draft',
-    notes             TEXT,
-    internal_notes    TEXT, -- Notas internas (no van en PDF)
-    
-    -- Usuario que creó
-    created_by        TEXT NOT NULL REFERENCES core_auth.users(id),
-    
-    created_at        TIMESTAMP DEFAULT NOW(),
-    updated_at        TIMESTAMP DEFAULT NOW(),
-    deleted_at        TIMESTAMP,
-    
-    UNIQUE(company_id, invoice_type, point_of_sale, invoice_number)
-);
-
-CREATE TYPE invoice_type AS ENUM ('A', 'B', 'C', 'CREDIT_A', 'CREDIT_B', 'CREDIT_C', 'DEBIT_A', 'DEBIT_B', 'DEBIT_C');
-CREATE TYPE invoice_status AS ENUM ('draft', 'pending', 'sent', 'paid', 'overdue', 'cancelled');
-CREATE TYPE afip_status AS ENUM ('pending', 'approved', 'rejected', 'error');
-```
-
-### core_billing.invoice_items
-```sql
-CREATE TABLE core_billing.invoice_items (
-    id            TEXT PRIMARY KEY DEFAULT gen_random_cuid(),
-    invoice_id    TEXT NOT NULL REFERENCES core_billing.invoices(id) ON DELETE CASCADE,
-    product_id    TEXT REFERENCES core_inventory.products(id),
-    
-    -- Si no hay product_id, es un item manual
-    description   TEXT NOT NULL,
-    quantity      DECIMAL(10,3) NOT NULL DEFAULT 1,
-    unit_price    DECIMAL(12,4) NOT NULL,
-    discount_rate DECIMAL(5,2) DEFAULT 0, -- Porcentaje descuento
-    
-    -- Impuestos
-    tax_rate      DECIMAL(5,2) NOT NULL DEFAULT 21.00, -- % IVA
-    tax_amount    DECIMAL(12,2) NOT NULL DEFAULT 0,
-    
-    -- Totales calculados
-    subtotal      DECIMAL(12,2) NOT NULL DEFAULT 0, -- quantity * unit_price - discount
-    total         DECIMAL(12,2) NOT NULL DEFAULT 0, -- subtotal + tax_amount
-    
-    -- Orden en la factura
-    line_number   INTEGER NOT NULL,
-    
-    created_at    TIMESTAMP DEFAULT NOW()
-);
-```
-
-### core_billing.invoice_payments
-```sql
-CREATE TABLE core_billing.invoice_payments (
-    id            TEXT PRIMARY KEY DEFAULT gen_random_cuid(),
-    invoice_id    TEXT NOT NULL REFERENCES core_billing.invoices(id),
-    
-    payment_date  DATE NOT NULL DEFAULT CURRENT_DATE,
-    amount        DECIMAL(12,2) NOT NULL,
-    payment_method payment_method NOT NULL,
-    reference     TEXT, -- Número cheque, transferencia, etc.
-    notes         TEXT,
-    
-    created_by    TEXT NOT NULL REFERENCES core_auth.users(id),
-    created_at    TIMESTAMP DEFAULT NOW()
-);
-
-CREATE TYPE payment_method AS ENUM ('cash', 'check', 'transfer', 'credit_card', 'debit_card', 'other');
-```
-
-## 🚗 Module Schema: Auto Parts Specific
-
-### mod_auto_parts.vehicle_brands
-```sql
-CREATE TABLE mod_auto_parts.vehicle_brands (
-    id         TEXT PRIMARY KEY DEFAULT gen_random_cuid(),
-    name       TEXT UNIQUE NOT NULL, -- 'Toyota', 'Ford', 'Chevrolet'
-    logo_url   TEXT,
-    country    TEXT, -- País de origen
-    is_active  BOOLEAN DEFAULT TRUE,
-    
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
-);
-```
-
-### mod_auto_parts.vehicle_models
-```sql
-CREATE TABLE mod_auto_parts.vehicle_models (
-    id               TEXT PRIMARY KEY DEFAULT gen_random_cuid(),
-    brand_id         TEXT NOT NULL REFERENCES mod_auto_parts.vehicle_brands(id),
-    name             TEXT NOT NULL, -- 'Corolla', 'Focus', 'Cruze'
-    generation       TEXT, -- 'XI (E170)', 'Mk3'
-    year_from        INTEGER, -- 2014
-    year_to          INTEGER, -- 2019
-    engine_options   TEXT[], -- ['1.8L', '2.0L Hybrid']
-    body_types       TEXT[], -- ['sedan', 'hatchback']
-    
-    is_active        BOOLEAN DEFAULT TRUE,
-    
-    created_at       TIMESTAMP DEFAULT NOW(),
-    updated_at       TIMESTAMP DEFAULT NOW(),
-    
-    UNIQUE(brand_id, name, generation)
-);
-```
-
-### mod_auto_parts.part_categories
-```sql
-CREATE TABLE mod_auto_parts.part_categories (
-    id                TEXT PRIMARY KEY DEFAULT gen_random_cuid(),
-    
-    name              TEXT UNIQUE NOT NULL, -- 'Filtros', 'Frenos', 'Motor'
-    code              TEXT UNIQUE, -- 'FIL', 'FRE', 'MOT'
-    description       TEXT,
-    parent_id         TEXT REFERENCES mod_auto_parts.part_categories(id),
-    
-    -- Configuración específica repuestos
-    typical_margin    DECIMAL(5,2), -- Margen típico para esta categoría
-    warranty_months   INTEGER, -- Garantía estándar en meses
-    
-    -- ML integration
-    ml_category_id    TEXT, -- ID categoría en MercadoLibre
-    ml_attributes     JSONB, -- Atributos específicos ML
-    
-    is_active         BOOLEAN DEFAULT TRUE,
-    
-    created_at        TIMESTAMP DEFAULT NOW(),
-    updated_at        TIMESTAMP DEFAULT NOW()
-);
-```
-
-### mod_auto_parts.part_compatibility
-```sql
-CREATE TABLE mod_auto_parts.part_compatibility (
-    id               TEXT PRIMARY KEY DEFAULT gen_random_cuid(),
-    product_id       TEXT NOT NULL REFERENCES core_inventory.products(id),
-    
-    -- Compatibilidad con vehículos
-    brand_id         TEXT REFERENCES mod_auto_parts.vehicle_brands(id),
-    model_id         TEXT REFERENCES mod_auto_parts.vehicle_models(id),
-    year_from        INTEGER,
-    year_to          INTEGER,
-    engine           TEXT, -- '1.8L', '2.0L Turbo'
-    
-    -- OEM Numbers
-    oem_numbers      TEXT[], -- ['90915-YZZD4', '15400-RTA-003']
-    
-    -- Notas específicas
-    notes            TEXT, -- 'Solo para versión XLi'
-    fit_type         fit_type DEFAULT 'direct', -- direct, universal, modified
-    
-    created_at       TIMESTAMP DEFAULT NOW(),
-    
-    UNIQUE(product_id, brand_id, model_id, engine)
-);
-
-CREATE TYPE fit_type AS ENUM ('direct', 'universal', 'modified');
-```
-
-### mod_auto_parts.ml_price_history
-```sql
-CREATE TABLE mod_auto_parts.ml_price_history (
-    id              TEXT PRIMARY KEY DEFAULT gen_random_cuid(),
-    product_id      TEXT NOT NULL REFERENCES core_inventory.products(id),
-    
-    -- Datos MercadoLibre
-    ml_item_id      TEXT NOT NULL, -- MLA123456789
-    ml_title        TEXT NOT NULL,
-    ml_price        DECIMAL(12,2) NOT NULL,
-    ml_currency     TEXT DEFAULT 'ARS',
-    ml_condition    TEXT, -- 'new', 'used'
-    ml_seller_id    TEXT,
-    ml_reputation   JSONB, -- Reputación del vendedor
-    
-    -- Análisis
-    is_competitor   BOOLEAN DEFAULT FALSE,
-    similarity_score DECIMAL(3,2), -- 0.00 - 1.00
-    
-    -- Timestamp
-    scraped_at      TIMESTAMP NOT NULL,
-    created_at      TIMESTAMP DEFAULT NOW(),
-    
-    INDEX(product_id, scraped_at),
-    INDEX(ml_item_id, scraped_at)
-);
-```
-
-### mod_auto_parts.ai_price_analysis
-```sql
-CREATE TABLE mod_auto_parts.ai_price_analysis (
-    id                    TEXT PRIMARY KEY DEFAULT gen_random_cuid(),
-    product_id            TEXT NOT NULL REFERENCES core_inventory.products(id),
-    
-    -- Input datos
-    cost_price            DECIMAL(12,4) NOT NULL, -- Precio costo proveedor
-    current_selling_price DECIMAL(12,4), -- Precio actual de venta
-    desired_margin        DECIMAL(5,2), -- Margen deseado %
-    
-    -- Análisis competencia
-    ml_min_price          DECIMAL(12,2), -- Precio mínimo encontrado en ML
-    ml_max_price          DECIMAL(12,2), -- Precio máximo encontrado en ML  
-    ml_avg_price          DECIMAL(12,2), -- Precio promedio ML
-    competitor_count      INTEGER DEFAULT 0, -- Cantidad de competidores
-    
-    -- Recomendación IA
-    suggested_price       DECIMAL(12,4) NOT NULL, -- Precio sugerido
-    confidence_score      DECIMAL(3,2), -- Confianza 0.00-1.00
-    reasoning             TEXT, -- Explicación del algoritmo
-    
-    -- Metadatos
-    analysis_version      TEXT, -- Versión del algoritmo usado
-    market_position       market_position, -- Posicionamiento sugerido
-    
-    created_at            TIMESTAMP DEFAULT NOW(),
-    expires_at            TIMESTAMP DEFAULT (NOW() + INTERVAL '24 hours'),
-    
-    INDEX(product_id, created_at)
-);
-
-CREATE TYPE market_position AS ENUM ('premium', 'competitive', 'budget', 'loss_leader');
-```
-
-### mod_auto_parts.supplier_price_lists
-```sql
-CREATE TABLE mod_auto_parts.supplier_price_lists (
-    id                TEXT PRIMARY KEY DEFAULT gen_random_cuid(),
-    company_id        TEXT NOT NULL REFERENCES core_companies.companies(id),
-    
-    -- Información proveedor
-    supplier_name     TEXT NOT NULL,
-    supplier_code     TEXT, -- Código interno del proveedor
-    contact_email     TEXT,
-    contact_phone     TEXT,
-    
-    -- Lista de precios
-    list_name         TEXT NOT NULL, -- 'Lista Enero 2024'
-    list_date         DATE NOT NULL,
-    currency          TEXT DEFAULT 'ARS',
-    valid_from        DATE,
-    valid_to          DATE,
-    
-    -- Configuración
-    default_margin    DECIMAL(5,2), -- Margen por defecto
-    payment_terms     INTEGER, -- Días de pago
-    
-    -- Archivo original
-    filename          TEXT, -- Nombre archivo Excel subido
-    file_size         INTEGER,
-    file_hash         TEXT, -- Hash para detectar duplicados
-    
-    -- Estado
-    status            price_list_status DEFAULT 'active',
-    processed_at      TIMESTAMP, -- Cuando se procesó
-    processed_by      TEXT REFERENCES core_auth.users(id),
-    
-    created_at        TIMESTAMP DEFAULT NOW(),
-    updated_at        TIMESTAMP DEFAULT NOW()
-);
-
-CREATE TYPE price_list_status AS ENUM ('active', 'inactive', 'processing', 'error');
-```
-
-### mod_auto_parts.supplier_price_items
-```sql
-CREATE TABLE mod_auto_parts.supplier_price_items (
-    id                TEXT PRIMARY KEY DEFAULT gen_random_cuid(),
-    price_list_id     TEXT NOT NULL REFERENCES mod_auto_parts.supplier_price_lists(id) ON DELETE CASCADE,
-    
-    -- Datos del proveedor
-    supplier_sku      TEXT NOT NULL, -- SKU del proveedor
-    supplier_name     TEXT NOT NULL, -- Nombre según proveedor
-    brand             TEXT,
-    oem_numbers       TEXT[], -- Números OEM
-    
-    -- Precios
-    cost_price        DECIMAL(12,4) NOT NULL,
-    list_price        DECIMAL(12,4), -- Precio lista sugerido
-    min_qty           INTEGER DEFAULT 1, -- Cantidad mínima
-    
-    -- Matching con productos internos
-    matched_product_id TEXT REFERENCES core_inventory.products(id),
-    match_confidence   DECIMAL(3,2), -- 0.00-1.00
-    match_type         match_type DEFAULT 'manual',
-    
-    -- Estado
-    is_active         BOOLEAN DEFAULT TRUE,
-    last_updated      TIMESTAMP DEFAULT NOW(),
-    
-    created_at        TIMESTAMP DEFAULT NOW(),
-    
-    UNIQUE(price_list_id, supplier_sku)
-);
-
-CREATE TYPE match_type AS ENUM ('exact', 'fuzzy', 'manual', 'ai_suggested');
-```
-
-## 📊 Core Schema: Reports & Analytics
-
-### core_reports.report_definitions
-```sql
-CREATE TABLE core_reports.report_definitions (
-    id             TEXT PRIMARY KEY DEFAULT gen_random_cuid(),
-    company_id     TEXT NOT NULL REFERENCES core_companies.companies(id),
-    
-    name           TEXT NOT NULL,
-    description    TEXT,
-    module         TEXT NOT NULL, -- 'core', 'auto-parts', 'retail'
-    category       TEXT, -- 'sales', 'inventory', 'financial'
-    
-    -- Configuración del reporte
-    query_template TEXT NOT NULL, -- SQL template con parámetros
-    parameters     JSONB DEFAULT '[]', -- Parámetros configurables
-    
-    -- Visualización
-    chart_type     TEXT, -- 'table', 'bar', 'line', 'pie'
-    chart_config   JSONB DEFAULT '{}',
-    
-    -- Permisos
-    required_permission TEXT NOT NULL,
-    is_public      BOOLEAN DEFAULT FALSE, -- Visible para todos los usuarios
-    
-    created_by     TEXT NOT NULL REFERENCES core_auth.users(id),
-    created_at     TIMESTAMP DEFAULT NOW(),
-    updated_at     TIMESTAMP DEFAULT NOW(),
-    deleted_at     TIMESTAMP
-);
-```
-
-### core_reports.scheduled_reports
-```sql
-CREATE TABLE core_reports.scheduled_reports (
-    id              TEXT PRIMARY KEY DEFAULT gen_random_cuid(),
-    report_id       TEXT NOT NULL REFERENCES core_reports.report_definitions(id),
-    user_id         TEXT NOT NULL REFERENCES core_auth.users(id),
-    
-    name            TEXT NOT NULL,
-    schedule_cron   TEXT NOT NULL, -- Expresión cron
-    parameters      JSONB DEFAULT '{}', -- Parámetros específicos
-    
-    -- Configuración entrega
-    email_to        TEXT[], -- Emails para enviar
-    export_format   TEXT DEFAULT 'pdf', -- pdf, excel, csv
-    
-    -- Estado
-    is_active       BOOLEAN DEFAULT TRUE,
-    last_run        TIMESTAMP,
-    next_run        TIMESTAMP,
-    
-    created_at      TIMESTAMP DEFAULT NOW(),
-    updated_at      TIMESTAMP DEFAULT NOW()
-);
-```
-
-## 🔧 Core Schema: System Configuration
-
-### core_system.settings
-```sql
-CREATE TABLE core_system.settings (
-    id         TEXT PRIMARY KEY DEFAULT gen_random_cuid(),
-    company_id TEXT REFERENCES core_companies.companies(id), -- NULL = global setting
-    module     TEXT NOT NULL, -- 'core', 'auto-parts', etc.
-    
-    key        TEXT NOT NULL, -- 'default_tax_rate', 'ml_api_key'
-    value      JSONB NOT NULL, -- Valor serializado
-    type       setting_type NOT NULL, -- Para validación
-    
-    -- Metadatos
-    description TEXT,
-    is_secret   BOOLEAN DEFAULT FALSE, -- Para keys, passwords
-    is_readonly BOOLEAN DEFAULT FALSE, -- No editable por usuario
-    
-    updated_by  TEXT REFERENCES core_auth.users(id),
-    created_at  TIMESTAMP DEFAULT NOW(),
-    updated_at  TIMESTAMP DEFAULT NOW(),
-    
-    UNIQUE(company_id, module, key)
-);
-
-CREATE TYPE setting_type AS ENUM ('string', 'number', 'boolean', 'json', 'encrypted');
-```
-
-### core_system.modules
-```sql
-CREATE TABLE core_system.modules (
-    id              TEXT PRIMARY KEY DEFAULT gen_random_cuid(),
-    
-    name            TEXT UNIQUE NOT NULL, -- 'auto-parts', 'retail'
-    version         TEXT NOT NULL, -- '1.0.0'
-    description     TEXT,
-    
-    -- Configuración
-    is_core         BOOLEAN DEFAULT FALSE, -- Es módulo core?
-    dependencies    TEXT[], -- Dependencias de otros módulos
-    
-    -- Estado
-    status          module_status DEFAULT 'available',
-    
-    created_at      TIMESTAMP DEFAULT NOW(),
-    updated_at      TIMESTAMP DEFAULT NOW()
-);
-
-CREATE TYPE module_status AS ENUM ('available', 'installed', 'active', 'inactive', 'error');
-```
-
-### core_system.company_modules
-```sql
-CREATE TABLE core_system.company_modules (
-    id           TEXT PRIMARY KEY DEFAULT gen_random_cuid(),
-    company_id   TEXT NOT NULL REFERENCES core_companies.companies(id),
-    module_id    TEXT NOT NULL REFERENCES core_system.modules(id),
-    
-    -- Licencia
-    license_type module_license_type NOT NULL,
-    license_key  TEXT,
-    expires_at   TIMESTAMP, -- NULL = perpetuo
-    
-    -- Estado
-    status       module_status DEFAULT 'inactive',
-    activated_at TIMESTAMP,
-    activated_by TEXT REFERENCES core_auth.users(id),
-    
-    created_at   TIMESTAMP DEFAULT NOW(),
-    updated_at   TIMESTAMP DEFAULT NOW(),
-    
-    UNIQUE(company_id, module_id)
-);
-
-CREATE TYPE module_license_type AS ENUM ('trial', 'basic', 'premium', 'enterprise');
-```
-
-## 📈 Índices y Optimizaciones
-
-### Índices Críticos para Performance
-```sql
--- Autenticación (queries frecuentes)
-CREATE INDEX idx_users_email ON core_auth.users(email) WHERE deleted_at IS NULL;
-CREATE INDEX idx_users_company ON core_auth.users(company_id) WHERE deleted_at IS NULL;
-CREATE INDEX idx_sessions_user ON core_auth.user_sessions(user_id, expires_at);
-
--- Facturación (reports y búsquedas)
-CREATE INDEX idx_invoices_company_date ON core_billing.invoices(company_id, invoice_date);
-CREATE INDEX idx_invoices_customer ON core_billing.invoices(customer_id) WHERE deleted_at IS NULL;
-CREATE INDEX idx_invoices_full_number ON core_billing.invoices(full_number);
-CREATE INDEX idx_invoices_afip_status ON core_billing.invoices(afip_status, invoice_date);
-
--- Inventario (búsquedas y stock)
-CREATE INDEX idx_products_company_sku ON core_inventory.products(company_id, sku);
-CREATE INDEX idx_products_name_search ON core_inventory.products USING gin(to_tsvector('spanish', name || ' ' || COALESCE(description, '')));
-CREATE INDEX idx_products_category ON core_inventory.products(category_id) WHERE deleted_at IS NULL;
-CREATE INDEX idx_stock_movements_product ON core_inventory.stock_movements(product_id, created_at DESC);
-
--- Auto-parts específicos
-CREATE INDEX idx_ml_prices_product_date ON mod_auto_parts.ml_price_history(product_id, scraped_at DESC);
-CREATE INDEX idx_compatibility_brand_model ON mod_auto_parts.part_compatibility(brand_id, model_id);
-CREATE INDEX idx_ai_analysis_product_valid ON mod_auto_parts.ai_price_analysis(product_id, expires_at) WHERE expires_at > NOW();
-```
-
-### Constraints y Validaciones
-```sql
--- Validaciones de negocio
-ALTER TABLE core_billing.invoices 
-    ADD CONSTRAINT chk_invoice_amounts 
-    CHECK (subtotal >= 0 AND tax_amount >= 0 AND total_amount >= 0);
-
-ALTER TABLE core_billing.invoice_items
-    ADD CONSTRAINT chk_item_amounts
-    CHECK (quantity > 0 AND unit_price >= 0);
-
-ALTER TABLE core_inventory.products
-    ADD CONSTRAINT chk_prices
-    CHECK (cost_price >= 0 AND selling_price >= 0);
-
-ALTER TABLE core_inventory.stock_movements
-    ADD CONSTRAINT chk_stock_quantity
-    CHECK (quantity != 0); -- No permitir movimientos con cantidad 0
 ```
 
 ---
 
-## 🔄 Migraciones y Versionado
+## 🏢 core_companies (Empresas & Sucursales)
 
-### Estrategia de Migraciones
-- **Prisma Migrations**: Control de versiones automático
-- **Backwards Compatible**: Nuevas columnas opcionales
-- **Data Migrations**: Scripts separados para transformación datos
-- **Rollback Plan**: Cada migración debe ser reversible
+### Enums
 
-### Schema Versioning
 ```sql
-CREATE TABLE core_system.schema_versions (
-    id             SERIAL PRIMARY KEY,
-    version        TEXT NOT NULL,
-    applied_at     TIMESTAMP DEFAULT NOW(),
-    rollback_sql   TEXT, -- SQL para revertir si es necesario
-    description    TEXT
+CREATE TYPE company_status AS ENUM ('active','inactive','suspended','trial');
+CREATE TYPE branch_status  AS ENUM ('active','inactive');
+```
+
+### companies
+
+```sql
+CREATE TABLE core_companies.companies (
+  id           TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  name         TEXT NOT NULL,
+  legal_name   TEXT,
+  tax_id       TEXT UNIQUE NOT NULL,   -- CUIT
+  tax_type     TEXT NOT NULL,          -- 'RI','Monotributo', etc.
+  email        TEXT,
+  phone        TEXT,
+  website      TEXT,
+  address_street TEXT NOT NULL,
+  address_number TEXT,
+  address_city   TEXT NOT NULL,
+  address_state  TEXT NOT NULL,
+  address_country TEXT NOT NULL DEFAULT 'AR',
+  address_postal_code TEXT,
+  fiscal_config JSONB NOT NULL DEFAULT '{}',
+  status       company_status NOT NULL DEFAULT 'active',
+  created_at   TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at   TIMESTAMP NOT NULL DEFAULT NOW(),
+  deleted_at   TIMESTAMP
 );
 ```
 
-## ⚠️ NOTAS CRÍTICAS PARA DESARROLLO
+### branches
 
-### Principios NO Negociables
-1. **Soft Deletes**: NUNCA DELETE físico en tablas importantes
-2. **Auditoría**: created_at, updated_at, deleted_at en TODAS las tablas
-3. **Foreign Keys**: Integridad referencial siempre
-4. **Naming Convention**: snake_case, nombres descriptivos
-5. **Schemas**: Separación lógica por módulos
+```sql
+CREATE TABLE core_companies.branches (
+  id           TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id   TEXT NOT NULL REFERENCES core_companies.companies(id) ON DELETE CASCADE,
+  name         TEXT NOT NULL,
+  code         TEXT NOT NULL,              -- código interno / PV
+  afip_point_of_sale INTEGER,              -- AFIP (Fase 2)
+  is_main      BOOLEAN NOT NULL DEFAULT FALSE,
+  status       branch_status NOT NULL DEFAULT 'active',
+  address_street TEXT NOT NULL,
+  address_number TEXT,
+  address_city   TEXT NOT NULL,
+  address_state  TEXT NOT NULL,
+  address_country TEXT NOT NULL DEFAULT 'AR',
+  address_postal_code TEXT,
+  phone        TEXT,
+  email        TEXT,
+  manager_name TEXT,
+  created_at   TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at   TIMESTAMP NOT NULL DEFAULT NOW(),
+  deleted_at   TIMESTAMP,
+  UNIQUE(company_id, code)
+);
+```
 
-### Performance Guidelines
-- **Índices**: Crear para queries frecuentes (WHERE, ORDER BY, JOIN)
-- **Paginación**: LIMIT/OFFSET para listas grandes
-- **N+1 Queries**: Usar JOINs o includes de Prisma
-- **Full Text Search**: GIN indexes para búsquedas texto
-- **Partitioning**: Considerar para tablas de movimientos/logs
+### secuencias (para facturación y numeradores por sucursal)
 
-### Security Guidelines
-- **No Plain Text**: Passwords siempre hasheados
-- **Sensitive Data**: Encryption en campos críticos
-- **Row Level Security**: Filtrar por company_id siempre
-- **Input Validation**: Prisma + Zod en todas las entradas
-- **SQL Injection**: Solo queries parametrizadas
+```sql
+CREATE TABLE core_companies.sequences (
+  id           TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id   TEXT NOT NULL REFERENCES core_companies.companies(id) ON DELETE CASCADE,
+  branch_id    TEXT REFERENCES core_companies.branches(id) ON DELETE CASCADE,
+  scope        TEXT NOT NULL,        -- 'invoice:A','sales:order','ticket'
+  current_value BIGINT NOT NULL DEFAULT 0,
+  step         INTEGER NOT NULL DEFAULT 1,
+  UNIQUE(company_id, branch_id, scope)
+);
+```
+
+---
+
+## 👥 core_customers (Clientes + Padrón AFIP)
+
+### Enums
+
+```sql
+CREATE TYPE customer_type      AS ENUM ('individual','company');
+CREATE TYPE customer_tax_type  AS ENUM ('monotributo','responsable_inscripto','exento','consumidor_final');
+CREATE TYPE customer_status    AS ENUM ('active','inactive','blocked');
+```
+
+### customers
+
+```sql
+CREATE TABLE core_customers.customers (
+  id           TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id   TEXT NOT NULL REFERENCES core_companies.companies(id) ON DELETE CASCADE,
+  name         TEXT NOT NULL,
+  legal_name   TEXT,
+  tax_id       TEXT,
+  tax_type     customer_tax_type,
+  customer_type customer_type NOT NULL DEFAULT 'individual',
+  email        TEXT,
+  phone        TEXT,
+  mobile       TEXT,
+  website      TEXT,
+  address_street TEXT,
+  address_number TEXT,
+  address_floor TEXT,
+  address_apartment TEXT,
+  address_city  TEXT,
+  address_state TEXT,
+  address_country TEXT DEFAULT 'AR',
+  address_postal_code TEXT,
+  credit_limit DECIMAL(12,2) NOT NULL DEFAULT 0,
+  payment_terms INTEGER NOT NULL DEFAULT 0,
+  discount_rate DECIMAL(5,2) NOT NULL DEFAULT 0,
+  category     TEXT,
+  rating       INTEGER CHECK (rating BETWEEN 1 AND 5),
+  notes        TEXT,
+  tags         TEXT[],
+  status       customer_status NOT NULL DEFAULT 'active',
+  created_at   TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at   TIMESTAMP NOT NULL DEFAULT NOW(),
+  deleted_at   TIMESTAMP
+);
+```
+
+### afip_cache (validaciones CUIT/CUIL)
+
+```sql
+CREATE TABLE core_customers.afip_cache (
+  id         TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  tax_id     TEXT UNIQUE NOT NULL,      -- CUIT/CUIL
+  payload    JSONB NOT NULL,            -- respuesta padrón
+  fetched_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  expires_at TIMESTAMP NOT NULL
+);
+CREATE INDEX idx_afip_cache_valid ON core_customers.afip_cache (tax_id) WHERE expires_at > NOW();
+```
+
+---
+
+## 📦 core_inventory (Productos, Categorías, Stock)
+
+### products
+
+```sql
+CREATE TABLE core_inventory.products (
+  id               TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id       TEXT NOT NULL REFERENCES core_companies.companies(id) ON DELETE CASCADE,
+  sku              TEXT NOT NULL,
+  barcode          TEXT,
+  name             TEXT NOT NULL,
+  description      TEXT,
+  short_description TEXT,
+  category_id      TEXT REFERENCES core_inventory.categories(id),
+  brand            TEXT,
+  model            TEXT,
+  cost_price       DECIMAL(12,4) NOT NULL DEFAULT 0,
+  selling_price    DECIMAL(12,4) NOT NULL DEFAULT 0,
+  min_price        DECIMAL(12,4) NOT NULL DEFAULT 0,
+  suggested_price  DECIMAL(12,4),
+  track_stock      BOOLEAN NOT NULL DEFAULT TRUE,
+  stock_quantity   DECIMAL(10,3) NOT NULL DEFAULT 0,
+  stock_reserved   DECIMAL(10,3) NOT NULL DEFAULT 0,
+  stock_minimum    DECIMAL(10,3) NOT NULL DEFAULT 0,
+  stock_maximum    DECIMAL(10,3),
+  unit_type        TEXT NOT NULL DEFAULT 'unit', -- unit|kg|liter|meter
+  unit_quantity    DECIMAL(10,3) DEFAULT 1,      -- 1L, 5kg, etc.
+  unit_weight      DECIMAL(8,3),
+  unit_dimensions  JSONB,
+  is_active        BOOLEAN NOT NULL DEFAULT TRUE,
+  is_taxable       BOOLEAN NOT NULL DEFAULT TRUE,
+  tax_rate         DECIMAL(5,2) NOT NULL DEFAULT 21.00,
+  tags             TEXT[],
+  specifications   JSONB NOT NULL DEFAULT '{}',
+  images           TEXT[], -- LEGACY, se migrará a product_images
+  created_at       TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at       TIMESTAMP NOT NULL DEFAULT NOW(),
+  deleted_at       TIMESTAMP,
+  UNIQUE(company_id, sku)
+);
+```
+
+### product_images (nuevo)
+
+```sql
+CREATE TABLE core_inventory.product_images (
+  id          TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_id  TEXT NOT NULL REFERENCES core_inventory.products(id) ON DELETE CASCADE,
+  url         TEXT NOT NULL,
+  is_primary  BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at  TIMESTAMP NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_product_images_product ON core_inventory.product_images(product_id);
+```
+
+### categories (árbol de subcategorías)
+
+```sql
+CREATE TABLE core_inventory.categories (
+  id          TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id  TEXT NOT NULL REFERENCES core_companies.companies(id) ON DELETE CASCADE,
+  name        TEXT NOT NULL,
+  code        TEXT,
+  description TEXT,
+  parent_id   TEXT REFERENCES core_inventory.categories(id) ON DELETE SET NULL,
+  level       INTEGER NOT NULL DEFAULT 0,
+  path        TEXT,                                 -- materialized path
+  margin_rate DECIMAL(5,2),                         -- margen por defecto
+  is_active   BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMP NOT NULL DEFAULT NOW(),
+  deleted_at  TIMESTAMP,
+  UNIQUE(company_id, name, parent_id)
+);
+```
+
+### stock_movements
+
+```sql
+CREATE TYPE movement_type AS ENUM (
+  'initial_stock','purchase','sale','adjustment_plus','adjustment_minus',
+  'transfer_in','transfer_out','return_in','return_out'
+);
+
+CREATE TABLE core_inventory.stock_movements (
+  id           TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id   TEXT NOT NULL REFERENCES core_companies.companies(id) ON DELETE CASCADE,
+  product_id   TEXT NOT NULL REFERENCES core_inventory.products(id) ON DELETE CASCADE,
+  branch_id    TEXT REFERENCES core_companies.branches(id) ON DELETE SET NULL,
+  movement_type movement_type NOT NULL,
+  quantity     DECIMAL(10,3) NOT NULL,  -- + entrada / - salida
+  cost_price   DECIMAL(12,4),
+  reference_type TEXT,                   -- 'invoice','sale','adjustment','transfer'
+  reference_id   TEXT,
+  notes         TEXT,
+  batch_number  TEXT,
+  expiry_date   DATE,
+  user_id       TEXT NOT NULL REFERENCES core_auth.users(id),
+  created_at    TIMESTAMP NOT NULL DEFAULT NOW(),
+  CHECK (quantity <> 0)
+);
+CREATE INDEX idx_stock_movements_product ON core_inventory.stock_movements(product_id, created_at DESC);
+```
+
+---
+
+## 💵 core_pricing (Listas de precios)
+
+```sql
+CREATE TABLE core_pricing.price_lists (
+  id            TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id    TEXT NOT NULL REFERENCES core_companies.companies(id) ON DELETE CASCADE,
+  name          TEXT NOT NULL,
+  currency      TEXT NOT NULL DEFAULT 'ARS',
+  rounding_rule TEXT,                 -- p.ej. round_5, round_10
+  active        BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at    TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at    TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE core_pricing.price_list_items (
+  id            TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  price_list_id TEXT NOT NULL REFERENCES core_pricing.price_lists(id) ON DELETE CASCADE,
+  product_id    TEXT NOT NULL REFERENCES core_inventory.products(id) ON DELETE CASCADE,
+  price         DECIMAL(12,4) NOT NULL,
+  min_price     DECIMAL(12,4),
+  max_discount  DECIMAL(5,2),
+  UNIQUE(price_list_id, product_id)
+);
+```
+
+---
+
+## 🎯 core_promotions (Promos y Ofertas)
+
+```sql
+CREATE TYPE promo_type AS ENUM ('percent','fixed','bxgy');
+
+CREATE TABLE core_promotions.promotions (
+  id          TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id  TEXT NOT NULL REFERENCES core_companies.companies(id) ON DELETE CASCADE,
+  name        TEXT NOT NULL,
+  type        promo_type NOT NULL,
+  value       DECIMAL(12,4) NOT NULL,      -- % o monto
+  start_at    TIMESTAMP NOT NULL,
+  end_at      TIMESTAMP,
+  conditions  JSONB NOT NULL DEFAULT '{}', -- categoría, qty mínima, etc.
+  active      BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMP NOT NULL DEFAULT NOW()
+);
+```
+
+---
+
+## 🧾 core_sales (Ventas POS, Pagos, Caja)
+
+### Enums
+
+```sql
+CREATE TYPE sale_status   AS ENUM ('draft','confirmed','paid','cancelled');
+CREATE TYPE pay_method    AS ENUM ('cash','debit','credit','transfer','other');
+CREATE TYPE shift_status  AS ENUM ('open','closed');
+```
+
+### sales_orders
+
+```sql
+CREATE TABLE core_sales.sales_orders (
+  id            TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id    TEXT NOT NULL REFERENCES core_companies.companies(id) ON DELETE CASCADE,
+  branch_id     TEXT NOT NULL REFERENCES core_companies.branches(id) ON DELETE CASCADE,
+  customer_id   TEXT REFERENCES core_customers.customers(id) ON DELETE SET NULL,
+  order_number  BIGINT NOT NULL,
+  status        sale_status NOT NULL DEFAULT 'draft',
+  price_list_id TEXT REFERENCES core_pricing.price_lists(id),
+  discount_rate DECIMAL(5,2) NOT NULL DEFAULT 0,
+  subtotal      DECIMAL(12,2) NOT NULL DEFAULT 0,
+  tax_amount    DECIMAL(12,2) NOT NULL DEFAULT 0,
+  surcharge_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
+  rounding_diff DECIMAL(12,2) NOT NULL DEFAULT 0,
+  total_amount  DECIMAL(12,2) NOT NULL DEFAULT 0,
+  channel       TEXT NOT NULL DEFAULT 'pos', -- pos|web|admin
+  cashier_id    TEXT REFERENCES core_auth.users(id),
+  park_token    TEXT,
+  parked_at     TIMESTAMP,
+  invoice_id    TEXT REFERENCES core_billing.invoices(id), -- Fase 2
+  created_by    TEXT NOT NULL REFERENCES core_auth.users(id),
+  created_at    TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at    TIMESTAMP NOT NULL DEFAULT NOW(),
+  UNIQUE(company_id, branch_id, order_number)
+);
+```
+
+### sales_order_items
+
+```sql
+CREATE TABLE core_sales.sales_order_items (
+  id            TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  sales_order_id TEXT NOT NULL REFERENCES core_sales.sales_orders(id) ON DELETE CASCADE,
+  product_id    TEXT REFERENCES core_inventory.products(id) ON DELETE SET NULL,
+  sku           TEXT,
+  description   TEXT NOT NULL,
+  quantity      DECIMAL(10,3) NOT NULL,
+  unit_price    DECIMAL(12,4) NOT NULL,
+  discount_rate DECIMAL(5,2) NOT NULL DEFAULT 0,
+  tax_rate      DECIMAL(5,2) NOT NULL DEFAULT 21.00,
+  subtotal      DECIMAL(12,2) NOT NULL DEFAULT 0,
+  total         DECIMAL(12,2) NOT NULL DEFAULT 0,
+  is_weighted   BOOLEAN NOT NULL DEFAULT FALSE,
+  promo_id      TEXT REFERENCES core_promotions.promotions(id),
+  line_number   INTEGER NOT NULL,
+  created_at    TIMESTAMP NOT NULL DEFAULT NOW()
+);
+```
+
+### sales_payments
+
+```sql
+CREATE TABLE core_sales.sales_payments (
+  id            TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  sales_order_id TEXT NOT NULL REFERENCES core_sales.sales_orders(id) ON DELETE CASCADE,
+  method        pay_method NOT NULL,
+  amount        DECIMAL(12,2) NOT NULL,
+  method_details JSONB NOT NULL DEFAULT '{}', -- brand, last4, cuotas, authCode
+  payment_date  TIMESTAMP NOT NULL DEFAULT NOW()
+);
+```
+
+### pos_shifts & cash_movements
+
+```sql
+CREATE TABLE core_sales.pos_shifts (
+  id            TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id    TEXT NOT NULL REFERENCES core_companies.companies(id) ON DELETE CASCADE,
+  branch_id     TEXT NOT NULL REFERENCES core_companies.branches(id) ON DELETE CASCADE,
+  opened_by     TEXT NOT NULL REFERENCES core_auth.users(id),
+  opening_float DECIMAL(12,2) NOT NULL DEFAULT 0,
+  declared_cash DECIMAL(12,2),
+  closed_by     TEXT REFERENCES core_auth.users(id),
+  closed_at     TIMESTAMP,
+  status        shift_status NOT NULL DEFAULT 'open',
+  created_at    TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE core_sales.cash_movements (
+  id         TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  shift_id   TEXT NOT NULL REFERENCES core_sales.pos_shifts(id) ON DELETE CASCADE,
+  type       TEXT NOT NULL CHECK (type IN ('in','out')),
+  amount     DECIMAL(12,2) NOT NULL CHECK (amount > 0),
+  reason     TEXT,
+  created_by TEXT NOT NULL REFERENCES core_auth.users(id),
+  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+```
+
+### returns (Notas de crédito desde venta) – opcional V1.1
+
+```sql
+CREATE TABLE core_sales.returns (
+  id            TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  sales_order_id TEXT NOT NULL REFERENCES core_sales.sales_orders(id) ON DELETE CASCADE,
+  invoice_id    TEXT REFERENCES core_billing.invoices(id), -- si existiera
+  reason        TEXT,
+  created_by    TEXT NOT NULL REFERENCES core_auth.users(id),
+  created_at    TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE core_sales.return_items (
+  id          TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  return_id   TEXT NOT NULL REFERENCES core_sales.returns(id) ON DELETE CASCADE,
+  order_item_id TEXT NOT NULL REFERENCES core_sales.sales_order_items(id) ON DELETE CASCADE,
+  quantity    DECIMAL(10,3) NOT NULL,
+  amount      DECIMAL(12,2) NOT NULL
+);
+```
+
+---
+
+## 🧾 core_billing (Facturación AFIP) — Fase 2
+
+*(basado en el original; se mantiene casi igual con vínculo `sales_orders.invoice_id`)*
+
+### Enums
+
+```sql
+CREATE TYPE invoice_type   AS ENUM ('A','B','C','CREDIT_A','CREDIT_B','CREDIT_C','DEBIT_A','DEBIT_B','DEBIT_C');
+CREATE TYPE invoice_status AS ENUM ('draft','pending','sent','paid','overdue','cancelled');
+CREATE TYPE afip_status    AS ENUM ('pending','approved','rejected','error');
+```
+
+### invoices & invoice_items & invoice_payments
+
+```sql
+-- (idéntico a la versión original, con UNIQUE (company_id, invoice_type, point_of_sale, invoice_number))
+```
+
+---
+
+## 👤 core_commissions (Vendedores & Comisiones)
+
+```sql
+CREATE TABLE core_commissions.salespersons (
+  id             TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id        TEXT UNIQUE NOT NULL REFERENCES core_auth.users(id) ON DELETE CASCADE,
+  commission_rate DECIMAL(5,2) NOT NULL DEFAULT 0.0,
+  active         BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at     TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE core_commissions.commissions (
+  id             TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  salesperson_id TEXT NOT NULL REFERENCES core_commissions.salespersons(id) ON DELETE CASCADE,
+  sales_order_id TEXT NOT NULL REFERENCES core_sales.sales_orders(id) ON DELETE CASCADE,
+  base_amount    DECIMAL(12,2) NOT NULL,
+  rate           DECIMAL(5,2) NOT NULL,
+  commission_amount DECIMAL(12,2) NOT NULL,
+  period_from    DATE NOT NULL,
+  period_to      DATE NOT NULL,
+  settled        BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at     TIMESTAMP NOT NULL DEFAULT NOW(),
+  UNIQUE(salesperson_id, sales_order_id)
+);
+```
+
+---
+
+## 🔐 core_licensing (Licencias locales)
+
+```sql
+CREATE TABLE core_licensing.licenses (
+  id           TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  license_key  TEXT UNIQUE NOT NULL,
+  company_name TEXT NOT NULL,
+  plan         TEXT NOT NULL CHECK (plan IN ('standard','premium')),
+  status       TEXT NOT NULL CHECK (status IN ('active','expired','revoked')) DEFAULT 'active',
+  expires_at   TIMESTAMP,
+  created_at   TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE core_licensing.license_activations (
+  id             TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  license_id     TEXT NOT NULL REFERENCES core_licensing.licenses(id) ON DELETE CASCADE,
+  device_id      TEXT NOT NULL, -- HWID
+  activated_at   TIMESTAMP NOT NULL DEFAULT NOW(),
+  last_heartbeat TIMESTAMP,
+  version        TEXT,
+  meta           JSONB NOT NULL DEFAULT '{}'
+);
+```
+
+---
+
+## 📱 core_mobile (Móvil Offline‑First)
+
+```sql
+CREATE TABLE core_mobile.mobile_users (
+  id         TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    TEXT UNIQUE NOT NULL REFERENCES core_auth.users(id) ON DELETE CASCADE,
+  device_id  TEXT,
+  last_sync_at TIMESTAMP
+);
+
+CREATE TABLE core_mobile.mobile_orders (
+  id            TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  salesperson_id TEXT NOT NULL REFERENCES core_commissions.salespersons(id) ON DELETE CASCADE,
+  customer_id   TEXT REFERENCES core_customers.customers(id) ON DELETE SET NULL,
+  status        TEXT NOT NULL CHECK (status IN ('pending','synced','error')) DEFAULT 'pending',
+  payload       JSONB NOT NULL, -- snapshot de la orden
+  created_at    TIMESTAMP NOT NULL DEFAULT NOW(),
+  synced_at     TIMESTAMP
+);
+```
+
+---
+
+## 🚗 mod_auto_parts (Esquema vertical Auto‑Parts)
+
+*(mantiene tablas del original con ajustes menores)*
+
+* `vehicle_brands`, `vehicle_models`, `part_categories`, `part_compatibility`
+* `ml_price_history`, `ai_price_analysis`, `supplier_price_lists`, `supplier_price_items`
+
+> Se recomienda indexación adicional por `brand_id, model_id` y vigencia de análisis (`expires_at`).
+
+---
+
+## 📊 core_reports (Reportes & Scheduler)
+
+*(igual al original; asegurar permisos por `required_permission` y filtros por `company_id`)*
+
+---
+
+## 🧩 core_system (Settings, Módulos, Versionado)
+
+*(igual al original + `schema_versions` para control de cambios)*
+
+```sql
+CREATE TABLE core_system.schema_versions (
+  id          SERIAL PRIMARY KEY,
+  version     TEXT NOT NULL,
+  applied_at  TIMESTAMP NOT NULL DEFAULT NOW(),
+  rollback_sql TEXT,
+  description TEXT
+);
+```
+
+---
+
+## 📈 Índices Clave
+
+```sql
+-- Auth
+CREATE INDEX idx_users_email ON core_auth.users(email) WHERE deleted_at IS NULL;
+CREATE INDEX idx_sessions_user ON core_auth.user_sessions(user_id, expires_at);
+
+-- Ventas
+CREATE INDEX idx_sales_company_date ON core_sales.sales_orders(company_id, created_at DESC);
+CREATE INDEX idx_sales_customer ON core_sales.sales_orders(customer_id) WHERE status <> 'cancelled';
+CREATE INDEX idx_sales_payments_order ON core_sales.sales_payments(sales_order_id);
+
+-- Facturación
+CREATE INDEX idx_invoices_company_date ON core_billing.invoices(company_id, invoice_date);
+CREATE INDEX idx_invoices_customer ON core_billing.invoices(customer_id) WHERE deleted_at IS NULL;
+
+-- Inventario
+CREATE INDEX idx_products_company_sku ON core_inventory.products(company_id, sku);
+CREATE INDEX idx_products_search ON core_inventory.products USING gin(to_tsvector('spanish', name || ' ' || COALESCE(description,'')));
+CREATE INDEX idx_categories_path ON core_inventory.categories(path);
+CREATE INDEX idx_stock_product_date ON core_inventory.stock_movements(product_id, created_at DESC);
+
+-- Auto‑parts
+CREATE INDEX idx_compat_brand_model ON mod_auto_parts.part_compatibility(brand_id, model_id);
+CREATE INDEX idx_ml_price_date ON mod_auto_parts.ml_price_history(product_id, scraped_at DESC);
+CREATE INDEX idx_ai_analysis_valid ON mod_auto_parts.ai_price_analysis(product_id, expires_at) WHERE expires_at > NOW();
+```
+
+---
+
+## ✅ Constraints y Reglas de Negocio
+
+```sql
+ALTER TABLE core_billing.invoices
+  ADD CONSTRAINT chk_invoice_amounts CHECK (subtotal >= 0 AND tax_amount >= 0 AND total_amount >= 0);
+
+ALTER TABLE core_billing.invoice_items
+  ADD CONSTRAINT chk_item_amounts CHECK (quantity > 0 AND unit_price >= 0);
+
+ALTER TABLE core_inventory.products
+  ADD CONSTRAINT chk_prices CHECK (cost_price >= 0 AND selling_price >= 0);
+
+ALTER TABLE core_sales.sales_order_items
+  ADD CONSTRAINT chk_sales_item CHECK (quantity > 0 AND unit_price >= 0);
+
+ALTER TABLE core_sales.sales_orders
+  ADD CONSTRAINT chk_total_non_negative CHECK (subtotal >= 0 AND total_amount >= 0);
+```
+
+---
+
+## 🔄 Migraciones & Backwards‑Compatibility
+
+* **Imágenes de producto**: poblar `core_inventory.product_images` desde `products.images[]`; luego deprecate.
+* **Numeradores**: mover a `core_companies.sequences` por `scope`.
+* **Relleno inicial**: crear `price_lists` por defecto y rol/permissions mínimos.
+
+### Recomendación de Migrations (Prisma)
+
+1. Crear nuevos schemas/tablas (`core_sales`, `core_pricing`, `core_promotions`, `core_commissions`, `core_licensing`, `core_mobile`).
+2. Migrar datos legacy de imágenes.
+3. Crear índices y constraints.
+4. Semillas (roles, permisos, lista de precios “General”).
+
+---
+
+## 🔐 Seguridad & RLS (opcional)
+
+* Columnas `company_id` obligatorias para scoping.
+* Políticas RLS por `company_id` si se habilita (capa adicional).
+* Encriptar campos sensibles en `core_system.settings` cuando `is_secret = TRUE`.
+
+---
+
+## ⚠️ Notas para Desarrollo
+
+* **Soft deletes** en entidades maestras (clientes, productos) y documentos (ventas/facturas).
+* **Transacciones** al confirmar ventas (descuento stock) y cierres de caja.
+* **Idempotencia** en creación de pagos y park/resume.
+* **TTL** en `core_customers.afip_cache` (24h por defecto).

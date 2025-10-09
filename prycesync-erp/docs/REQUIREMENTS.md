@@ -1,174 +1,202 @@
-# PriceSync ERP - Requerimientos del Proyecto
+PriceSync ERP — Requerimientos Completos (Original + Nuevos)
 
-## 🎯 Objetivo Principal
-ERP modular completo con IA integrada, inicialmente enfocado en repuestos automotrices, pero arquitecturado para ser reutilizable en otros negocios verticales.
+🎯 Objetivo Principal
 
-## 🏢 Perfil de Usuario
-- **Usuario Primario**: Vendedores de casas de repuestos de autos en Argentina
-- **Expansión**: Comerciantes de Paraguay, Bolivia, y países limítrofes
-- **Futuros usuarios**: Retail general, farmacias, ferreterías
+ERP modular completo con IA integrada, inicialmente enfocado en repuestos automotrices, pero ahora evolucionado hacia un core de Ventas (POS) con integración futura de facturación AFIP, licenciamiento centralizado, y una app móvil para vendedores.
 
-## 💼 Modelo de Negocio
-- **Tipo**: Licencia única (NO subscripción)
-- **Estructura**: Módulos separados por vertical
-- **Versiones**: Económica y Premium por módulo
-- **Demo**: Versión gratuita de 30 días con limitaciones
-- **Updates**: Automáticas incluidas en licencia
+🏢 Perfil de Usuario
 
-## 🏗️ Arquitectura del Sistema
+Usuarios principales: Comercios y casas de repuestos en Argentina.
 
-### Core Engine Universal
-- ✅ Facturación electrónica (AFIP + sistemas internacionales)
-- ✅ Control de stock/inventario universal
-- ✅ Gestión de clientes (CRM básico)
-- ✅ Reportes contables estándar
-- ✅ Sistema de usuarios y permisos
-- ✅ Sistema de plugins/módulos hot-pluggable
-- ✅ Configuración multi-empresa
-- ✅ Sistema de licencias integrado
+Expansión: Paraguay, Bolivia y países limítrofes.
 
-### Módulos Comerciales
+Futuros usuarios: Retail, farmacias, ferreterías y comercios minoristas.
 
-#### 🚗 Módulo Auto-Parts (V1)
-**Versión Económica ($299 USD):**
-- Facturación AFIP básica (A, B, C)
-- Control stock básico
-- Gestión clientes
-- Import Excel de listas de proveedores
-- Pricing manual con margen fijo configurable
-- Reportes básicos (ventas, stock)
-- 1 usuario únicamente
+💼 Modelo de Negocio
 
-**Versión Premium ($899 USD):**
-- Todo lo de Económica +
-- 🤖 IA Pricing vs MercadoLibre (API oficial)
-- 🤖 Identificación automática por foto (Google Vision)
-- 🤖 Alertas de precios competencia
-- 🤖 Análisis predictivo de demanda
-- 📊 Reportes avanzados + Business Intelligence
-- 👥 Usuarios ilimitados
-- 🔄 Sincronización multi-sucursal
+Licencia única con control centralizado (sin suscripción mensual).
 
-#### 🏪 Módulos Futuros (V2+)
-- Retail General
-- Farmacia
-- Ferretería
-- Otros verticales bajo demanda
+Licencias activadas por código RSA, monitoreo con heartbeat horario.
 
-## 🌍 Internacionalización
-Sistema preparado desde V1 para:
-- 🇦🇷 **Argentina**: AFIP/ARCA integration
-- 🇵🇾 **Paraguay**: SIFEN integration  
-- 🇧🇴 **Bolivia**: Sistema de Facturación Virtual
-- 🇧🇷 **Brasil**: NFe (V2)
-- 🇨🇱 **Chile**: SII (V2)
-- 🇺🇾 **Uruguay**: DGI (V2)
+Versiones: Económica (solo ventas internas) y Premium (IA + AFIP + móvil).
 
-## 💻 Stack Tecnológico FIJO
+Demo de 30 días con limitaciones.
 
-### Frontend
-- **Framework**: Electron + Vue 3 + TypeScript
-- **Styling**: Tailwind CSS + Design System propio
-- **State Management**: Pinia + Persist
-- **Build Tool**: Vite
-- **Routing**: Vue Router 4
+🧭 Fases del Proyecto (Roadmap 20 Semanas)
 
-### Backend
-- **Runtime**: Node.js (embebido en Electron)
-- **Database**: PostgreSQL + Prisma ORM
-- **Cache**: Redis para APIs externas
-- **API Framework**: Express.js
+🟩 Fase 1 (Semanas 1–5): Core de Ventas + Licenciamiento
 
-### DevOps & Deploy
-- **Containerización**: Docker completo (obligatorio)
-- **Desarrollo**: docker-compose con hot reload
-- **Updates**: Electron Updater (automáticas)
-- **Build**: Electron Builder para distribución
+Ventas básicas sin AFIP.
 
-### APIs Externas
-- **Fiscal Argentina**: TusFacturasApp (AFIP integration)
-- **IA Pricing**: OpenAI GPT-4 para análisis
-- **Vision IA**: Google Vision API
-- **Ecommerce**: MercadoLibre API oficial (NO scraping)
+Lector de códigos de barras USB HID.
 
-## 🎨 Requerimientos UX/UI
+Impresora térmica ESC/POS (58/80mm).
 
-### Design System Obligatorio
-- **Componentes base**: Button, Input, Select, Checkbox, Spinner
-- **Componentes complejos**: DataTable, Modal, FormField, Filters
-- **Layout**: Header, Sidebar, Main, Footer modulares
-- **Tokens**: Colores, espaciado, tipografía, shadows consistentes
+Subcategorías jerárquicas y combos/ofertas.
 
-### Flujo Principal (Split-Screen Pro)
-- **Panel Izquierdo**: Upload foto/código + historial
-- **Panel Derecho**: Análisis + precio sugerido + competencia
-- **Tiempo objetivo**: <3 segundos para mostrar precio
-- **Clicks objetivo**: <2 clicks para completar flujo
+Sistema de licencias con servidor central.
 
-### Accesibilidad
-- **Contraste**: Mínimo WCAG AA (4.5:1)
-- **Tipografía**: 16px mínimo, sistema operativo + fallbacks
-- **Keyboard**: Navegación completa por teclado
-- **Screen readers**: Semantic HTML + ARIA labels
+Control de comisiones por vendedor.
 
-## 🔄 Funcionalidades Core
+🟦 Fase 2 (Semanas 6–10): Facturación AFIP + Métricas + Migraciones
 
-### 1. Sistema de Facturación
-- **Tipos**: Facturas A, B, C + Notas crédito/débito
-- **AFIP**: Integración real con CAE + código QR
-- **Estados**: Borrador → Enviada → Pagada → Anulada
-- **Numeración**: Automática + puntos de venta configurables
-- **Export**: PDF para impresión + XML fiscal
+Conversión Venta → Factura (TusFacturasApp API).
 
-### 2. Control de Inventario
-- **Movimientos**: Entradas, salidas, ajustes, transferencias
-- **Stock**: Tiempo real + alertas stock mínimo
-- **Valuación**: FIFO, LIFO, Promedio ponderado
-- **Ubicaciones**: Multi-depósito + multi-sucursal
+API Padrón AFIP (validación CUIT/CUIL, autocompletado datos fiscales).
 
-### 3. IA Pricing (Premium)
-- **Input**: Foto pieza OR código/descripción
-- **Proceso**: Vision API → identificación → ML API → análisis
-- **Output**: Precio sugerido + justificación + competencia
-- **Configuración**: Márgenes por categoría + reglas pricing
+Métricas físicas (litros, kilos, metros) + reportes comparativos $/unidad.
 
-### 4. Sistema de Módulos
-- **Hot-plugging**: Activar/desactivar sin reiniciar
-- **Licencias**: Control por módulo + vencimientos
-- **Configuración**: Settings por módulo independientes
-- **Updates**: Módulos independientes del core
+Sistema de migración desde Excel/Tango/Bejerman.
 
-## 📊 Versión Demo
+🟧 Fase 3 (Semanas 11–15): App Móvil + Seguridad Anti-Crackeo
 
-### Limitaciones Demo (30 días)
-- ❌ Máximo 50 facturas
-- ❌ Máximo 20 clientes  
-- ❌ Máximo 100 productos
-- ❌ Sin integración AFIP real (simulada)
-- ❌ Watermark en reportes
-- ❌ No exportar datos completos
+App móvil React Native + Expo (pedidos offline).
 
-### Features Demo
-- ✅ Todas las funciones básicas visibles
-- ✅ IA pricing simulado (datos dummy)
-- ✅ UI completa navegable
-- ✅ Import Excel funcional
-- ✅ Reportes con marca de agua
+API móvil dedicada (autenticación JWT, sync, rate limit).
 
-## 🎯 Métricas de Éxito V1
+Seguridad avanzada: ofuscación, DB cifrada, detección de crackeo.
 
-### Técnicas
-- ✅ Docker compose up = todo funciona
-- ✅ AFIP integration test exitoso
-- ✅ Tiempo respuesta IA <5 segundos
-- ✅ Hot reload funcionando
-- ✅ Updates automáticas probadas
+🟥 Fase 4 (Semanas 16–20): IA Pricing + Reportes Avanzados
 
-### Negocio
-- ✅ Demo mode funcional para presentaciones
-- ✅ Pricing IA >75% accuracy en piezas comunes
-- ✅ Sistema modular permite agregar países fácilmente
-- ✅ Componentes reutilizables aceleran desarrollo futuro
+Integración con MercadoLibre API.
+
+Análisis de competencia + precios sugeridos.
+
+Dashboard BI avanzado, export PDF/Excel, gráficos interactivos.
+
+✅ Requerimientos Clave
+
+🧾 Módulo de Ventas POS
+
+Crear ventas internas (no fiscales) con productos, descuentos, combos.
+
+Buscar productos por lector de códigos de barras.
+
+Mostrar imagen previa del producto.
+
+Imprimir ticket térmico con ESC/POS.
+
+Modo offline con almacenamiento local temporal.
+
+Subcategorías en productos (estructura árbol).
+
+Combos y promociones automáticas (3x2, % descuento).
+
+🔑 Sistema de Licencias
+
+Servidor central (Node.js + Express) con endpoints /validate, /status/:licenseKey, /heartbeat.
+
+Cliente desktop con activación y heartbeat horario.
+
+Bloqueo automático si licencia expirada o inválida.
+
+Cifrado RSA + JWT + HTTPS.
+
+Dashboard para monitoreo de licencias activas.
+
+🧍‍♂️ Comisiones por Vendedor
+
+Configuración de % por vendedor.
+
+Cálculo automático en cada venta.
+
+Reportes por período y exportación Excel.
+
+🧠 Facturación AFIP (Fase 2)
+
+Flujo Venta → Factura.
+
+Validación automática con API Padrón AFIP.
+
+Generación de CAE + PDF fiscal + ticket térmico con QR.
+
+⚖️ Métricas Físicas
+
+Campos adicionales en producto: unit_type (L, Kg, m, u), unit_quantity.
+
+Reportes de ventas por unidades físicas y monetarias.
+
+🗂️ Migración desde Otros Sistemas
+
+Wizard 5 pasos: Selección, Upload, Mapeo, Validación, Confirmación.
+
+Templates Excel para Tango/Bejerman/Genérico.
+
+📱 App Móvil para Vendedores
+
+Crear pedidos offline con catálogo local.
+
+Sincronizar automáticamente con API central.
+
+Indicadores de estado: sincronizado/pendiente.
+
+🛡️ Seguridad Anti‑Crackeo
+
+Ofuscación del código Electron + Node.
+
+DB cifrada (clave derivada de licencia + hardware ID).
+
+Validación de integridad (checksums, firmas digitales).
+
+Anti‑debug + detección de entornos virtuales.
+
+🤖 IA Pricing (Fase 4)
+
+Integración MercadoLibre API (oficial).
+
+Sugerencias de precios basadas en competencia.
+
+Análisis histórico de ventas + demanda.
+
+🔒 Restricciones No Negociables
+
+Docker obligatorio.
+
+Electron + Vue 3 + TypeScript.
+
+PostgreSQL + Prisma + Redis.
+
+React Native + Expo (SQLite local) para móvil.
+
+Comunicación HTTPS.
+
+API MercadoLibre oficial (sin scraping).
+
+RSA + JWT en licencias.
+
+📊 Métricas de Éxito por Fase
+
+F1: POS operativo con lector e impresión <30s. Licenciamiento funcional.
+
+F2: AFIP integrada, 1000 filas importadas sin errores.
+
+F3: App móvil con sincronización confiable.
+
+F4: IA Pricing preciso (>75%) y dashboard BI completo.
+
+⚙️ Dependencias y Stack
+
+Frontend: Electron + Vue 3 + Tailwind + Pinia.
+
+Backend: Node.js + Express + Prisma + PostgreSQL.
+
+Hardware POS: escpos, escpos-usb.
+
+Seguridad: helmet, jsonwebtoken, javascript-obfuscator.
+
+Móvil: React Native + Expo + SQLite.
+
+DevOps: Docker Compose, CI con doctor/health/test, Electron Builder.
+
+📚 Documentación a Actualizar
+
+ARCHITECTURE.md: incluir servidor central de licencias + app móvil.
+
+DATABASE_SCHEMA.md: agregar tablas licenses, commissions, combos, promotions, price_lists.
+
+TECH_STACK.md: añadir React Native, ESC/POS, seguridad avanzada.
+
+ROADMAP.md: reflejar roadmap de 20 semanas.
 
 ## 🚫 Restricciones CRÍTICAS
 
@@ -186,33 +214,8 @@ Sistema preparado desde V1 para:
 - **Inconsistencia UI**: Seguir design system estrictamente
 - **Dependencias innecesarias**: Evaluar cada librería nueva
 
-## 📅 Roadmap Macro
 
-### Semana 1-4: Core Engine
-- Base Docker + Vue + PostgreSQL
-- Sistema de componentes + design tokens  
-- AFIP integration básica
-- User management + auth
 
-### Semana 5-8: Auto-Parts Económico
-- Import Excel proveedores
-- Pricing manual + márgenes
-- Stock control específico repuestos
-- Demo mode completo
-
-### Semana 9-12: Auto-Parts Premium  
-- IA pricing + ML API integration
-- Google Vision + identificación automática
-- Reportes avanzados + analytics
-- Multi-usuario
-
-### Semana 13-16: Deploy + Polish
-- Testing completo + QA
-- Documentación usuario final
-- Installer + updates automáticas
-- Preparación para otros países
-
----
 
 ## ⚠️ IMPORTANTE PARA TRAE
 Este documento es la **FUENTE DE VERDAD** del proyecto. Cualquier decisión técnica debe ser validada contra estos requerimientos. Si algo parece contradictorio o unclear, **PREGUNTAR** antes de implementar.
