@@ -138,7 +138,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import DashboardLayout from '@/components/organisms/DashboardLayout.vue'
 import PageHeader from '@/components/molecules/PageHeader.vue'
 import BaseButton from '@/components/atoms/BaseButton.vue'
@@ -148,6 +148,9 @@ import { useProducts } from '@/composables/useProducts'
 import { useCustomers } from '@/composables/useCustomers'
 import { useInvoices, type CreateInvoiceData } from '@/composables/useInvoices'
 import { usePOS } from '@/composables/usePOS'
+import { useBarcode } from '@/composables/useBarcode'
+import { getPosBarcodeSettings } from '@/services/posBarcodeSettings'
+import { useSalesStore } from '@/stores/modules/sales'
 
 // Composables
 const { searchProducts } = useProducts()
@@ -163,8 +166,41 @@ const customerResults = ref<any[]>([])
 const selectedCustomer = ref<any | null>(null)
 const isSubmitting = ref(false)
 
-// Carrito
+// Carrito (local view state, synced from sales store)
 const cartItems = ref<Array<{ tempId: string, productId: string, name: string, code: string, quantity: number, unitPrice: number, discount?: number }>>([])
+const sales = useSalesStore()
+let barcodeCtrl: ReturnType<typeof useBarcode> | null = null
+
+onMounted(async () => {
+  const settings = await getPosBarcodeSettings()
+  barcodeCtrl = useBarcode(settings)
+  barcodeCtrl.onScan((code) => {
+    sales.addItemByBarcode(code)
+  })
+  barcodeCtrl.start()
+})
+
+onBeforeUnmount(() => {
+  barcodeCtrl?.stop()
+})
+
+// Sync store items to local cartItems for display and totals
+watch(
+  () => sales.currentSale?.items,
+  (items) => {
+    cartItems.value = (items || []).map((it) => ({
+      tempId: it.tempId,
+      productId: it.productId,
+      name: it.name,
+      code: it.code,
+      quantity: it.quantity,
+      unitPrice: it.unitPrice,
+      discount: it.discount || 0
+    }))
+    recalcTotals()
+  },
+  { deep: true, immediate: true }
+)
 
 // Totales
 const totals = ref({ subtotal: 0, tax: 0, total: 0 })
@@ -193,6 +229,7 @@ const selectCustomer = (cust: any) => {
 }
 
 const addProductToCart = (prod: any) => {
+  // Keep local behavior for manual add, but also sync store for consistency
   const item = {
     tempId: Math.random().toString(36).slice(2),
     productId: prod.id,

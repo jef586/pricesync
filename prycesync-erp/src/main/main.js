@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -16,9 +16,9 @@ function createWindow() {
     width: 1200,
     height: 800,
     webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
-      enableRemoteModule: true
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js')
     },
     icon: path.join(__dirname, '../renderer/assets/icon.png'), // Opcional: icono de la app
     show: false // No mostrar hasta que esté lista
@@ -70,3 +70,14 @@ app.on('activate', function () {
 
 // En este archivo puedes incluir el resto del código específico del proceso principal
 // de tu aplicación. También puedes ponerlo en archivos separados y requerirlos aquí.
+
+// IPC handler para pos:scan (retorna OK; el agregado se maneja en renderer via store)
+ipcMain.handle('pos:scan', async (_event, code) => {
+  try {
+    // En caso de necesitar reenviar al renderer activo, podría emitirse un evento.
+    // Por ahora solo confirmamos recepción.
+    return { ok: true, code }
+  } catch (err) {
+    return { ok: false, error: (err && err.message) || 'unknown' }
+  }
+});
