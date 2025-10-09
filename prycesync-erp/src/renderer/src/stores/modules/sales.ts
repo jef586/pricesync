@@ -28,6 +28,10 @@ export const useSalesStore = defineStore('sales', () => {
   const currentSale = ref<Sale | null>(null)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
+  const activeSaleId = ref<string | null>(null)
+  const parkedList = ref<Array<{ saleId: string, token: string | null, customer: string | null, total: number, paid: number, remaining: number, parked_at: string | null }>>([])
+  const isParking = ref(false)
+  const isResuming = ref(false)
 
   // Initialize a new sale if none exists
   const initCurrentSale = () => {
@@ -147,6 +151,7 @@ export const useSalesStore = defineStore('sales', () => {
   const clearSale = () => {
     currentSale.value = null
     error.value = null
+    activeSaleId.value = null
   }
 
   // Remove item from sale
@@ -177,10 +182,82 @@ export const useSalesStore = defineStore('sales', () => {
     currentSale,
     isLoading,
     error,
+    activeSaleId,
+    parkedList,
+    isParking,
+    isResuming,
     addItemByBarcode,
     clearSale,
     removeItem,
     updateItemQuantity,
-    computeTotals
+    computeTotals,
+    async parkSale(saleId?: string) {
+      try {
+        isParking.value = true
+        const id = saleId || activeSaleId.value
+        if (!id) {
+          throw new Error('No hay venta activa para estacionar')
+        }
+        const resp = await apiClient.post(`/sales/${id}/park`, {})
+        const data = resp.data
+        // Keep activeSaleId; UI should reflect PARKED state (freeze edits client-side)
+        return data
+      } catch (e: any) {
+        error.value = e?.response?.data?.message || e?.message || 'Error al estacionar venta'
+        return null
+      } finally {
+        isParking.value = false
+      }
+    },
+    async resumeSale(saleId: string, token?: string) {
+      try {
+        isResuming.value = true
+        const resp = await apiClient.post(`/sales/${saleId}/resume`, token ? { token } : {})
+        const data = resp.data
+        // Set active sale to resumed one and fetch details to populate currentSale
+        activeSaleId.value = saleId
+        const saleResp = await apiClient.get(`/sales/${saleId}`)
+        const sale = saleResp.data?.data || saleResp.data
+        // Map backend sale to local structure (basic fields for POS view)
+        currentSale.value = {
+          id: sale.id,
+          customerId: sale.customerId,
+          items: (sale.items || []).map((it: any) => ({
+            tempId: Math.random().toString(36).slice(2),
+            productId: it.productId || '',
+            name: it.description || it.product?.name || 'Item',
+            code: it.product?.code || '',
+            quantity: Number(it.quantity || 0),
+            unitPrice: Number(it.unitPrice || 0),
+            discount: Number(it.discount || 0)
+          })),
+          subtotal: Number(sale.subtotal || 0),
+          tax: Number(sale.taxAmount || 0),
+          total: Number(sale.totalRounded || sale.total || 0),
+          status: (sale.status || 'draft')
+        }
+        return data
+      } catch (e: any) {
+        error.value = e?.response?.data?.message || e?.message || 'Error al reanudar venta'
+        return null
+      } finally {
+        isResuming.value = false
+      }
+    },
+    async fetchParked(params?: { search?: string, page?: number, limit?: number }) {
+      try {
+        const q = new URLSearchParams()
+        if (params?.search) q.set('search', params.search)
+        if (params?.page) q.set('page', String(params.page))
+        if (params?.limit) q.set('limit', String(params.limit))
+        const resp = await apiClient.get(`/sales/parked?${q.toString()}`)
+        const rows = resp.data?.data || []
+        parkedList.value = rows
+        return rows
+      } catch (e: any) {
+        error.value = e?.response?.data?.message || e?.message || 'Error al listar ventas estacionadas'
+        return []
+      }
+    }
   }
 })

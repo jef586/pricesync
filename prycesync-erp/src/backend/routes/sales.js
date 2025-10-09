@@ -15,4 +15,9 @@ router.get('/:id', validateGetSale, SalesController.getById);
 router.post('/:id/payments', validateAddPayments, PaymentController.addPayments);
 router.get('/:id/payments', validateGetSale, PaymentController.listPayments);
 
+// Park/Resume endpoints and parked listing
+router.post('/:id/park', validateGetSale, SalesController.park);
+router.post('/:id/resume', validateGetSale, SalesController.resume);
+router.get('/parked', SalesController.listParked);
+
 export default router;

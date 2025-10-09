@@ -12,6 +12,10 @@
             </svg>
             Cobrar
           </BaseButton>
+          <BaseButton class="ml-2" variant="warning" :disabled="!canPark" @click="confirmPark">Estacionar venta</BaseButton>
+          <router-link to="/pos/parked" class="inline-block ml-2">
+            <BaseButton variant="secondary">Ventas estacionadas</BaseButton>
+          </router-link>
         </template>
       </PageHeader>
 
@@ -134,16 +138,25 @@
         </div>
       </BaseCard>
     </div>
+    <!-- Confirmar estacionamiento -->
+    <ConfirmModal
+      v-if="showConfirmPark"
+      title="Estacionar venta"
+      message="La venta quedará congelada hasta que la reanudes. ¿Confirmas?"
+      @confirm="doPark"
+      @cancel="showConfirmPark = false"
+    />
   </DashboardLayout>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, onMounted, onBeforeUnmount, watch, computed } from 'vue'
 import DashboardLayout from '@/components/organisms/DashboardLayout.vue'
 import PageHeader from '@/components/molecules/PageHeader.vue'
 import BaseButton from '@/components/atoms/BaseButton.vue'
 import BaseCard from '@/components/atoms/BaseCard.vue'
 import BaseInput from '@/components/atoms/BaseInput.vue'
+import ConfirmModal from '@/components/atoms/ConfirmModal.vue'
 import { useProducts } from '@/composables/useProducts'
 import { useCustomers } from '@/composables/useCustomers'
 import { useInvoices, type CreateInvoiceData } from '@/composables/useInvoices'
@@ -165,6 +178,7 @@ const customerQuery = ref('')
 const customerResults = ref<any[]>([])
 const selectedCustomer = ref<any | null>(null)
 const isSubmitting = ref(false)
+const showConfirmPark = ref(false)
 
 // Carrito (local view state, synced from sales store)
 const cartItems = ref<Array<{ tempId: string, productId: string, name: string, code: string, quantity: number, unitPrice: number, discount?: number }>>([])
@@ -184,6 +198,9 @@ onBeforeUnmount(() => {
   barcodeCtrl?.stop()
 })
 
+// Totales (debe inicializarse antes del watcher con immediate:true)
+const totals = ref({ subtotal: 0, tax: 0, total: 0 })
+
 // Sync store items to local cartItems for display and totals
 watch(
   () => sales.currentSale?.items,
@@ -202,8 +219,20 @@ watch(
   { deep: true, immediate: true }
 )
 
-// Totales
-const totals = ref({ subtotal: 0, tax: 0, total: 0 })
+// Park button availability
+const canPark = computed(() => {
+  const status = (sales.currentSale?.status || '').toLowerCase()
+  const blocked = status === 'paid' || status === 'cancelled' || status === 'void'
+  return !!sales.activeSaleId && !blocked
+})
+
+const confirmPark = () => { showConfirmPark.value = true }
+const doPark = async () => {
+  const id = sales.activeSaleId
+  if (!id) { showConfirmPark.value = false; return }
+  await sales.parkSale(id)
+  showConfirmPark.value = false
+}
 
 // Métodos
 const debounce = (fn: Function, ms = 300) => {
@@ -254,7 +283,7 @@ const updateItemTotals = (_item: any) => {
   recalcTotals()
 }
 
-const recalcTotals = () => {
+function recalcTotals() {
   totals.value = computeTotals(cartItems.value)
 }
 

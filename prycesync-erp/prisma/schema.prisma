@@ -471,6 +471,7 @@ model SupplierProduct {
 enum SalesOrderStatus {
   open
   partially_paid
+  parked
   paid
   draft
   completed
@@ -502,11 +503,17 @@ model SalesOrder {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  // Parking
+  parkToken String?  @map("park_token")
+  parkedAt  DateTime? @map("parked_at")
+
   // Relaciones
   items    SalesOrderItem[]
   payments SalesPayment[]
 
   @@unique([companyId, number])
+  @@unique([parkToken], map: "uniq_sales_orders_park_token")
+  @@index([parkedAt], map: "idx_sales_orders_parked_at")
   @@map("sales_orders")
 }
 
