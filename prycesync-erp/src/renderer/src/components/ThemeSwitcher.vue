@@ -1,6 +1,9 @@
 <template>
   <button
-    class="ps-btn ps-btn--secondary dark:hover:bg-slate-700 flex items-center gap-2"
+    :class="[
+      'ps-btn ps-btn--secondary dark:hover:bg-slate-700 flex items-center',
+      showLabel ? 'gap-2 px-3 h-9' : 'w-9 h-9 justify-center p-0'
+    ]"
     :aria-label="theme === 'dark' ? 'Cambiar a claro' : 'Cambiar a oscuro'"
     @click="toggleTheme"
   >
@@ -20,13 +23,14 @@
         <line x1="17.66" y1="6.34" x2="19.78" y2="4.22" stroke="currentColor" stroke-width="2"/>
       </svg>
     </span>
-    <span class="text-sm text-secondary">{{ theme === 'dark' ? 'Oscuro' : 'Claro' }}</span>
+    <span v-if="showLabel" class="text-sm text-secondary">{{ theme === 'dark' ? 'Oscuro' : 'Claro' }}</span>
   </button>
 </template>
 
 <script setup>
 import { useTheme } from '@/composables/useTheme'
 const { theme, toggleTheme } = useTheme()
+const { showLabel = true } = defineProps({ showLabel: { type: Boolean, default: true } })
 </script>
 
 <style scoped>

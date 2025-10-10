@@ -1,5 +1,6 @@
 <template>
   <DashboardLayout>
+    <div class="h-full flex flex-col">
     <!-- Breadcrumb y acciones -->
     <div class="flex items-center justify-between mb-4">
       <nav class="text-sm text-slate-600 dark:text-slate-300" aria-label="Breadcrumb">
@@ -38,260 +39,25 @@
       </ul>
     </div>
 
-    <!-- Layout principal: A/B/C -->
-    <div v-show="activeTabId === baseTabId" class="grid grid-cols-1 xl:grid-cols-12 gap-6 font-inter rounded-xl ring-2 ring-emerald-500 border border-emerald-500 p-3">
-      <!-- Card A: Encabezado / Cliente -->
-      <section class="xl:col-span-3 bg-white dark:bg-slate-900 rounded-xl shadow-md border border-slate-200 dark:border-slate-800 p-4" aria-label="Encabezado del comprobante">
-        <div class="flex items-center justify-between mb-3">
-          <h2 class="text-base font-semibold text-slate-900 dark:text-slate-100">Encabezado</h2>
-          <span class="text-xs px-2 py-1 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300">Lista de Precios: {{ selectedPriceList?.name || '—' }}</span>
-        </div>
-
-        <div class="space-y-3">
-          <div>
-            <label class="block text-xs text-slate-600 dark:text-slate-300">Fecha</label>
-            <input type="date" v-model="header.date" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100" aria-label="Fecha" tabindex="1" />
-          </div>
-
-          <div>
-            <label class="block text-xs text-slate-600 dark:text-slate-300">Tipo de comprobante</label>
-            <select v-model="header.type" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100" aria-label="Tipo de comprobante" tabindex="2">
-              <option>Factura A</option>
-              <option>Factura B</option>
-              <option>Factura C</option>
-              <option>Ticket</option>
-              <option>Presupuesto</option>
-            </select>
-          </div>
-
-          <div>
-            <label class="block text-xs text-slate-600 dark:text-slate-300">N° Comprobante</label>
-            <input type="text" :value="header.number" readonly class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100" aria-label="Número de comprobante" tabindex="-1" />
-          </div>
-
-          <div>
-            <label class="block text-xs text-slate-600 dark:text-slate-300">Cliente</label>
-            <div class="relative mt-1">
-              <input
-                type="text"
-                v-model="customerQuery"
-                @input="debouncedSearchCustomer"
-                placeholder="Buscar por nombre, CUIT o email..."
-                class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                aria-label="Cliente"
-                tabindex="3"
-              />
-              <!-- Resultados: overlay absoluto que no empuja los demás inputs -->
-              <div
-                v-if="customerResults.length > 0"
-                class="absolute left-0 right-0 top-full mt-1 z-20 max-h-64 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg"
-              >
-                <ul>
-                  <li
-                    v-for="cust in customerResults"
-                    :key="cust.id"
-                    class="px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer"
-                    @click="onCustomerSelected(cust)"
-                  >
-                    <div class="text-sm font-medium text-slate-900 dark:text-slate-100">{{ cust.name }}</div>
-                    <div class="text-xs text-slate-500 dark:text-slate-300">CUIT: {{ cust.taxId }}</div>
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <label class="block text-xs text-slate-600 dark:text-slate-300">Condición de IVA</label>
-            <input type="text" :value="header.ivaCondition || '—'" readonly class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100" aria-label="Condición de IVA" tabindex="-1" />
-          </div>
-
-          <div>
-            <label class="block text-xs text-slate-600 dark:text-slate-300">Condición de venta</label>
-            <select v-model="header.saleCondition" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100" aria-label="Condición de venta" tabindex="5">
-              <option>Contado</option>
-              <option>Cuenta Corriente</option>
-            </select>
-          </div>
-
-          <div>
-            <label for="price-list-select" class="block text-xs text-slate-600 dark:text-slate-300">Lista de Precios</label>
-            <select id="price-list-select" v-model="selectedPriceListId" @change="handlePriceListChange" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100" aria-label="Lista de Precios" data-testid="price-list-select" tabindex="6">
-              <option disabled value="">Seleccionar…</option>
-              <option v-for="pl in priceLists" :key="pl.id" :value="pl.id">{{ pl.name }}</option>
-            </select>
-          </div>
-        </div>
-      </section>
-
-      <!-- Card B: Productos -->
-      <section class="xl:col-span-6 bg-white dark:bg-slate-900 rounded-xl shadow-md border border-slate-200 dark:border-slate-800 p-4" aria-label="Productos">
-        <div class="flex flex-wrap items-end gap-3 mb-4">
-          <div class="flex-1 min-w-[220px] relative">
-            <label class="block text-xs text-slate-600 dark:text-slate-300">Buscar producto</label>
-            <input
-              type="text"
-              v-model="searchQuery"
-              @input="debouncedSearch"
-              placeholder="Buscar por nombre o SKU..."
-              class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-              aria-label="Buscar producto"
-              tabindex="7"
-            />
-            <!-- Resultados: overlay absoluto que no empuja los demás inputs -->
-            <div
-              v-if="productResults.length > 0"
-              class="absolute left-0 right-0 top-full mt-1 z-20 max-h-64 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg"
-            >
-              <ul>
-                <li
-                  v-for="prod in productResults"
-                  :key="prod.id"
-                  class="px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer flex items-center justify-between"
-                  @click="onProductSelected(prod)"
-                >
-                  <div>
-                    <div class="text-sm font-medium text-slate-900 dark:text-slate-100">{{ prod.name }}</div>
-                    <div class="text-xs text-slate-500 dark:text-slate-300">SKU: {{ prod.sku || prod.code }}</div>
-                  </div>
-                </li>
-              </ul>
-            </div>
-          </div>
-          <div class="w-40">
-            <label class="block text-xs text-slate-600 dark:text-slate-300">Código de barras</label>
-            <input type="text" v-model="barcode" @keydown.enter.prevent="addRowFromBarcode" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100" aria-label="Código de barras" tabindex="8" />
-          </div>
-          <div class="w-32">
-            <label class="block text-xs text-slate-600 dark:text-slate-300">Cantidad</label>
-            <input type="number" min="1" v-model.number="newQty" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100" aria-label="Cantidad" tabindex="9" />
-          </div>
-          <button class="px-3 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white" @click="addSelectedProduct" data-testid="add-row-btn" tabindex="10">Agregar</button>
-        </div>
-
-        <div v-if="rows.length === 0" class="text-sm text-slate-600 dark:text-slate-300">Sin productos</div>
-
-        <div v-else class="overflow-x-auto">
-          <table class="min-w-full text-sm">
-            <thead>
-              <tr class="text-left text-slate-600 dark:text-slate-300">
-                <th class="py-2 pr-4">Cantidad</th>
-                <th class="py-2 pr-4">Artículo</th>
-                <th class="py-2 pr-4">Precio $</th>
-                <th class="py-2 pr-4">Desc %</th>
-                <th class="py-2 pr-4">Total $</th>
-                <th class="py-2 pr-4">#</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-200 dark:divide-slate-800">
-              <tr v-for="(r, idx) in rows" :key="r.id" class="text-slate-900 dark:text-slate-100">
-                <td class="py-2 pr-4">
-                  <input type="number" min="1" v-model.number="r.qty" @change="syncTotals" class="w-20 px-2 py-1 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800" aria-label="Cantidad" />
-                </td>
-                <td class="py-2 pr-4">
-                  <input type="text" v-model="r.desc" class="w-64 px-2 py-1 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800" aria-label="Artículo" />
-                  <div class="text-xs text-slate-500">SKU: {{ r.sku }}</div>
-                </td>
-                <td class="py-2 pr-4">
-                  <div class="flex items-center gap-2">
-                    <input type="number" min="0" v-model.number="r.price" @change="lockPrice(r)" :title="priceOriginTitle(r)" data-testid="row-price-input" class="w-28 px-2 py-1 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800" aria-label="Precio" />
-                    <span v-if="r.manualLocked" class="inline-flex items-center px-2 py-1 text-xs rounded-md bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300" title="🔒 Origen: Manual">🔒</span>
-                  </div>
-                </td>
-                <td class="py-2 pr-4">
-                  <input type="number" min="0" max="100" v-model.number="r.disc" @change="syncTotals" class="w-20 px-2 py-1 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800" aria-label="Descuento" />
-                </td>
-                <td class="py-2 pr-4 font-mono">${{ lineTotal(r).toLocaleString('es-AR') }}</td>
-                <td class="py-2 pr-4">
-                  <button class="px-2 py-1 rounded-md bg-red-50 text-red-600 border border-red-200 hover:bg-red-100" @click="removeRow(idx)" aria-label="Eliminar fila">Eliminar</button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <!-- Card C: Resumen y Pago -->
-      <section class="xl:col-span-3 bg-white dark:bg-slate-900 rounded-xl shadow-md border border-slate-200 dark:border-slate-800 p-4" aria-label="Resumen y Pago">
-        <h2 class="text-base font-semibold text-slate-900 dark:text-slate-100 mb-3">Resumen</h2>
-        <dl class="space-y-2 text-sm">
-          <div class="flex justify-between"><dt class="text-slate-600 dark:text-slate-300">Subtotal</dt><dd class="font-mono text-xl">${{ subtotal.toLocaleString('es-AR') }}</dd></div>
-          <div class="flex justify-between"><dt class="text-slate-600 dark:text-slate-300">Descuento total</dt><dd class="font-mono text-xl">${{ totalDiscount.toLocaleString('es-AR') }}</dd></div>
-          <div class="flex justify-between"><dt class="text-slate-600 dark:text-slate-300">Impuestos</dt><dd class="font-mono text-xl">—</dd></div>
-          <div class="flex justify-between items-center pt-2 border-t border-slate-200 dark:border-slate-800"><dt class="text-slate-900 dark:text-slate-100 font-semibold">TOTAL</dt><dd class="text-5xl font-extrabold" data-testid="total-amount">${{ grandTotal.toLocaleString('es-AR') }}</dd></div>
-        </dl>
-
-        <div class="mt-4">
-          <label class="block text-xs text-slate-600 dark:text-slate-300">Tipo de pago</label>
-          <select v-model="pay.type" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
-            <option>Efectivo</option>
-            <option>Tarjeta</option>
-            <option>Transferencia</option>
-            <option>Mixto</option>
-          </select>
-        </div>
-        <div class="mt-3 grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs text-slate-600 dark:text-slate-300">Monto recibido</label>
-            <input type="number" min="0" v-model.number="pay.received" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100" />
-          </div>
-          <div>
-            <label class="block text-xs text-slate-600 dark:text-slate-300">Vuelto</label>
-            <input type="text" :value="changeDisplay" readonly class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100" />
-          </div>
-        </div>
-
-        <div v-if="header.saleCondition === 'Cuenta Corriente'" class="mt-3 text-sm text-amber-700 dark:text-amber-300">Adeuda ${{ grandTotal.toLocaleString('es-AR') }}</div>
-
-        <div class="mt-4 flex flex-wrap gap-2">
-          <button class="px-3 py-2 rounded-md bg-slate-200 hover:bg-slate-300 text-slate-900 dark:bg-slate-800 dark:text-slate-100" @click="cancelSale">Cancelar</button>
-          <button class="px-3 py-2 rounded-md bg-slate-200 hover:bg-slate-300 text-slate-900 dark:bg-slate-800 dark:text-slate-100" @click="saveSale">Guardar venta</button>
-          <button class="px-3 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white" @click="confirmAndCharge" data-testid="pay-btn">Confirmar y Cobrar</button>
-        </div>
-      </section>
-    </div>
-
-    <!-- Formularios adicionales: una sola instancia por pestaña activa, cacheada -->
-    <div v-show="activeTabId !== baseTabId" class="rounded-xl ring-2 ring-emerald-500 border border-emerald-500 p-3">
+    <!-- Formulario unificado: siempre se renderiza el mismo componente -->
+    <div class="rounded-xl ring-2 ring-emerald-500 border border-emerald-500 p-3 flex-1 min-h-0">
       <keep-alive>
-        <SalesForm
-          v-if="activeTabId && activeTabId !== baseTabId"
-          :key="activeTabId"
-        />
+        <SalesForm :key="activeTabId" ref="activeFormRef" />
       </keep-alive>
-    </div>
-
-    <!-- Modal cambio lista -->
-    <div v-if="modal.show" class="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-      <div class="bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 p-4 w-[90%] max-w-md">
-        <h3 class="text-base font-semibold text-slate-900 dark:text-slate-100 mb-2">Cambiar Lista de Precios</h3>
-        <p class="text-sm text-slate-600 dark:text-slate-300">Cambiar la lista actualizará los precios no editados. ¿Continuar?</p>
-        <div class="mt-4 flex justify-end gap-2">
-          <button class="px-3 py-2 rounded-md bg-slate-200 hover:bg-slate-300 text-slate-900 dark:bg-slate-800 dark:text-slate-100" @click="modalCancel">Cancelar</button>
-          <button class="px-3 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white" @click="modalConfirm">Continuar</button>
-        </div>
-      </div>
     </div>
 
     <!-- Toast -->
     <div v-if="toast.show" class="fixed bottom-4 right-4 px-3 py-2 rounded-md bg-slate-900 text-white shadow-md">{{ toast.message }}</div>
+      </div>
   </DashboardLayout>
-  <!-- Modal de Split Payments -->
-  <SplitPaymentsModal
-    :open="paymentsModalOpen"
-    :sale-id="saleId"
-    :total="grandTotal"
-    :already-paid="paidTotal"
-    @close="paymentsModalOpen = false"
-    @confirmed="onPaymentsConfirmed"
-  />
+  <!-- SplitPaymentsModal: manejo delegado al componente SalesForm -->
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import DashboardLayout from '@/components/organisms/DashboardLayout.vue'
 import SalesForm from '@/components/sales/SalesForm.vue'
-import SplitPaymentsModal from '@/components/sales/SplitPaymentsModal.vue'
+// SplitPaymentsModal se maneja dentro del formulario
 import { useProducts } from '@/composables/useProducts'
 import { useCustomers } from '@/composables/useCustomers'
 import { useRouter } from 'vue-router'
@@ -301,6 +67,7 @@ type Tab = { id: string; title: string }
 const tabs = ref<Tab[]>([])
 const activeTabId = ref<string>('')
 const baseTabId = ref<string>('')
+const activeFormRef = ref<any>(null)
 let counter = 0
 const activateTab = (id: string) => { activeTabId.value = id }
 const closeTab = (id: string) => {
@@ -346,11 +113,15 @@ const productResults = ref<any[]>([])
 let searchTimer: any = null
 const barcode = ref('')
 const newQty = ref(1)
+// Imagen seleccionada para el visor
+const selectedImageUrl = ref<string | null>(null)
 
 // Productos API
 const { searchProducts } = useProducts()
 const { searchCustomers } = useCustomers()
 const router = useRouter()
+// Modal de selección de cliente
+const showCustomerModal = ref(false)
 
 // Búsqueda con debounce
 const debouncedSearch = () => {
@@ -369,6 +140,7 @@ const onProductSelected = (p: any) => {
   addRowFromProduct(p)
   productResults.value = []
   searchQuery.value = ''
+  selectedImageUrl.value = p?.imageUrl || p?.image || p?.photo || null
 }
 
 // Cliente
@@ -393,6 +165,15 @@ const onCustomerSelected = (cust: any) => {
   header.value.client = cust?.name || ''
   customerQuery.value = cust?.name || ''
   customerResults.value = []
+}
+
+// Selección de cliente desde el modal
+const onCustomerSelectedFromModal = (cust: any) => {
+  selectedCustomer.value = cust
+  header.value.client = cust?.name || ''
+  customerQuery.value = cust?.name || ''
+  customerResults.value = []
+  showCustomerModal.value = false
 }
 
 // Abrir nueva pestaña interna (formulario local)
@@ -425,6 +206,7 @@ const addRowFromBarcode = () => {
   rows.value.push({ id: cryptoRandom(), sku, desc, qty: newQty.value || 1, price, manualLocked: false, disc: 0 })
   barcode.value = ''
   syncTotals()
+  selectedImageUrl.value = null
 }
 
 const addRowFromProduct = (product: any) => {
@@ -501,7 +283,8 @@ const syncTotals = () => {/* no-op, computeds se actualizan solos */}
 
 // Acciones
 const removeRow = (idx: number) => { rows.value.splice(idx, 1) }
-const cancelSale = () => { rows.value = []; pay.value = { type: 'Efectivo', received: 0 }; showToast('Venta cancelada') }
+// Delegamos las acciones en el formulario activo para mantener una sola implementación
+const cancelSale = () => { activeFormRef.value?.cancelSale?.() }
 // Estado de venta persistida y pagos
 const saleId = ref<string>('')
 const saleStatus = ref<string>('open')
@@ -520,34 +303,11 @@ const buildSalePayload = () => ({
   notes: 'Venta POS'
 })
 
-const saveSale = async () => {
-  try {
-    const payload = buildSalePayload()
-    const res = await apiClient.post('/sales', payload)
-    const data = res.data?.data
-    saleId.value = data?.id
-    saleStatus.value = data?.status || 'open'
-    paidTotal.value = Number(data?.paidTotal || 0)
-    showToast('Venta guardada')
-  } catch (e: any) {
-    console.error('Error guardando venta', e?.response?.data || e)
-    alert(e?.response?.data?.message || 'Error guardando venta')
-  }
-}
+const saveSale = async () => { activeFormRef.value?.saveSale?.() }
 
-const confirmAndCharge = async () => {
-  if (!saleId.value) {
-    await saveSale()
-  }
-  if (!saleId.value) return
-  paymentsModalOpen.value = true
-}
+const confirmAndCharge = async () => { activeFormRef.value?.confirmAndCharge?.() }
 
-function onPaymentsConfirmed(payload: any) {
-  paidTotal.value = Number(payload?.paid_total || paidTotal.value)
-  saleStatus.value = payload?.status || saleStatus.value
-  showToast(saleStatus.value === 'paid' ? 'Venta cobrada' : 'Pago registrado (parcial)')
-}
+function onPaymentsConfirmed(payload: any) { /* manejado en SalesForm */ }
 
 // Atajos de teclado
 const handleKey = (e: KeyboardEvent) => {
