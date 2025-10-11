@@ -33,14 +33,16 @@
         <div class="xl:col-span-5">
           <label class="block text-xs text-slate-600 dark:text-slate-300">Cliente</label>
           <div class="mt-1 flex items-center gap-2">
-            <input type="text" :value="header.client || '—'" readonly class="flex-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100" aria-label="Cliente seleccionado" tabindex="-1" />
+            <input type="text" :value="header.client" placeholder="Cliente ocasional" :readonly="!manualHeaderEdit" class="flex-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100" aria-label="Cliente" tabindex="-1" />
             <button class="px-3 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white" @click="showCustomerModal = true" tabindex="3">Seleccionar</button>
+            <button class="px-3 py-2 rounded-md bg-slate-200 hover:bg-slate-300 text-slate-900 dark:bg-slate-800 dark:text-slate-100" @click="showCuitModal = true" title="Buscar por CUIT">Buscar CUIT</button>
           </div>
+          
         </div>
 
         <div class="xl:col-span-4">
           <label class="block text-xs text-slate-600 dark:text-slate-300">Condición de IVA</label>
-          <select v-model="header.ivaCondition" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100" aria-label="Condición de IVA" tabindex="4">
+          <select v-model="header.ivaCondition" :disabled="!manualHeaderEdit" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100" aria-label="Condición de IVA" tabindex="4">
             <option>Consumidor Final</option>
             <option>Monotributista</option>
             <option>Resp.Inscripto</option>
@@ -268,27 +270,24 @@
   </section>
 </div>
 
-<!-- Modal selección de cliente -->
-<div v-if="showCustomerModal" class="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-  <div class="bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 p-4 w-[90%] max-w-lg">
-    <h3 class="text-base font-semibold text-slate-900 dark:text-slate-100 mb-2">Seleccionar cliente</h3>
+<!-- Modal CUIT para enriquecer datos -->
+<div v-if="showCuitModal" class="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+  <div class="bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 p-4 w-[90%] max-w-md">
+    <h3 class="text-base font-semibold text-slate-900 dark:text-slate-100 mb-2">Buscar cliente por CUIT</h3>
     <div>
-      <label class="block text-xs text-slate-600 dark:text-slate-300">Buscar</label>
-      <input type="text" v-model="customerQuery" @input="debouncedSearchCustomer" placeholder="Nombre, CUIT o email" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100" />
-      <div v-if="customerResults.length > 0" class="mt-2 max-h-64 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
-        <ul>
-          <li v-for="cust in customerResults" :key="cust.id" class="px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer" @click="onCustomerSelectedFromModal(cust)">
-            <div class="text-sm font-medium text-slate-900 dark:text-slate-100">{{ cust.name }}</div>
-            <div class="text-xs text-slate-500 dark:text-slate-300">CUIT: {{ cust.taxId }}</div>
-          </li>
-        </ul>
-      </div>
+      <label class="block text-xs text-slate-600 dark:text-slate-300">CUIT/CUIL</label>
+      <input type="text" v-model="cuitInputModal" placeholder="20xxxxxxxxx" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100" />
+      <div v-if="padron.error" class="mt-2 text-xs text-red-600 dark:text-red-400">{{ padron.error }}</div>
     </div>
     <div class="mt-4 flex justify-end gap-2">
-      <button class="px-3 py-2 rounded-md bg-slate-200 hover:bg-slate-300 text-slate-900 dark:bg-slate-800 dark:text-slate-100" @click="showCustomerModal = false">Cerrar</button>
+      <button class="px-3 py-2 rounded-md bg-slate-200 hover:bg-slate-300 text-slate-900 dark:bg-slate-800 dark:text-slate-100" @click="showCuitModal = false">Cerrar</button>
+      <button class="px-3 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-60" :disabled="padron.isLoading" @click="onSearchCuitModal">{{ padron.isLoading ? 'Buscando…' : 'Buscar CUIT' }}</button>
     </div>
   </div>
 </div>
+
+<!-- Modal reutilizable de búsqueda de cliente -->
+<CustomerSearchModal v-model="showCustomerModal" @select="onCustomerSelected" />
 
   <!-- Modal cambio lista -->
   <div v-if="modal.show" class="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
@@ -310,6 +309,8 @@
 import { ref, computed, onMounted, watch, defineExpose } from 'vue'
 import { useProducts } from '@/composables/useProducts'
 import { useCustomers } from '@/composables/useCustomers'
+import { usePadronStore } from '@/stores/modules/padron'
+import CustomerSearchModal from '@/components/molecules/CustomerSearchModal.vue'
 
 type PriceList = { id: string; name: string; multiplier?: number; priceMap?: Record<string, number> }
 type Row = { id: string; sku: string; desc: string; qty: number; price: number; manualLocked: boolean; disc?: number; productId?: string; discountType?: 'PERCENT' | 'ABS'; discountValue?: number; isDiscountable?: boolean }
@@ -355,6 +356,7 @@ const departmentLabels = [
 // Productos API
 const { searchProducts } = useProducts()
 const { searchCustomers } = useCustomers()
+const padron = usePadronStore()
 
 // Búsqueda con debounce
 const debouncedSearch = () => {
@@ -382,6 +384,11 @@ const customerQuery = ref('')
 const customerResults = ref<any[]>([])
 let customerSearchTimer: any = null
 const selectedCustomer = ref<any | null>(null)
+const cuitInput = ref('')
+const cuitInputModal = ref('')
+const showCuitModal = ref(false)
+const showCustomerModal = ref(false)
+const manualHeaderEdit = ref(false)
 
 const debouncedSearchCustomer = () => {
   if (customerSearchTimer) clearTimeout(customerSearchTimer)
@@ -399,6 +406,43 @@ const onCustomerSelected = (cust: any) => {
   header.value.client = cust?.name || ''
   customerQuery.value = cust?.name || ''
   customerResults.value = []
+}
+
+const enrichCustomerByCuit = async () => {
+  if (!cuitInput.value || cuitInput.value.replace(/\D/g, '').length < 11) {
+    showToast('CUIT/CUIL inválido')
+    return
+  }
+  const result = await padron.enrichByCuit(cuitInput.value)
+  if (result) {
+    // Autocompletar encabezado
+    header.value.client = result.name || header.value.client
+    if (result.ivaCondition) header.value.ivaCondition = result.ivaCondition
+
+    // Intentar vincular cliente existente por CUIT
+    try {
+      const matches = await searchCustomers(cuitInput.value, 5)
+      const exact = (matches || []).find((m: any) => (m.taxId || '').replace(/\D/g, '') === result.taxId)
+      if (exact) {
+        onCustomerSelected(exact)
+        showToast('Cliente seleccionado por CUIT')
+      } else {
+        showToast('Datos autocompletados. Selecciona cliente si corresponde')
+      }
+    } catch (e) {
+      showToast('Autocompletado realizado (no se pudo buscar clientes)')
+    }
+  } else if (!padron.error) {
+    showToast('CUIT no encontrado en padrón')
+  }
+}
+
+const onSearchCuitModal = async () => {
+  cuitInput.value = cuitInputModal.value
+  await enrichCustomerByCuit()
+  if (padron.lastResult) {
+    showCuitModal.value = false
+  }
 }
 
 // Base price mock

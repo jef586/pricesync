@@ -1,5 +1,6 @@
 import express from 'express';
 import CustomerController from '../controllers/CustomerController.js';
+import CustomerEnrichmentController from '../controllers/CustomerEnrichmentController.js';
 import { authenticate } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -8,6 +9,7 @@ const router = express.Router();
 router.use(authenticate);
 
 // Rutas de clientes
+router.get('/enrich', CustomerEnrichmentController.enrichByCuit);
 router.get('/search', CustomerController.searchCustomers);
 router.get('/', CustomerController.getCustomers);
 router.get('/:id', CustomerController.getCustomerById);

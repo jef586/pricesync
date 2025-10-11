@@ -1,0 +1,12 @@
+{
+  "20304050609": {
+    "name": "APELLIDO NOMBRE / RAZÓN SOCIAL",
+    "ivaCondition": "RI",
+    "address": { "street": "Calle 123", "city": "San Juan", "state": "San Juan", "zip": "5400" }
+  },
+  "27223344556": {
+    "name": "JUANA PÉREZ",
+    "ivaCondition": "MONOTRIBUTO",
+    "address": { "street": "Av. Libertador 2345", "city": "Capital", "state": "San Juan", "zip": "5400" }
+  }
+}
