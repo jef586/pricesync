@@ -1,12 +1,39 @@
 import { z } from "zod";
 
+const DiscountTypeEnum = z.enum(["PERCENT", "ABS"]);
+
 const SaleItemSchema = z.object({
   productId: z.string().cuid().optional(),
   description: z.string().min(1).max(500).optional(),
   quantity: z.number().positive(),
   unitPrice: z.number().min(0),
-  discount: z.number().min(0).max(100).optional().default(0),
+  // Compat y nuevos campos
+  discount: z.number().min(0).max(100).optional(), // antiguo: %
+  discount_type: DiscountTypeEnum.optional(),
+  discount_value: z.number().min(0).optional().default(0),
+  is_discountable: z.boolean().optional(),
   taxRate: z.number().min(0).max(100).optional().default(21)
+}).refine((data) => {
+  // Validaciones específicas según tipo
+  const qty = data.quantity;
+  const price = data.unitPrice;
+  const type = data.discount_type;
+  const value = data.discount_value ?? 0;
+  if (data.is_discountable === false) return true; // se fuerza 0 en controlador
+  if (type === "PERCENT") {
+    return value >= 0 && value <= 100;
+  }
+  if (type === "ABS") {
+    return value >= 0 && value <= qty * price;
+  }
+  // Si no hay tipo pero viene `discount`, validar como porcentaje
+  if (data.discount != null) {
+    return data.discount >= 0 && data.discount <= 100;
+  }
+  return true;
+}, {
+  message: "Descuento inválido según tipo",
+  path: ["discount_value"]
 });
 
 const SalePaymentSchema = z.object({
@@ -17,9 +44,15 @@ const SalePaymentSchema = z.object({
   paidAt: z.string().datetime().optional()
 });
 
+const FinalDiscountSchema = z.object({
+  type: DiscountTypeEnum.optional(),
+  value: z.number().min(0).optional().default(0)
+}).optional();
+
 const CreateSaleSchema = z.object({
   customerId: z.string().cuid(),
   items: z.array(SaleItemSchema).min(1),
+  finalDiscount: FinalDiscountSchema,
   payments: z.array(SalePaymentSchema).optional(),
   notes: z.string().max(1000).optional()
 });
@@ -49,6 +82,38 @@ export const validateGetSale = (req, res, next) => {
   }
   next();
 };
+
+// Validación para PUT /api/sales/:id
+const UpdateSaleSchema = z.object({
+  customerId: z.string().cuid().optional(),
+  items: z.array(SaleItemSchema).min(1).optional(),
+  finalDiscount: FinalDiscountSchema,
+  payments: z.array(SalePaymentSchema).optional(),
+  notes: z.string().max(1000).optional(),
+  status: z.enum(['open','partially_paid','paid','cancelled','parked']).optional()
+});
+
+export const validateUpdateSale = (req, res, next) => {
+  const idSchema = z.object({ id: z.string().cuid() });
+  const idParsed = idSchema.safeParse(req.params);
+  if (!idParsed.success) {
+    return res.status(400).json({
+      success: false,
+      message: "ID inválido",
+      errors: idParsed.error.errors.map(e => ({ field: e.path.join('.'), message: e.message }))
+    });
+  }
+  const parsed = UpdateSaleSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({
+      success: false,
+      message: "Errores de validación",
+      errors: parsed.error.errors.map(e => ({ field: e.path.join('.'), message: e.message }))
+    });
+  }
+  req.body = parsed.data;
+  next();
+}
 
 // Validación para POST /api/sales/:id/payments
 const SplitPaymentSchema = z.object({

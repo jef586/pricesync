@@ -1,36 +1,105 @@
 import { Decimal } from "@prisma/client/runtime/library.js";
 
 class SalesService {
-  static calculateTotals(items) {
-    let subtotal = new Decimal(0);
-    let taxAmount = new Decimal(0);
-    let discountAmount = new Decimal(0);
+  /**
+   * Calcula totales de venta con descuentos por ítem y descuento final.
+   * Mantiene compatibilidad con `discount` (porcentaje) en payloads antiguos.
+   */
+  static calculateTotals(items, finalDiscount = { type: undefined, value: 0 }) {
+    let subtotalGross = new Decimal(0);
+    let itemsDiscountTotal = new Decimal(0);
+    let subtotalNet = new Decimal(0);
 
+    // Paso 1: calcular neto por ítem y acumular descuentos por ítem
     for (const item of items) {
       const quantity = new Decimal(item.quantity);
       const unitPrice = new Decimal(item.unitPrice);
-      const discount = new Decimal(item.discount ?? 0);
       const taxRate = new Decimal(item.taxRate ?? 21);
 
+      const effectiveType = (item.discountType || item.discount_type || (item.discount != null ? 'PERCENT' : undefined));
+      const effectiveValue = new Decimal(
+        item.discountValue != null ? item.discountValue :
+        item.discount_value != null ? item.discount_value :
+        item.discount != null ? item.discount : 0
+      );
+
       const rawSubtotal = quantity.mul(unitPrice);
-      const discountValue = rawSubtotal.mul(discount.div(100));
-      const itemSubtotal = rawSubtotal.sub(discountValue);
-      const itemTax = itemSubtotal.mul(taxRate.div(100));
-      const itemTotal = itemSubtotal.add(itemTax);
+      let lineDiscount = new Decimal(0);
+      if (effectiveType === 'PERCENT') {
+        lineDiscount = rawSubtotal.mul(effectiveValue.div(100));
+      } else if (effectiveType === 'ABS') {
+        lineDiscount = effectiveValue;
+      }
+      if (lineDiscount.gt(rawSubtotal)) lineDiscount = rawSubtotal;
+      lineDiscount = new Decimal(lineDiscount.toFixed(2));
 
-      subtotal = subtotal.add(itemSubtotal);
-      taxAmount = taxAmount.add(itemTax);
-      discountAmount = discountAmount.add(discountValue);
+      const itemSubtotal = rawSubtotal.sub(lineDiscount);
 
-      item.subtotal = itemSubtotal;
-      item.taxAmount = itemTax;
-      item.total = itemTotal;
+      item.subtotal = new Decimal(itemSubtotal.toFixed(2));
+      item.discountTotal = lineDiscount;
+      item.discount_type = effectiveType;
+      item.discountType = effectiveType;
+      item.discount_value = effectiveValue;
+      item.discountValue = effectiveValue;
+      item.taxRate = taxRate;
+      item.rawSubtotal = rawSubtotal;
+
+      subtotalGross = subtotalGross.add(rawSubtotal);
+      itemsDiscountTotal = itemsDiscountTotal.add(lineDiscount);
+      subtotalNet = subtotalNet.add(item.subtotal);
     }
 
-    const total = subtotal.add(taxAmount);
+    // Paso 2: aplicar descuento final sobre subtotal neto
+    let finalDiscountAmount = new Decimal(0);
+    const fdType = finalDiscount?.type;
+    const fdValue = new Decimal(finalDiscount?.value || 0);
+    if (fdType === 'PERCENT') {
+      finalDiscountAmount = subtotalNet.mul(fdValue.div(100));
+    } else if (fdType === 'ABS') {
+      finalDiscountAmount = fdValue;
+    }
+    if (finalDiscountAmount.gt(subtotalNet)) finalDiscountAmount = subtotalNet;
+    finalDiscountAmount = new Decimal(finalDiscountAmount.toFixed(2));
+
+    const taxBase = subtotalNet.sub(finalDiscountAmount);
+
+    // Paso 3: distribuir descuento final proporcional y calcular impuestos por ítem
+    let taxAmount = new Decimal(0);
+    for (let idx = 0; idx < items.length; idx++) {
+      const item = items[idx];
+      const itemSubtotal = item.subtotal;
+      let itemShare = new Decimal(0);
+      if (subtotalNet.gt(0) && finalDiscountAmount.gt(0)) {
+        const proportion = itemSubtotal.div(subtotalNet);
+        itemShare = new Decimal(finalDiscountAmount.mul(proportion).toFixed(2));
+        if (idx === items.length - 1) {
+          const distributed = items.slice(0, idx).reduce((acc, it) => acc.add(it.finalDiscountShare || 0), new Decimal(0));
+          const remaining = finalDiscountAmount.sub(distributed);
+          itemShare = remaining;
+        }
+      }
+      item.finalDiscountShare = itemShare;
+
+      const itemTaxBase = itemSubtotal.sub(itemShare);
+      const itemTax = new Decimal(itemTaxBase.mul(item.taxRate.div(100)).toFixed(2));
+      item.taxAmount = itemTax;
+      item.total = new Decimal(itemTaxBase.add(itemTax).toFixed(2));
+      taxAmount = taxAmount.add(itemTax);
+    }
+
+    const subtotal = subtotalNet;
+    const total = taxBase.add(taxAmount);
     const totalRounded = new Decimal(total.toFixed(2));
 
-    return { subtotal, taxAmount, discountAmount, total, totalRounded };
+    return {
+      subtotal,
+      subtotalGross,
+      itemsDiscountTotal,
+      taxAmount,
+      discountAmount: finalDiscountAmount,
+      total,
+      totalRounded
+    };
   }
 }
 

@@ -87,8 +87,8 @@
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Producto</th>
                 <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Cantidad</th>
                 <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Precio Unit.</th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Desc.</th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Subtotal</th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Desc. (%/$)</th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Neto</th>
                 <th class="px-6 py-3" />
               </tr>
             </thead>
@@ -108,10 +108,19 @@
                   <BaseInput type="number" min="0" step="0.01" v-model.number="item.unitPrice" @input="updateItemTotals(item)" />
                 </td>
                 <td class="px-6 py-4 text-right">
-                  <BaseInput type="number" min="0" step="0.01" v-model.number="item.discount" @input="updateItemTotals(item)" />
+                  <div class="flex items-center justify-end gap-2">
+                    <select v-model="item.discountType" @change="updateItemTotals(item)" class="px-2 py-1 border rounded text-xs">
+                      <option value="PERCENT">%</option>
+                      <option value="ABS">$</option>
+                    </select>
+                    <BaseInput type="number" min="0" step="0.01" v-model.number="item.discountValue" @input="updateItemTotals(item)" />
+                    <label class="inline-flex items-center text-xs text-gray-500 gap-1">
+                      <input type="checkbox" v-model="item.isDiscountable" @change="updateItemTotals(item)" /> Desc.
+                    </label>
+                  </div>
                 </td>
                 <td class="px-6 py-4 text-right">
-                  {{ formatCurrency(item.quantity * item.unitPrice - (item.discount || 0)) }}
+                  {{ formatCurrency(lineNet(item)) }}
                 </td>
                 <td class="px-6 py-4 text-right">
                   <BaseButton variant="ghost" size="sm" @click="removeFromCart(idx)">Eliminar</BaseButton>
@@ -122,10 +131,27 @@
         </div>
 
         <!-- Totales -->
-        <div class="mt-4 p-4 bg-gray-50 rounded grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="mt-4 p-4 bg-gray-50 rounded grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
-            <p class="text-sm text-gray-600">Subtotal</p>
-            <p class="text-lg font-semibold text-gray-900">${{ formatCurrency(totals.subtotal) }}</p>
+            <p class="text-sm text-gray-600">Subtotal bruto</p>
+            <p class="text-lg font-semibold text-gray-900">${{ formatCurrency(totals.subtotalGross) }}</p>
+          </div>
+          <div>
+            <p class="text-sm text-gray-600">Desc. por ítems</p>
+            <p class="text-lg font-semibold text-red-600">${{ formatCurrency(totals.itemsDiscountTotal) }}</p>
+          </div>
+          <div class="col-span-1 md:col-span-2">
+            <div class="flex items-center gap-2">
+              <p class="text-sm text-gray-600">Descuento final</p>
+              <select v-model="finalDiscount.type" class="px-2 py-1 border rounded text-xs">
+                <option value="NONE">Sin Desc.</option>
+                <option value="PERCENT">%</option>
+                <option value="ABS">$</option>
+              </select>
+              <BaseInput type="number" min="0" step="0.01" v-model.number="finalDiscount.value" />
+              <span class="ml-auto text-sm text-gray-600">Monto: </span>
+              <span class="text-lg font-semibold text-red-600">${{ formatCurrency(totals.finalDiscountAmount) }}</span>
+            </div>
           </div>
           <div>
             <p class="text-sm text-gray-600">Impuestos (IVA)</p>
@@ -181,7 +207,7 @@ const isSubmitting = ref(false)
 const showConfirmPark = ref(false)
 
 // Carrito (local view state, synced from sales store)
-const cartItems = ref<Array<{ tempId: string, productId: string, name: string, code: string, quantity: number, unitPrice: number, discount?: number }>>([])
+const cartItems = ref<Array<{ tempId: string, productId: string, name: string, code: string, quantity: number, unitPrice: number, discountType?: 'PERCENT' | 'ABS', discountValue?: number, isDiscountable?: boolean }>>([])
 const sales = useSalesStore()
 let barcodeCtrl: ReturnType<typeof useBarcode> | null = null
 
@@ -199,7 +225,8 @@ onBeforeUnmount(() => {
 })
 
 // Totales (debe inicializarse antes del watcher con immediate:true)
-const totals = ref({ subtotal: 0, tax: 0, total: 0 })
+const totals = ref({ subtotalGross: 0, itemsDiscountTotal: 0, netSubtotal: 0, finalDiscountAmount: 0, tax: 0, total: 0 })
+const finalDiscount = ref<{ type: 'NONE' | 'PERCENT' | 'ABS', value: number }>({ type: 'NONE', value: 0 })
 
 // Sync store items to local cartItems for display and totals
 watch(
@@ -212,7 +239,9 @@ watch(
       code: it.code,
       quantity: it.quantity,
       unitPrice: it.unitPrice,
-      discount: it.discount || 0
+      discountType: it.discountType ?? (it.discount != null ? 'PERCENT' : undefined),
+      discountValue: it.discountValue ?? (it.discount || 0),
+      isDiscountable: it.isDiscountable !== false
     }))
     recalcTotals()
   },
@@ -284,17 +313,44 @@ const updateItemTotals = (_item: any) => {
 }
 
 function recalcTotals() {
-  totals.value = computeTotals(cartItems.value)
+  const gross = cartItems.value.reduce((acc, it) => acc + it.quantity * it.unitPrice, 0)
+  const itemDisc = cartItems.value.reduce((acc, it) => {
+    const isDisc = it.isDiscountable !== false
+    if (!isDisc) return acc
+    const lineGross = it.quantity * it.unitPrice
+    if (it.discountType === 'ABS') return acc + Math.min(Math.max(it.discountValue || 0, 0), lineGross)
+    const pct = Math.min(Math.max(it.discountValue || 0, 0), 100)
+    return acc + lineGross * (pct / 100)
+  }, 0)
+  const net = gross - itemDisc
+  let finalDisc = 0
+  if (finalDiscount.value.type === 'ABS') finalDisc = Math.min(Math.max(finalDiscount.value.value || 0, 0), net)
+  else if (finalDiscount.value.type === 'PERCENT') finalDisc = net * Math.min(Math.max(finalDiscount.value.value || 0, 0), 100) / 100
+  const taxBase = net - finalDisc
+  const tax = taxBase * 0.21
+  const total = taxBase + tax
+  totals.value = { subtotalGross: gross, itemsDiscountTotal: itemDisc, netSubtotal: net, finalDiscountAmount: finalDisc, tax, total }
 }
 
 const submitSale = async () => {
   if (!selectedCustomer.value || cartItems.value.length === 0) return
   isSubmitting.value = true
   try {
-    const payload: CreateInvoiceData = computeInvoicePayload(cartItems.value, selectedCustomer.value.id, 'B')
-    const invoice = await createInvoice(payload)
-    // Redirigir a detalle de factura
-    window.location.href = `/invoices/${invoice.id}`
+    // Construir payload compatible con backend /sales
+    const items = cartItems.value.map(it => ({
+      productId: it.productId,
+      quantity: it.quantity,
+      unitPrice: it.unitPrice,
+      discountType: it.isDiscountable !== false ? it.discountType : undefined,
+      discountValue: it.isDiscountable !== false ? (it.discountValue || 0) : 0,
+      is_discountable: it.isDiscountable !== false,
+      taxRate: 21
+    }))
+    const fd = finalDiscount.value.type === 'NONE' ? undefined : { type: finalDiscount.value.type, value: finalDiscount.value.value || 0 }
+    const res = await fetch('/api/sales', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerId: selectedCustomer.value.id, items, finalDiscount: fd }) })
+    if (!res.ok) throw new Error('Error registrando venta')
+    const data = await res.json()
+    window.location.href = `/sales/${data?.data?.id || ''}`
   } catch (err) {
     console.error('Error al registrar venta:', err)
   } finally {
@@ -308,3 +364,12 @@ const submitSale = async () => {
   @apply p-6 max-w-6xl mx-auto space-y-6;
 }
 </style>
+// Helpers
+function lineNet(item: { quantity: number, unitPrice: number, discountType?: 'PERCENT' | 'ABS', discountValue?: number, isDiscountable?: boolean }) {
+  const gross = item.quantity * item.unitPrice
+  const isDisc = item.isDiscountable !== false
+  if (!isDisc) return gross
+  if (item.discountType === 'ABS') return gross - Math.min(Math.max(item.discountValue || 0, 0), gross)
+  const pct = Math.min(Math.max(item.discountValue || 0, 0), 100)
+  return gross * (1 - pct / 100)
+}

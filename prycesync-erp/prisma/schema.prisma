@@ -253,6 +253,7 @@ model Product {
   // Precios
   costPrice Decimal? @map("cost_price") @db.Decimal(10, 2)
   salePrice Decimal  @map("sale_price") @db.Decimal(10, 2)
+  minPrice  Decimal? @map("min_price") @db.Decimal(10, 2)
 
   // Inventario
   stock    Int  @default(0)
@@ -478,6 +479,12 @@ enum SalesOrderStatus {
   cancelled
 }
 
+// Descuento por ítem en ventas
+enum DiscountType {
+  PERCENT
+  ABS
+}
+
 model SalesOrder {
   id     String @id @default(cuid())
   number String @unique
@@ -524,6 +531,12 @@ model SalesOrderItem {
   unitPrice   Decimal @map("unit_price") @db.Decimal(10, 2)
   discount    Decimal @default(0) @db.Decimal(5, 2)
   taxRate     Decimal @map("tax_rate") @db.Decimal(5, 2)
+
+  // Descuentos por ítem (coexistentes con descuento final de la venta)
+  discountType   DiscountType? @map("discount_type")
+  discountValue  Decimal       @default(0) @map("discount_value") @db.Decimal(12, 2)
+  discountTotal  Decimal       @default(0) @map("discount_total") @db.Decimal(12, 2)
+  isDiscountable Boolean       @default(true) @map("is_discountable")
 
   // Calculados
   subtotal  Decimal @db.Decimal(10, 2)

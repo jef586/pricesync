@@ -199,13 +199,16 @@
           <span class="text-slate-600 dark:text-slate-300">Recargo</span>
           <span class="text-xl font-semibold text-slate-900 dark:text-white font-saira">${{ summary.surcharge.toLocaleString('es-AR') }}</span>
         </div>
-        <!-- Descuento (selector) -->
+        <!-- Descuento final -->
         <div class="flex items-center justify-between text-sm">
           <div class="flex items-center gap-2">
-            <span class="text-slate-600 dark:text-slate-300">Descuento</span>
-            <select v-model="summary.discountType" class="px-2 py-1 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs">
-              <option v-for="opt in discountOptions" :key="opt">{{ opt }}</option>
+            <span class="text-slate-600 dark:text-slate-300">Descuento final</span>
+            <select v-model="summary.finalDiscountType" class="px-2 py-1 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs">
+              <option value="NONE">Ninguno</option>
+              <option value="PERCENT">% Porcentaje</option>
+              <option value="ABS">$ Monto</option>
             </select>
+            <input v-if="summary.finalDiscountType !== 'NONE'" type="number" min="0" v-model.number="summary.finalDiscountValue" class="w-24 px-2 py-1 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs" :placeholder="summary.finalDiscountType === 'PERCENT' ? '%' : '$'" />
           </div>
           <span class="text-xl font-semibold text-red-600 dark:text-red-400 font-saira">${{ globalDiscountAmount.toLocaleString('es-AR') }}</span>
         </div>
@@ -301,7 +304,7 @@ import { useProducts } from '@/composables/useProducts'
 import { useCustomers } from '@/composables/useCustomers'
 
 type PriceList = { id: string; name: string; multiplier?: number; priceMap?: Record<string, number> }
-type Row = { id: string; sku: string; desc: string; qty: number; price: number; manualLocked: boolean; disc: number }
+type Row = { id: string; sku: string; desc: string; qty: number; price: number; manualLocked: boolean; disc?: number; productId?: string; discountType?: 'PERCENT' | 'ABS'; discountValue?: number; isDiscountable?: boolean }
 
 // Estado encabezado
 const header = ref({
@@ -442,20 +445,33 @@ const computePriceForProduct = (p: any, pl?: PriceList): number => {
   return Math.round(base * mult)
 }
 
-// Totales
-const lineTotal = (r: Row) => r.qty * r.price * (1 - (r.disc || 0) / 100)
-const subtotal = computed(() => rows.value.reduce((sum, r) => sum + r.qty * r.price, 0))
-const totalDiscount = computed(() => rows.value.reduce((sum, r) => sum + r.qty * r.price * ((r.disc || 0) / 100), 0))
-const grandTotal = computed(() => rows.value.reduce((sum, r) => sum + lineTotal(r), 0))
+// Totales con descuentos por ítem (%/$) y descuento final
+const lineGross = (r: Row) => r.qty * r.price
+const lineDiscount = (r: Row) => {
+  const isDisc = r.isDiscountable !== false
+  if (!isDisc) return 0
+  const gross = lineGross(r)
+  const type = r.discountType ?? (r.disc != null ? 'PERCENT' : undefined)
+  const value = r.discountValue ?? (r.disc ?? 0)
+  if (type === 'ABS') return Math.min(Math.max(value || 0, 0), gross)
+  const pct = Math.min(Math.max(value || 0, 0), 100)
+  return gross * (pct / 100)
+}
+const lineNet = (r: Row) => lineGross(r) - lineDiscount(r)
+const subtotal = computed(() => rows.value.reduce((sum, r) => sum + lineGross(r), 0))
+const totalDiscount = computed(() => rows.value.reduce((sum, r) => sum + lineDiscount(r), 0))
+const netSubtotal = computed(() => subtotal.value - totalDiscount.value)
 
-// Datos visibles del panel de resumen (placeholders iniciales)
-const summary = ref({ surcharge: 0, discountType: 'Sin Descuento', perception: 0 })
-const discountOptions = ['Sin Descuento', '5%', '10%', '15%', '20%']
+// Resumen con descuento final (NONE/PERCENT/ABS)
+const summary = ref({ surcharge: 0, finalDiscountType: 'NONE' as 'NONE' | 'PERCENT' | 'ABS', finalDiscountValue: 0, perception: 0 })
 const globalDiscountAmount = computed(() => {
-  const map: Record<string, number> = { 'Sin Descuento': 0, '5%': 0.05, '10%': 0.10, '15%': 0.15, '20%': 0.20 }
-  const pct = map[summary.value.discountType] ?? 0
-  return Math.round(subtotal.value * pct)
+  const base = netSubtotal.value
+  if (summary.value.finalDiscountType === 'NONE') return 0
+  if (summary.value.finalDiscountType === 'ABS') return Math.min(Math.max(summary.value.finalDiscountValue || 0, 0), base)
+  const pct = Math.min(Math.max(summary.value.finalDiscountValue || 0, 0), 100)
+  return Math.round(base * (pct / 100))
 })
+const grandTotal = computed(() => netSubtotal.value - globalDiscountAmount.value)
 
 const pay = ref({ type: 'Efectivo', received: 0 })
 const changeDisplay = computed(() => {
@@ -499,8 +515,50 @@ const syncTotals = () => {/* no-op, computeds se actualizan solos */}
 // Acciones
 const removeRow = (idx: number) => { rows.value.splice(idx, 1) }
 const cancelSale = () => { rows.value = []; pay.value = { type: 'Efectivo', received: 0 }; showToast('Venta cancelada') }
-const saveSale = () => { /* POST /sales */ showToast('Venta guardada') }
-const confirmAndCharge = () => { /* POST /sales */ showToast('Venta cobrada') }
+import { apiClient } from '@/services/api'
+const saveSale = async () => {
+  try {
+    if (!selectedCustomer.value) { showToast('Selecciona un cliente'); return }
+    const items = rows.value.map(r => ({
+      productId: r.productId || null,
+      description: r.desc,
+      quantity: r.qty,
+      unitPrice: r.price,
+      discountType: (r.isDiscountable !== false) ? (r.discountType ?? (r.disc != null ? 'PERCENT' : undefined)) : undefined,
+      discountValue: (r.isDiscountable !== false) ? (r.discountValue ?? (r.disc ?? 0)) : 0,
+      is_discountable: r.isDiscountable !== false,
+      taxRate: 21
+    }))
+    const finalDiscount = summary.value.finalDiscountType === 'NONE' ? undefined : { type: summary.value.finalDiscountType, value: summary.value.finalDiscountValue || 0 }
+    await apiClient.post('/sales', { customerId: selectedCustomer.value.id, items, finalDiscount })
+    showToast('Venta guardada')
+  } catch (err) {
+    console.error('Error guardando venta:', err)
+    showToast('Error guardando venta')
+  }
+}
+const confirmAndCharge = async () => {
+  try {
+    if (!selectedCustomer.value) { showToast('Selecciona un cliente'); return }
+    const items = rows.value.map(r => ({
+      productId: r.productId || null,
+      description: r.desc,
+      quantity: r.qty,
+      unitPrice: r.price,
+      discountType: (r.isDiscountable !== false) ? (r.discountType ?? (r.disc != null ? 'PERCENT' : undefined)) : undefined,
+      discountValue: (r.isDiscountable !== false) ? (r.discountValue ?? (r.disc ?? 0)) : 0,
+      is_discountable: r.isDiscountable !== false,
+      taxRate: 21
+    }))
+    const finalDiscount = summary.value.finalDiscountType === 'NONE' ? undefined : { type: summary.value.finalDiscountType, value: summary.value.finalDiscountValue || 0 }
+    const payments = [{ method: pay.value.type, amount: grandTotal.value, currency: 'ARS' }]
+    await apiClient.post('/sales', { customerId: selectedCustomer.value.id, items, finalDiscount, payments })
+    showToast('Venta cobrada')
+  } catch (err) {
+    console.error('Error cobrando venta:', err)
+    showToast('Error cobrando venta')
+  }
+}
 
 // Atajos de teclado
 const handleKey = (e: KeyboardEvent) => {
