@@ -49,10 +49,18 @@ const FinalDiscountSchema = z.object({
   value: z.number().min(0).optional().default(0)
 }).optional();
 
+// Recargo final
+const SurchargeSchema = z.object({
+  type: DiscountTypeEnum.optional(),
+  value: z.number().min(0).optional().default(0)
+}).optional();
+
 const CreateSaleSchema = z.object({
   customerId: z.string().cuid(),
   items: z.array(SaleItemSchema).min(1),
   finalDiscount: FinalDiscountSchema,
+  surcharge_type: DiscountTypeEnum.optional(),
+  surcharge_value: z.number().min(0).optional().default(0),
   payments: z.array(SalePaymentSchema).optional(),
   notes: z.string().max(1000).optional()
 });
@@ -88,6 +96,8 @@ const UpdateSaleSchema = z.object({
   customerId: z.string().cuid().optional(),
   items: z.array(SaleItemSchema).min(1).optional(),
   finalDiscount: FinalDiscountSchema,
+  surcharge_type: DiscountTypeEnum.optional(),
+  surcharge_value: z.number().min(0).optional().default(0),
   payments: z.array(SalePaymentSchema).optional(),
   notes: z.string().max(1000).optional(),
   status: z.enum(['open','partially_paid','paid','cancelled','parked']).optional()

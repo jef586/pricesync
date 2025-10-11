@@ -153,6 +153,19 @@
               <span class="text-lg font-semibold text-red-600">${{ formatCurrency(totals.finalDiscountAmount) }}</span>
             </div>
           </div>
+          <div class="col-span-1 md:col-span-2">
+            <div class="flex items-center gap-2">
+              <p class="text-sm text-gray-600">Recargo</p>
+              <select v-model="surcharge.type" class="px-2 py-1 border rounded text-xs">
+                <option value="NONE">Sin Recargo</option>
+                <option value="PERCENT">%</option>
+                <option value="ABS">$</option>
+              </select>
+              <BaseInput type="number" min="0" step="0.01" v-model.number="surcharge.value" />
+              <span class="ml-auto text-sm text-gray-600">Monto: </span>
+              <span class="text-lg font-semibold text-emerald-600">${{ formatCurrency(totals.surchargeAmount) }}</span>
+            </div>
+          </div>
           <div>
             <p class="text-sm text-gray-600">Impuestos (IVA)</p>
             <p class="text-lg font-semibold text-gray-900">${{ formatCurrency(totals.tax) }}</p>
@@ -225,8 +238,9 @@ onBeforeUnmount(() => {
 })
 
 // Totales (debe inicializarse antes del watcher con immediate:true)
-const totals = ref({ subtotalGross: 0, itemsDiscountTotal: 0, netSubtotal: 0, finalDiscountAmount: 0, tax: 0, total: 0 })
+const totals = ref({ subtotalGross: 0, itemsDiscountTotal: 0, netSubtotal: 0, finalDiscountAmount: 0, surchargeAmount: 0, tax: 0, total: 0 })
 const finalDiscount = ref<{ type: 'NONE' | 'PERCENT' | 'ABS', value: number }>({ type: 'NONE', value: 0 })
+const surcharge = ref<{ type: 'NONE' | 'PERCENT' | 'ABS', value: number }>({ type: 'NONE', value: 0 })
 
 // Sync store items to local cartItems for display and totals
 watch(
@@ -247,6 +261,14 @@ watch(
   },
   { deep: true, immediate: true }
 )
+
+// Sync global adjustments to store
+watch(finalDiscount, (fd) => {
+  sales.setFinalDiscount(fd.type, fd.value || 0)
+}, { deep: true })
+watch(surcharge, (sc) => {
+  sales.setSurcharge(sc.type, sc.value || 0)
+}, { deep: true })
 
 // Park button availability
 const canPark = computed(() => {
@@ -327,9 +349,12 @@ function recalcTotals() {
   if (finalDiscount.value.type === 'ABS') finalDisc = Math.min(Math.max(finalDiscount.value.value || 0, 0), net)
   else if (finalDiscount.value.type === 'PERCENT') finalDisc = net * Math.min(Math.max(finalDiscount.value.value || 0, 0), 100) / 100
   const taxBase = net - finalDisc
-  const tax = taxBase * 0.21
-  const total = taxBase + tax
-  totals.value = { subtotalGross: gross, itemsDiscountTotal: itemDisc, netSubtotal: net, finalDiscountAmount: finalDisc, tax, total }
+  let surchargeAmount = 0
+  if (surcharge.value.type === 'ABS') surchargeAmount = Math.min(Math.max(surcharge.value.value || 0, 0), taxBase)
+  else if (surcharge.value.type === 'PERCENT') surchargeAmount = taxBase * Math.min(Math.max(surcharge.value.value || 0, 0), 100) / 100
+  const tax = (taxBase + surchargeAmount) * 0.21
+  const total = taxBase + surchargeAmount + tax
+  totals.value = { subtotalGross: gross, itemsDiscountTotal: itemDisc, netSubtotal: net, finalDiscountAmount: finalDisc, surchargeAmount, tax, total }
 }
 
 const submitSale = async () => {
@@ -347,7 +372,10 @@ const submitSale = async () => {
       taxRate: 21
     }))
     const fd = finalDiscount.value.type === 'NONE' ? undefined : { type: finalDiscount.value.type, value: finalDiscount.value.value || 0 }
-    const res = await fetch('/api/sales', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerId: selectedCustomer.value.id, items, finalDiscount: fd }) })
+    const scType = surcharge.value.type === 'NONE' ? undefined : surcharge.value.type
+    const scValue = surcharge.value.type === 'NONE' ? undefined : (surcharge.value.value || 0)
+    const payload = { customerId: selectedCustomer.value.id, items, finalDiscount: fd, surcharge_type: scType, surcharge_value: scValue }
+    const res = await fetch('/api/sales', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
     if (!res.ok) throw new Error('Error registrando venta')
     const data = await res.json()
     window.location.href = `/sales/${data?.data?.id || ''}`

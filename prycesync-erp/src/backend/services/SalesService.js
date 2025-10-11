@@ -5,7 +5,7 @@ class SalesService {
    * Calcula totales de venta con descuentos por ítem y descuento final.
    * Mantiene compatibilidad con `discount` (porcentaje) en payloads antiguos.
    */
-  static calculateTotals(items, finalDiscount = { type: undefined, value: 0 }) {
+  static calculateTotals(items, finalDiscount = { type: undefined, value: 0 }, surcharge = { type: undefined, value: 0 }) {
     let subtotalGross = new Decimal(0);
     let itemsDiscountTotal = new Decimal(0);
     let subtotalNet = new Decimal(0);
@@ -63,8 +63,26 @@ class SalesService {
 
     const taxBase = subtotalNet.sub(finalDiscountAmount);
 
+    // Paso 2.1: calcular recargo sobre base
+    let surchargeAmount = new Decimal(0);
+    const scType = surcharge?.type;
+    const scValue = new Decimal(surcharge?.value || 0);
+    if (scType === 'PERCENT') {
+      surchargeAmount = taxBase.mul(scValue.div(100));
+    } else if (scType === 'ABS') {
+      surchargeAmount = scValue;
+    }
+    if (surchargeAmount.lt(0)) surchargeAmount = new Decimal(0);
+    // No permitir que supere la base cuando es ABS (opcional)
+    if (scType === 'ABS' && surchargeAmount.gt(taxBase)) {
+      surchargeAmount = taxBase;
+    }
+    surchargeAmount = new Decimal(surchargeAmount.toFixed(2));
+
     // Paso 3: distribuir descuento final proporcional y calcular impuestos por ítem
     let taxAmount = new Decimal(0);
+    let distributedDiscount = new Decimal(0);
+    let distributedSurcharge = new Decimal(0);
     for (let idx = 0; idx < items.length; idx++) {
       const item = items[idx];
       const itemSubtotal = item.subtotal;
@@ -73,14 +91,29 @@ class SalesService {
         const proportion = itemSubtotal.div(subtotalNet);
         itemShare = new Decimal(finalDiscountAmount.mul(proportion).toFixed(2));
         if (idx === items.length - 1) {
-          const distributed = items.slice(0, idx).reduce((acc, it) => acc.add(it.finalDiscountShare || 0), new Decimal(0));
+          const distributed = distributedDiscount;
           const remaining = finalDiscountAmount.sub(distributed);
           itemShare = remaining;
         }
       }
       item.finalDiscountShare = itemShare;
+      distributedDiscount = distributedDiscount.add(itemShare);
 
-      const itemTaxBase = itemSubtotal.sub(itemShare);
+      // Distribuir recargo proporcional al taxBase
+      let itemSurcharge = new Decimal(0);
+      const baseForSurcharge = taxBase;
+      if (baseForSurcharge.gt(0) && surchargeAmount.gt(0)) {
+        const proportion = itemSubtotal.sub(itemShare).div(baseForSurcharge);
+        itemSurcharge = new Decimal(surchargeAmount.mul(proportion).toFixed(2));
+        if (idx === items.length - 1) {
+          const remainingSurcharge = surchargeAmount.sub(distributedSurcharge);
+          itemSurcharge = remainingSurcharge;
+        }
+      }
+      item.surchargeShare = itemSurcharge;
+      distributedSurcharge = distributedSurcharge.add(itemSurcharge);
+
+      const itemTaxBase = itemSubtotal.sub(itemShare).add(itemSurcharge);
       const itemTax = new Decimal(itemTaxBase.mul(item.taxRate.div(100)).toFixed(2));
       item.taxAmount = itemTax;
       item.total = new Decimal(itemTaxBase.add(itemTax).toFixed(2));
@@ -88,7 +121,7 @@ class SalesService {
     }
 
     const subtotal = subtotalNet;
-    const total = taxBase.add(taxAmount);
+    const total = taxBase.add(surchargeAmount).add(taxAmount);
     const totalRounded = new Decimal(total.toFixed(2));
 
     return {
@@ -97,6 +130,7 @@ class SalesService {
       itemsDiscountTotal,
       taxAmount,
       discountAmount: finalDiscountAmount,
+      surchargeAmount,
       total,
       totalRounded
     };

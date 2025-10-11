@@ -10,7 +10,12 @@ export interface SaleItem {
   barcode?: string
   quantity: number
   unitPrice: number
+  // Legacy percent discount (kept for compatibility)
   discount?: number
+  // New discount fields
+  discountType?: 'PERCENT' | 'ABS'
+  discountValue?: number
+  isDiscountable?: boolean
 }
 
 export interface Sale {
@@ -22,6 +27,9 @@ export interface Sale {
   total: number
   status: 'draft' | 'completed' | 'cancelled'
   createdAt?: string
+  // New global adjustments stored for POS calculations
+  finalDiscount?: { type: 'NONE' | 'PERCENT' | 'ABS', value: number }
+  surcharge?: { type: 'NONE' | 'PERCENT' | 'ABS', value: number }
 }
 
 export const useSalesStore = defineStore('sales', () => {
@@ -41,7 +49,9 @@ export const useSalesStore = defineStore('sales', () => {
         subtotal: 0,
         tax: 0,
         total: 0,
-        status: 'draft'
+        status: 'draft',
+        finalDiscount: { type: 'NONE', value: 0 },
+        surcharge: { type: 'NONE', value: 0 }
       }
     }
   }
@@ -49,15 +59,37 @@ export const useSalesStore = defineStore('sales', () => {
   // Compute totals
   const computeTotals = () => {
     if (!currentSale.value) return
-    const subtotal = currentSale.value.items.reduce(
-      (acc, item) => acc + (item.quantity * item.unitPrice - (item.discount || 0)),
-      0
-    )
+    // Subtotal bruto
+    const gross = currentSale.value.items.reduce((acc, it) => acc + (it.quantity * it.unitPrice), 0)
+    // Descuento por ítems con soporte %/$ y flag de aplicabilidad
+    const itemsDiscountTotal = currentSale.value.items.reduce((acc, it) => {
+      const isDisc = it.isDiscountable !== false
+      if (!isDisc) return acc
+      const lineGross = it.quantity * it.unitPrice
+      if (it.discountType === 'ABS') return acc + Math.min(Math.max(it.discountValue || 0, 0), lineGross)
+      const pct = Math.min(Math.max((it.discountValue != null ? it.discountValue : (it.discount || 0)) || 0, 0), 100)
+      return acc + lineGross * (pct / 100)
+    }, 0)
+    const net = gross - itemsDiscountTotal
+    // Descuento final
+    const fdType = currentSale.value.finalDiscount?.type || 'NONE'
+    const fdValue = currentSale.value.finalDiscount?.value || 0
+    let finalDisc = 0
+    if (fdType === 'ABS') finalDisc = Math.min(Math.max(fdValue || 0, 0), net)
+    else if (fdType === 'PERCENT') finalDisc = net * Math.min(Math.max(fdValue || 0, 0), 100) / 100
+    const taxBase = net - finalDisc
+    // Recargo
+    const scType = currentSale.value.surcharge?.type || 'NONE'
+    const scValue = currentSale.value.surcharge?.value || 0
+    let surchargeAmount = 0
+    if (scType === 'ABS') surchargeAmount = Math.min(Math.max(scValue || 0, 0), taxBase)
+    else if (scType === 'PERCENT') surchargeAmount = taxBase * Math.min(Math.max(scValue || 0, 0), 100) / 100
+    // Impuestos (IVA) sobre base + recargo
     const taxRate = 0.21 // Generic IVA; backend will define correctly per item/type
-    const tax = subtotal * taxRate
-    const total = subtotal + tax
+    const tax = (taxBase + surchargeAmount) * taxRate
+    const total = taxBase + surchargeAmount + tax
     
-    currentSale.value.subtotal = subtotal
+    currentSale.value.subtotal = net
     currentSale.value.tax = tax
     currentSale.value.total = total
   }
@@ -129,7 +161,10 @@ export const useSalesStore = defineStore('sales', () => {
           barcode: barcode,
           quantity: 1,
           unitPrice: product.salePrice || 0,
-          discount: 0
+          discount: 0,
+          discountType: 'PERCENT',
+          discountValue: 0,
+          isDiscountable: true
         }
         currentSale.value!.items.push(newItem)
       }
@@ -191,6 +226,16 @@ export const useSalesStore = defineStore('sales', () => {
     removeItem,
     updateItemQuantity,
     computeTotals,
+    setFinalDiscount(type: 'NONE' | 'PERCENT' | 'ABS', value: number) {
+      initCurrentSale()
+      currentSale.value!.finalDiscount = { type, value }
+      computeTotals()
+    },
+    setSurcharge(type: 'NONE' | 'PERCENT' | 'ABS', value: number) {
+      initCurrentSale()
+      currentSale.value!.surcharge = { type, value }
+      computeTotals()
+    },
     async parkSale(saleId?: string) {
       try {
         isParking.value = true

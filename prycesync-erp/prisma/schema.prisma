@@ -304,6 +304,11 @@ enum InvoiceStatus {
   overdue
   cancelled
 }
+// Recargo final en documentos de facturación
+enum SurchargeType {
+  PERCENT
+  ABS
+}
 
 model Invoice {
   id     String        @id @default(cuid())
@@ -320,6 +325,10 @@ model Invoice {
   subtotal  Decimal @db.Decimal(10, 2)
   taxAmount Decimal @map("tax_amount") @db.Decimal(10, 2)
   total     Decimal @db.Decimal(10, 2)
+  // Recargo final (auditoría)
+  surchargeType   SurchargeType? @map("surcharge_type")
+  surchargeValue  Decimal        @default(0) @map("surcharge_value") @db.Decimal(12, 2)
+  surchargeAmount Decimal        @default(0) @map("surcharge_amount") @db.Decimal(12, 2)
 
   // Observaciones
   notes String?
@@ -496,6 +505,10 @@ model SalesOrder {
   total          Decimal @db.Decimal(10, 2)
   totalRounded   Decimal @map("total_rounded") @db.Decimal(10, 2)
   paidTotal      Decimal @default(0) @map("paid_total") @db.Decimal(10, 2)
+  // Recargo final de la venta
+  surchargeType   DiscountType? @map("surcharge_type")
+  surchargeValue  Decimal       @default(0) @map("surcharge_value") @db.Decimal(12, 2)
+  surchargeAmount Decimal       @default(0) @map("surcharge_amount") @db.Decimal(12, 2)
 
   status SalesOrderStatus @default(open)
   notes  String?

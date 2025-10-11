@@ -57,8 +57,9 @@ interface StockUpdateData {
   reason?: string
 }
 
-// API Base URL (use env when available, fallback to localhost)
-const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3002/api'
+// API Base URL (normalize to ensure "/api" suffix)
+const rawBase = (import.meta as any).env?.VITE_API_URL || (import.meta as any).env?.API_URL || 'http://localhost:3002'
+const API_BASE_URL = rawBase.endsWith('/api') ? rawBase : `${rawBase}/api`
 
 // Create axios instance
 const apiClient = axios.create({

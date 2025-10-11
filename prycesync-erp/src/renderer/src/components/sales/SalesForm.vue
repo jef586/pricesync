@@ -196,8 +196,16 @@
         </div>
         <!-- Recargo -->
         <div class="flex items-center justify-between text-sm">
-          <span class="text-slate-600 dark:text-slate-300">Recargo</span>
-          <span class="text-xl font-semibold text-slate-900 dark:text-white font-saira">${{ summary.surcharge.toLocaleString('es-AR') }}</span>
+          <div class="flex items-center gap-2">
+            <span class="text-slate-600 dark:text-slate-300">Recargo</span>
+            <select v-model="summary.surchargeType" class="px-2 py-1 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs">
+              <option value="NONE">Ninguno</option>
+              <option value="PERCENT">% Porcentaje</option>
+              <option value="ABS">$ Monto</option>
+            </select>
+            <input v-if="summary.surchargeType !== 'NONE'" type="number" min="0" v-model.number="summary.surchargeValue" class="w-24 px-2 py-1 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs" :placeholder="summary.surchargeType === 'PERCENT' ? '%' : '$'" />
+          </div>
+          <span class="text-xl font-semibold text-emerald-700 dark:text-emerald-400 font-saira">${{ globalSurchargeAmount.toLocaleString('es-AR') }}</span>
         </div>
         <!-- Descuento final -->
         <div class="flex items-center justify-between text-sm">
@@ -462,8 +470,14 @@ const subtotal = computed(() => rows.value.reduce((sum, r) => sum + lineGross(r)
 const totalDiscount = computed(() => rows.value.reduce((sum, r) => sum + lineDiscount(r), 0))
 const netSubtotal = computed(() => subtotal.value - totalDiscount.value)
 
-// Resumen con descuento final (NONE/PERCENT/ABS)
-const summary = ref({ surcharge: 0, finalDiscountType: 'NONE' as 'NONE' | 'PERCENT' | 'ABS', finalDiscountValue: 0, perception: 0 })
+// Resumen con descuento final y recargo (NONE/PERCENT/ABS)
+const summary = ref({
+  surchargeType: 'NONE' as 'NONE' | 'PERCENT' | 'ABS',
+  surchargeValue: 0,
+  finalDiscountType: 'NONE' as 'NONE' | 'PERCENT' | 'ABS',
+  finalDiscountValue: 0,
+  perception: 0
+})
 const globalDiscountAmount = computed(() => {
   const base = netSubtotal.value
   if (summary.value.finalDiscountType === 'NONE') return 0
@@ -471,7 +485,14 @@ const globalDiscountAmount = computed(() => {
   const pct = Math.min(Math.max(summary.value.finalDiscountValue || 0, 0), 100)
   return Math.round(base * (pct / 100))
 })
-const grandTotal = computed(() => netSubtotal.value - globalDiscountAmount.value)
+const globalSurchargeAmount = computed(() => {
+  const base = netSubtotal.value
+  if (summary.value.surchargeType === 'NONE') return 0
+  if (summary.value.surchargeType === 'ABS') return Math.min(Math.max(summary.value.surchargeValue || 0, 0), base)
+  const pct = Math.min(Math.max(summary.value.surchargeValue || 0, 0), 100)
+  return Math.round(base * (pct / 100))
+})
+const grandTotal = computed(() => netSubtotal.value - globalDiscountAmount.value + globalSurchargeAmount.value)
 
 const pay = ref({ type: 'Efectivo', received: 0 })
 const changeDisplay = computed(() => {
@@ -530,7 +551,12 @@ const saveSale = async () => {
       taxRate: 21
     }))
     const finalDiscount = summary.value.finalDiscountType === 'NONE' ? undefined : { type: summary.value.finalDiscountType, value: summary.value.finalDiscountValue || 0 }
-    await apiClient.post('/sales', { customerId: selectedCustomer.value.id, items, finalDiscount })
+    const payload: any = { customerId: selectedCustomer.value.id, items, finalDiscount }
+    if (summary.value.surchargeType !== 'NONE') {
+      payload.surcharge_type = summary.value.surchargeType
+      payload.surcharge_value = summary.value.surchargeValue || 0
+    }
+    await apiClient.post('/sales', payload)
     showToast('Venta guardada')
   } catch (err) {
     console.error('Error guardando venta:', err)
@@ -552,7 +578,12 @@ const confirmAndCharge = async () => {
     }))
     const finalDiscount = summary.value.finalDiscountType === 'NONE' ? undefined : { type: summary.value.finalDiscountType, value: summary.value.finalDiscountValue || 0 }
     const payments = [{ method: pay.value.type, amount: grandTotal.value, currency: 'ARS' }]
-    await apiClient.post('/sales', { customerId: selectedCustomer.value.id, items, finalDiscount, payments })
+    const payload: any = { customerId: selectedCustomer.value.id, items, finalDiscount, payments }
+    if (summary.value.surchargeType !== 'NONE') {
+      payload.surcharge_type = summary.value.surchargeType
+      payload.surcharge_value = summary.value.surchargeValue || 0
+    }
+    await apiClient.post('/sales', payload)
     showToast('Venta cobrada')
   } catch (err) {
     console.error('Error cobrando venta:', err)

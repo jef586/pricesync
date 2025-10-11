@@ -144,6 +144,14 @@
                 <p class="text-sm font-medium text-gray-500">Subtotal</p>
                 <p class="text-lg font-semibold text-gray-900">{{ formatCurrency(invoice.subtotal) }}</p>
               </div>
+              <div class="flex justify-between" v-if="invoice.discountAmount && invoice.discountAmount > 0">
+                <p class="text-sm font-medium text-gray-500">Descuento final</p>
+                <p class="text-lg font-semibold text-red-600">-{{ formatCurrency(invoice.discountAmount) }}</p>
+              </div>
+              <div class="flex justify-between" v-if="invoice.surchargeAmount && invoice.surchargeAmount > 0">
+                <p class="text-sm font-medium text-gray-500">Recargo</p>
+                <p class="text-lg font-semibold text-emerald-600">+{{ formatCurrency(invoice.surchargeAmount) }}</p>
+              </div>
               <div class="flex justify-between">
                 <p class="text-sm font-medium text-gray-500">Impuestos</p>
                 <p class="text-lg font-semibold text-gray-900">{{ formatCurrency(invoice.taxAmount) }}</p>

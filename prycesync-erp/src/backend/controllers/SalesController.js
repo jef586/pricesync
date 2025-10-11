@@ -10,7 +10,7 @@ class SalesController {
         return res.status(403).json({ success: false, message: "Empresa no determinada para el usuario" });
       }
 
-      const { customerId, items, payments = [], notes, finalDiscount } = req.body;
+      const { customerId, items, payments = [], notes, finalDiscount, surcharge_type, surcharge_value } = req.body;
 
       // Validar existencia del cliente en la compañía
       const customer = await prisma.customer.findFirst({ where: { id: customerId, companyId } });
@@ -80,8 +80,9 @@ class SalesController {
         });
       }
 
-      // Calcular totales (coexistencia: primero ítems, luego descuento final)
-      const totals = SalesService.calculateTotals(preparedItems, finalDiscount);
+      // Calcular totales (coexistencia: primero ítems, luego descuento final, luego recargo)
+      const surcharge = { type: surcharge_type, value: surcharge_value };
+      const totals = SalesService.calculateTotals(preparedItems, finalDiscount, surcharge);
       const computedItems = totals.items || preparedItems;
 
       // Generar número secuencial de venta
@@ -123,6 +124,9 @@ class SalesController {
             subtotal: totals.subtotal.toNumber(),
             taxAmount: totals.taxAmount.toNumber(),
             discountAmount: totals.discountAmount.toNumber(), // descuento final
+            surchargeType: surcharge_type || null,
+            surchargeValue: Number(surcharge_value || 0),
+            surchargeAmount: totals.surchargeAmount.toNumber(),
             total: totals.total.toNumber(),
             totalRounded: totals.totalRounded.toNumber(),
             status: "open",
@@ -207,7 +211,7 @@ class SalesController {
     try {
       const companyId = req.user?.company?.id;
       const { id } = req.params;
-      const { customerId, items = [], payments = [], notes, status, finalDiscount } = req.body;
+      const { customerId, items = [], payments = [], notes, status, finalDiscount, surcharge_type, surcharge_value } = req.body;
 
       const existing = await prisma.salesOrder.findFirst({ where: { id, companyId }, include: { items: true } });
       if (!existing) {
@@ -241,7 +245,8 @@ class SalesController {
         }
       }
 
-      const totals = preparedItems.length ? SalesService.calculateTotals(preparedItems, finalDiscount) : null;
+      const sc = { type: surcharge_type, value: surcharge_value };
+      const totals = preparedItems.length ? SalesService.calculateTotals(preparedItems, finalDiscount, sc) : null;
 
       if (preparedItems.length) {
         for (const item of preparedItems) {
@@ -269,6 +274,9 @@ class SalesController {
           data.subtotal = totals.subtotal.toNumber();
           data.taxAmount = totals.taxAmount.toNumber();
           data.discountAmount = totals.discountAmount.toNumber();
+          data.surchargeType = surcharge_type || null;
+          data.surchargeValue = Number(surcharge_value || 0);
+          data.surchargeAmount = totals.surchargeAmount.toNumber();
           data.total = totals.total.toNumber();
           data.totalRounded = totals.totalRounded.toNumber();
         }
