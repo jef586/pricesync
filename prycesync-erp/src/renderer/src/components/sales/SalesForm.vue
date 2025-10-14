@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <!-- Layout principal: diseño compacto con encabezado a ancho completo -->
   <div class="h-full grid grid-cols-1 xl:grid-cols-12 xl:grid-rows-[auto_1fr] items-stretch gap-6 font-inter">
     <!-- Encabezado (full width) -->
@@ -355,8 +355,22 @@ const departmentLabels = [
 
 // Productos API
 const { searchProducts } = useProducts()
-const { searchCustomers } = useCustomers()
+const { searchCustomers, createCustomer } = useCustomers()
 const padron = usePadronStore()
+// Cliente ocasional: helper para obtener o crear si no existe
+const OCCASIONAL_CUSTOMER_NAME = 'Cliente ocasional'
+const getOrCreateOccasionalCustomer = async () => {
+  try {
+    const matches = await searchCustomers(OCCASIONAL_CUSTOMER_NAME, 1)
+    if (Array.isArray(matches) && matches.length > 0) {
+      return matches[0]
+    }
+    const created = await createCustomer({ name: OCCASIONAL_CUSTOMER_NAME, taxId: '', type: 'individual' })
+    return created
+  } catch (e) {
+    throw e
+  }
+}
 
 // Búsqueda con debounce
 const debouncedSearch = () => {
@@ -598,7 +612,19 @@ interface Emits { (e: 'sale-success', saleId: string): void }
 const emit = defineEmits<Emits>()
 const saveSale = async () => {
   try {
-    if (!selectedCustomer.value) { showToast('Selecciona un cliente'); return }
+        let customerId = selectedCustomer.value?.id
+    if (!customerId) {
+      try {
+        const oc = await getOrCreateOccasionalCustomer()
+        selectedCustomer.value = oc
+        header.value.client = oc?.name || OCCASIONAL_CUSTOMER_NAME
+        customerId = oc.id
+        showToast('Usando cliente ocasional')
+      } catch (e) {
+        showToast('No se pudo usar cliente ocasional')
+        return
+      }
+    }
     const items = rows.value.map(r => {
       const item: any = {
         description: r.desc,
@@ -615,7 +641,7 @@ const saveSale = async () => {
       return item
     })
     const finalDiscount = summary.value.finalDiscountType === 'NONE' ? undefined : { type: summary.value.finalDiscountType, value: summary.value.finalDiscountValue || 0 }
-    const payload: any = { customerId: selectedCustomer.value.id, items, finalDiscount }
+    const payload: any = { customerId, items, finalDiscount }
     if (summary.value.surchargeType !== 'NONE') {
       payload.surcharge_type = summary.value.surchargeType
       payload.surcharge_value = summary.value.surchargeValue || 0
@@ -629,7 +655,19 @@ const saveSale = async () => {
 }
 const confirmAndCharge = async () => {
   try {
-    if (!selectedCustomer.value) { showToast('Selecciona un cliente'); return }
+        let customerId = selectedCustomer.value?.id
+    if (!customerId) {
+      try {
+        const oc = await getOrCreateOccasionalCustomer()
+        selectedCustomer.value = oc
+        header.value.client = oc?.name || OCCASIONAL_CUSTOMER_NAME
+        customerId = oc.id
+        showToast('Usando cliente ocasional')
+      } catch (e) {
+        showToast('No se pudo usar cliente ocasional')
+        return
+      }
+    }
     const items = rows.value.map(r => {
       const item: any = {
         description: r.desc,
@@ -647,7 +685,7 @@ const confirmAndCharge = async () => {
     })
     const finalDiscount = summary.value.finalDiscountType === 'NONE' ? undefined : { type: summary.value.finalDiscountType, value: summary.value.finalDiscountValue || 0 }
     const payments = [{ method: pay.value.type, amount: grandTotal.value, currency: 'ARS' }]
-    const payload: any = { customerId: selectedCustomer.value.id, items, finalDiscount, payments }
+    const payload: any = { customerId, items, finalDiscount, payments }
     if (summary.value.surchargeType !== 'NONE') {
       payload.surcharge_type = summary.value.surchargeType
       payload.surcharge_value = summary.value.surchargeValue || 0
@@ -682,3 +720,5 @@ defineExpose({ confirmAndCharge, cancelSale, saveSale })
 <style scoped>
 .font-inter { font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji'; }
 </style>
+
+
