@@ -8,7 +8,9 @@ export default defineConfig({
     globals: true,
     include: [
       'src/backend/**/__tests__/*.{test,spec}.js',
-      'src/backend/**/*.{test,spec}.js'
+      'src/backend/**/*.{test,spec}.js',
+      // Incluir tests de componentes del renderer (se fuerza jsdom por archivo)
+      'src/renderer/src/components/**/__tests__/*.{test,spec}.ts'
     ],
     exclude: [
       '**/node_modules/**',

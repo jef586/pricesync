@@ -42,7 +42,7 @@
     <!-- Formulario unificado: siempre se renderiza el mismo componente -->
     <div class="rounded-xl ring-2 ring-emerald-500 border border-emerald-500 p-3 flex-1 min-h-0">
       <keep-alive>
-        <SalesForm :key="activeTabId" ref="activeFormRef" />
+        <SalesForm :key="activeTabId" ref="activeFormRef" @sale-success="onSaleSuccess" />
       </keep-alive>
     </div>
 
@@ -51,12 +51,15 @@
       </div>
   </DashboardLayout>
   <!-- SplitPaymentsModal: manejo delegado al componente SalesForm -->
+  <!-- Modal de éxito de venta -->
+  <SaleSuccessModal :sale-id="successSaleId" :open="successModalOpen" :on-close="closeSuccessModal" />
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import DashboardLayout from '@/components/organisms/DashboardLayout.vue'
 import SalesForm from '@/components/sales/SalesForm.vue'
+import SaleSuccessModal from '@/components/pos/SaleSuccessModal.vue'
 // SplitPaymentsModal se maneja dentro del formulario
 import { useProducts } from '@/composables/useProducts'
 import { useCustomers } from '@/composables/useCustomers'
@@ -68,6 +71,11 @@ const tabs = ref<Tab[]>([])
 const activeTabId = ref<string>('')
 const baseTabId = ref<string>('')
 const activeFormRef = ref<any>(null)
+// Modal de éxito tras cobrar venta
+const successModalOpen = ref(false)
+const successSaleId = ref<string>('')
+const onSaleSuccess = (sid: string) => { successSaleId.value = sid; successModalOpen.value = true }
+const closeSuccessModal = () => { successModalOpen.value = false }
 let counter = 0
 const activateTab = (id: string) => { activeTabId.value = id }
 const closeTab = (id: string) => {

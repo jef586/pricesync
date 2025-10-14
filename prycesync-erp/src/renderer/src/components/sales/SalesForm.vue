@@ -580,20 +580,40 @@ const syncTotals = () => {/* no-op, computeds se actualizan solos */}
 // Acciones
 const removeRow = (idx: number) => { rows.value.splice(idx, 1) }
 const cancelSale = () => { rows.value = []; pay.value = { type: 'Efectivo', received: 0 }; showToast('Venta cancelada') }
+
+// Resetear formulario tras finalizar venta
+const resetAfterSale = () => {
+  rows.value = []
+  pay.value = { type: 'Efectivo', received: 0 }
+  summary.value = {
+    surchargeType: 'NONE',
+    surchargeValue: 0,
+    finalDiscountType: 'NONE',
+    finalDiscountValue: 0,
+    perception: 0
+  }
+}
 import { apiClient } from '@/services/api'
+interface Emits { (e: 'sale-success', saleId: string): void }
+const emit = defineEmits<Emits>()
 const saveSale = async () => {
   try {
     if (!selectedCustomer.value) { showToast('Selecciona un cliente'); return }
-    const items = rows.value.map(r => ({
-      productId: r.productId || null,
-      description: r.desc,
-      quantity: r.qty,
-      unitPrice: r.price,
-      discountType: (r.isDiscountable !== false) ? (r.discountType ?? (r.disc != null ? 'PERCENT' : undefined)) : undefined,
-      discountValue: (r.isDiscountable !== false) ? (r.discountValue ?? (r.disc ?? 0)) : 0,
-      is_discountable: r.isDiscountable !== false,
-      taxRate: 21
-    }))
+    const items = rows.value.map(r => {
+      const item: any = {
+        description: r.desc,
+        quantity: r.qty,
+        unitPrice: r.price,
+        is_discountable: r.isDiscountable !== false,
+        taxRate: 21
+      }
+      const dType = (r.isDiscountable !== false) ? (r.discountType ?? (r.disc != null ? 'PERCENT' : undefined)) : undefined
+      const dValue = (r.isDiscountable !== false) ? (r.discountValue ?? (r.disc ?? 0)) : 0
+      if (dType) item.discount_type = dType
+      if (dValue) item.discount_value = dValue
+      if (r.productId) item.productId = r.productId
+      return item
+    })
     const finalDiscount = summary.value.finalDiscountType === 'NONE' ? undefined : { type: summary.value.finalDiscountType, value: summary.value.finalDiscountValue || 0 }
     const payload: any = { customerId: selectedCustomer.value.id, items, finalDiscount }
     if (summary.value.surchargeType !== 'NONE') {
@@ -610,16 +630,21 @@ const saveSale = async () => {
 const confirmAndCharge = async () => {
   try {
     if (!selectedCustomer.value) { showToast('Selecciona un cliente'); return }
-    const items = rows.value.map(r => ({
-      productId: r.productId || null,
-      description: r.desc,
-      quantity: r.qty,
-      unitPrice: r.price,
-      discountType: (r.isDiscountable !== false) ? (r.discountType ?? (r.disc != null ? 'PERCENT' : undefined)) : undefined,
-      discountValue: (r.isDiscountable !== false) ? (r.discountValue ?? (r.disc ?? 0)) : 0,
-      is_discountable: r.isDiscountable !== false,
-      taxRate: 21
-    }))
+    const items = rows.value.map(r => {
+      const item: any = {
+        description: r.desc,
+        quantity: r.qty,
+        unitPrice: r.price,
+        is_discountable: r.isDiscountable !== false,
+        taxRate: 21
+      }
+      const dType = (r.isDiscountable !== false) ? (r.discountType ?? (r.disc != null ? 'PERCENT' : undefined)) : undefined
+      const dValue = (r.isDiscountable !== false) ? (r.discountValue ?? (r.disc ?? 0)) : 0
+      if (dType) item.discount_type = dType
+      if (dValue) item.discount_value = dValue
+      if (r.productId) item.productId = r.productId
+      return item
+    })
     const finalDiscount = summary.value.finalDiscountType === 'NONE' ? undefined : { type: summary.value.finalDiscountType, value: summary.value.finalDiscountValue || 0 }
     const payments = [{ method: pay.value.type, amount: grandTotal.value, currency: 'ARS' }]
     const payload: any = { customerId: selectedCustomer.value.id, items, finalDiscount, payments }
@@ -627,8 +652,13 @@ const confirmAndCharge = async () => {
       payload.surcharge_type = summary.value.surchargeType
       payload.surcharge_value = summary.value.surchargeValue || 0
     }
-    await apiClient.post('/sales', payload)
+    const res = await apiClient.post('/sales', payload)
+    const sid = (res?.data?.data?.id) || (res?.data?.id) || ''
     showToast('Venta cobrada')
+    if (sid) {
+      emit('sale-success', sid)
+      resetAfterSale()
+    }
   } catch (err) {
     console.error('Error cobrando venta:', err)
     showToast('Error cobrando venta')
