@@ -19,7 +19,8 @@ export const usePadronStore = defineStore('padron', () => {
   const error = ref<string | null>(null)
   const lastResult = ref<PadronResult | null>(null)
 
-  // Simple session cache to avoid duplicate lookups while navigating
+  // Simple session cache to avoid duplicate lookups while navigating.
+  // NOTE: Only short-circuit on positive cache hits; never block re-fetch on null results.
   const sessionCache = new Map<string, PadronResult | null>()
 
   const enrichByCuit = async (cuitRaw: string): Promise<PadronResult | null> => {
@@ -29,11 +30,14 @@ export const usePadronStore = defineStore('padron', () => {
       return null
     }
 
-    // Cache short-circuit
+    // Cache short-circuit: return only if we have a positive cached result.
     if (sessionCache.has(cuit)) {
       const cached = sessionCache.get(cuit) ?? null
-      lastResult.value = cached
-      return cached
+      if (cached) {
+        lastResult.value = cached
+        return cached
+      }
+      // If cached is null, allow re-fetch to avoid sticky "no encontrado" state.
     }
 
     try {
@@ -68,7 +72,8 @@ export const usePadronStore = defineStore('padron', () => {
 
       if (resp.status === 204) {
         lastResult.value = null
-        sessionCache.set(cuit, null)
+        // Do NOT cache null results to permit subsequent retries.
+        // sessionCache.set(cuit, null)
         return null
       }
 

@@ -2,6 +2,7 @@ version: '3.8'
 
 services:
   app:
+    container_name: prycesync-erp-app-dev
     build: .
     ports:
       - "3000:3000"
@@ -11,6 +12,7 @@ services:
     volumes:
       - .:/app
       - /app/node_modules
+      - ./secrets/afip:/app/secrets/afip:ro
     working_dir: /app
     env_file:
       - .env.docker

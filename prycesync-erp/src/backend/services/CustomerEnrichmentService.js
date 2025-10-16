@@ -2,17 +2,30 @@ import axios from 'axios'
 import { getCache, setCache } from '../config/redis.js'
 import { isValidCuit, normalizeCuit, inferDocType, normalizeIvaCondition } from '../utils/cuit.js'
 import AfipPadronAdapter from '../strategies/AfipPadronAdapter.js'
+import AfipWsPadronAdapter from '../strategies/AfipWsPadronAdapter.js'
 import MockPadronAdapter from '../strategies/MockPadronAdapter.js'
 
 const TTL_SECONDS = parseInt(process.env.ENRICH_CACHE_TTL_SECONDS || '3600', 10)
 const PROVIDER = (process.env.PADRON_PROVIDER || 'mock').toLowerCase()
 
 function getAdapter() {
-  if (PROVIDER === 'afip') return new AfipPadronAdapter({
-    baseUrl: process.env.TUSFACTURASAPP_API_URL,
-    apiKey: process.env.TUSFACTURASAPP_API_KEY,
-    timeoutMs: 3000
-  })
+  if (PROVIDER === 'afip') {
+    const hasAggregator = Boolean(process.env.TUSFACTURASAPP_API_URL && process.env.TUSFACTURASAPP_API_KEY)
+    if (hasAggregator) {
+      return new AfipPadronAdapter({
+        baseUrl: process.env.TUSFACTURASAPP_API_URL,
+        apiKey: process.env.TUSFACTURASAPP_API_KEY,
+        timeoutMs: 3000
+      })
+    }
+    return new AfipWsPadronAdapter({
+      certPath: process.env.AFIP_CERT_PATH,
+      keyPath: process.env.AFIP_KEY_PATH,
+      cuit: process.env.AFIP_CUIT || process.env.AFIP_CUIT_REPRESENTADA,
+      env: process.env.AFIP_ENV || 'test',
+      service: process.env.AFIP_SERVICE || 'ws_sr_padron_a5'
+    })
+  }
   return new MockPadronAdapter()
 }
 

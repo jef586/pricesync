@@ -1,4 +1,4 @@
-﻿import express from 'express';
+import express from 'express';
 import cors from 'cors';
 import { connectDatabase } from './config/database.js';
 import prisma from './config/database.js';
@@ -9,6 +9,7 @@ import productRoutes from './routes/products.js';
 import categoryRoutes from './routes/categories.js';
 import reportRoutes from './routes/reports.js';
 import supplierRoutes from './routes/suppliers.js';
+import afipRoutes from './routes/afip.js';
 
 import salesRoutes from './routes/sales.js';
 
@@ -44,6 +45,7 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/suppliers', supplierRoutes);
 app.use('/api/sales', salesRoutes);
+app.use('/api/afip', afipRoutes);
 
 
 // Endpoint de health check
