@@ -40,13 +40,22 @@ docker-compose build --no-cache app
 
 # Limpiar todo (cuidado: elimina datos)
 docker-compose down -v
+
+# Desplegar migraciones Prisma (prod-safe)
+docker-compose exec app npx prisma migrate deploy
+
+# Smoke test de base
+docker-compose exec app sh ./scripts/db-smoke.sh
+
+# Snapshot de DB (rollback rápido)
+docker-compose exec app sh ./scripts/db-snapshot.sh
 ```
 
 ## Archivos Críticos
 
 1. **docker-entrypoint.sh** - Script que:
    - Espera la base de datos
-   - Ejecuta migraciones Prisma
+   - Ejecuta `prisma migrate deploy`
    - Inicia la aplicación
 
 2. **.env.docker** - Variables de entorno para Docker

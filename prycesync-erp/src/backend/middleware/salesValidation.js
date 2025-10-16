@@ -4,6 +4,7 @@ const DiscountTypeEnum = z.enum(["PERCENT", "ABS"]);
 
 const SaleItemSchema = z.object({
   productId: z.string().cuid().optional(),
+  articleId: z.string().cuid().optional(),
   description: z.string().min(1).max(500).optional(),
   quantity: z.number().positive(),
   unitPrice: z.number().min(0),

@@ -91,8 +91,8 @@ while ! pg_isready -h db -p 5432 -U postgres; do
   sleep 2
 done
 
-echo "Base de datos conectada, ejecutando migraciones..."
-npx prisma db push
+echo "Base de datos conectada, desplegando migraciones..."
+npx prisma migrate deploy
 
 echo "Iniciando aplicación..."
 npm run dev

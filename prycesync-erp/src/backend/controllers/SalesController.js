@@ -18,21 +18,23 @@ class SalesController {
         return res.status(404).json({ success: false, message: "Cliente no encontrado" });
       }
 
-      // Validar productos (si se proveen productId)
+      // Validar artículos (soportando compatibilidad productId -> articleId)
       for (const item of items) {
-        if (item.productId) {
-          const product = await prisma.product.findFirst({ where: { id: item.productId, companyId } });
-          if (!product) {
-            return res.status(404).json({ success: false, message: `Producto no encontrado: ${item.productId}` });
+        const refId = item.articleId ?? item.productId;
+        if (refId) {
+          const article = await prisma.article.findFirst({ where: { id: refId, companyId } });
+          if (!article) {
+            return res.status(404).json({ success: false, message: "Artículo no encontrado: " + refId });
           }
-          // Si no hay descripción, usar la del producto
-          if (!item.description) item.description = product.name;
+          if (!item.description) item.description = article.name;
+          item.articleId = refId;
         } else {
           if (!item.description) {
-            return res.status(400).json({ success: false, message: "Descripción requerida cuando no hay productId" });
+            return res.status(400).json({ success: false, message: "Descripción requerida cuando no hay articleId" });
           }
         }
       }
+
 
       // Normalizar/validar descuentos por ítem y preparar ítems
       const preparedItems = [];
@@ -69,7 +71,7 @@ class SalesController {
         }
 
         preparedItems.push({
-          productId: item.productId || null,
+          articleId: item.articleId ?? item.productId ?? null,
           description: item.description,
           quantity,
           unitPrice,
@@ -97,18 +99,8 @@ class SalesController {
         return `SO-${String(nextSeq).padStart(8, "0")}`;
       });
 
-      // Validación de precio mínimo por producto
-      for (const item of computedItems) {
-        if (item.productId) {
-          const prod = await prisma.product.findUnique({ where: { id: item.productId }, select: { minPrice: true } });
-          if (prod && prod.minPrice != null) {
-            const perUnitNet = Number(item.subtotal.toNumber ? item.subtotal.toNumber() : item.subtotal) / Number(item.quantity);
-            if (perUnitNet < Number(prod.minPrice)) {
-              return res.status(400).json({ success: false, message: 'Debajo del precio mínimo' });
-            }
-          }
-        }
-      }
+            // Validación de precio mínimo eliminada: artículos no tienen minPrice
+
 
       if (Number(totals.totalRounded.toNumber()) < 0) {
         return res.status(400).json({ success: false, message: 'Total no puede ser negativo' });
@@ -133,7 +125,7 @@ class SalesController {
             notes: notes || null,
             items: {
               create: computedItems.map((i) => ({
-                productId: i.productId || null,
+                articleId: i.articleId || null,
                 description: i.description,
                 quantity: i.quantity,
                 unitPrice: i.unitPrice,
@@ -241,7 +233,7 @@ class SalesController {
             return res.status(400).json({ success: false, message: 'discount_value ($) no puede superar el bruto de línea' });
           }
 
-          preparedItems.push({ productId: item.productId || null, description: item.description, quantity, unitPrice, taxRate, discountType, discountValue, isDiscountable });
+          preparedItems.push({ articleId: item.articleId ?? item.productId ?? null, description: item.description, quantity, unitPrice, taxRate, discountType, discountValue, isDiscountable });
         }
       }
 
@@ -249,17 +241,7 @@ class SalesController {
       const totals = preparedItems.length ? SalesService.calculateTotals(preparedItems, finalDiscount, sc) : null;
 
       if (preparedItems.length) {
-        for (const item of preparedItems) {
-          if (item.productId) {
-            const prod = await prisma.product.findUnique({ where: { id: item.productId }, select: { minPrice: true } });
-            if (prod && prod.minPrice != null) {
-              const perUnitNet = Number(item.subtotal.toNumber ? item.subtotal.toNumber() : item.subtotal) / Number(item.quantity);
-              if (perUnitNet < Number(prod.minPrice)) {
-                return res.status(400).json({ success: false, message: 'Debajo del precio mínimo' });
-              }
-            }
-          }
-        }
+        
         if (Number(totals.totalRounded.toNumber()) < 0) {
           return res.status(400).json({ success: false, message: 'Total no puede ser negativo' });
         }
@@ -289,7 +271,7 @@ class SalesController {
             await tx.salesOrderItem.create({
               data: {
                 salesOrderId: id,
-                productId: i.productId || null,
+                articleId: i.articleId || null,
                 description: i.description,
                 quantity: i.quantity,
                 unitPrice: i.unitPrice,
