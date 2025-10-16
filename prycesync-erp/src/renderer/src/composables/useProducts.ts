@@ -1,4 +1,4 @@
-import { ref, computed, readonly } from 'vue'
+﻿import { ref, computed, readonly } from 'vue'
 import axios from 'axios'
 
 // Types
@@ -86,9 +86,9 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    console.log('🚨 API Error in useProducts:', error.response?.status, error.response?.data)
+    console.log('ðŸš¨ API Error in useProducts:', error.response?.status, error.response?.data)
     if (error.response?.status === 401) {
-      console.log('🚨 401 Unauthorized - redirecting to /auth')
+      console.log('ðŸš¨ 401 Unauthorized - redirecting to /auth')
       // Handle unauthorized - redirect to login
       localStorage.removeItem('token')
       localStorage.removeItem('user')
@@ -223,6 +223,37 @@ export function useProducts() {
     }
   }
 
+  // Search products by barcode or code (exact, then fallback)
+  const searchByBarcode = async (barcode: string): Promise<any[]> => {
+    try {
+      if (!barcode || barcode.length < 2) return []
+      const results: any[] = []
+      // Exact barcode match
+      const resp1 = await apiClient.get(`/products?barcode=${encodeURIComponent(barcode)}`)
+      const data1 = resp1.data?.data || resp1.data?.products || resp1.data
+      if (Array.isArray(data1)) {
+        results.push(...data1)
+      }
+      // Fallback by sku/code
+      const resp2 = await apiClient.get(`/products?sku=${encodeURIComponent(barcode)}`)
+      const data2 = resp2.data?.data || resp2.data?.products || resp2.data
+      if (Array.isArray(data2)) {
+        // Avoid duplicates by id
+        const ids = new Set(results.map(r => r.id))
+        for (const r of data2) { if (!ids.has(r.id)) results.push(r) }
+      }
+      // Fallback partial search
+      if (results.length === 0) {
+        const resp3 = await apiClient.get(`/products/search?q=${encodeURIComponent(barcode)}&limit=10`)
+        const data3 = resp3.data?.data || resp3.data?.items || resp3.data
+        if (Array.isArray(data3)) return data3
+      }
+      return results
+    } catch (err) {
+      console.error('Error searching products by barcode:', err)
+      return []
+    }
+  }
   // Create product
   const createProduct = async (data: CreateProductData) => {
     try {
@@ -371,6 +402,7 @@ export function useProducts() {
     fetchProducts,
     fetchProduct,
     searchProducts,
+    searchByBarcode,
     createProduct,
     updateProduct,
     deleteProduct,

@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <!-- Layout principal: diseño compacto con encabezado a ancho completo -->
   <div class="h-full grid grid-cols-1 xl:grid-cols-12 xl:grid-rows-[auto_1fr] items-stretch gap-6 font-inter">
     <!-- Encabezado (full width) -->
@@ -104,7 +104,7 @@
         </div>
         <div class="w-36 shrink-0">
           <label class="block text-xs text-slate-600 dark:text-slate-300">Código de barras</label>
-          <input type="text" v-model="barcode" placeholder="Escanear / escribir" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100" aria-label="Código de barras" tabindex="8" />
+          <input id="pos-barcode-input" type="text" v-model="barcode" placeholder="Escanear / escribir" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100" aria-label="Código de barras" tabindex="8" />
         </div>
         <div class="w-16 shrink-0">
           <label class="block text-xs text-slate-600 dark:text-slate-300">Cantidad</label>
@@ -306,11 +306,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, defineExpose } from 'vue'
+import { ref, computed, onMounted, watch, defineExpose, onBeforeUnmount } from 'vue'
 import { useProducts } from '@/composables/useProducts'
 import { useCustomers } from '@/composables/useCustomers'
 import { usePadronStore } from '@/stores/modules/padron'
 import CustomerSearchModal from '@/components/molecules/CustomerSearchModal.vue'
+import { useBarcodeListener } from '@/composables/useBarcodeListener'
+import { getPosBarcodeSettings } from '@/services/posBarcodeSettings'
 
 type PriceList = { id: string; name: string; multiplier?: number; priceMap?: Record<string, number> }
 type Row = { id: string; sku: string; desc: string; qty: number; price: number; manualLocked: boolean; disc?: number; productId?: string; discountType?: 'PERCENT' | 'ABS'; discountValue?: number; isDiscountable?: boolean }
@@ -708,7 +710,48 @@ const handleKey = (e: KeyboardEvent) => {
 if (e.key === 'F2') { e.preventDefault(); confirmAndCharge() }
 if (e.key === 'Escape') { e.preventDefault(); cancelSale() }
 }
-onMounted(() => { window.addEventListener('keydown', handleKey) })
+onMounted(() => {
+  window.addEventListener('keydown', handleKey)
+})
+
+// Integración del lector de códigos de barras (HID)
+let barcodeCtrl: ReturnType<typeof useBarcodeListener> | null = null
+onMounted(async () => {
+  try {
+    const raw = await getPosBarcodeSettings()
+    const settings: any = {
+      enabled: raw?.enabled ?? true,
+      // Umbral inferior permisivo para escáneres rápidos
+      windowMsMin: 0,
+      // Más holgura por si el lector es lento
+      interKeyTimeout: 300,
+      minLength: raw?.minLength ?? 6,
+      // Captura sin terminador y sin necesidad de foco
+      suffix: 'none',
+      // Evita que el escaneo escriba en otros inputs durante la ráfaga
+      preventInInputs: true,
+      // No forzar foco en el input de barras
+      forceFocus: false,
+      autoSelectSingle: (raw as any)?.autoSelectSingle ?? true,
+    }
+    barcodeCtrl = useBarcodeListener(settings)
+    barcodeCtrl.onScan((code) => {
+      // Completar input sin cambiar el foco actual
+      barcode.value = code
+      // Agregar automáticamente si está habilitado
+      if (settings.autoSelectSingle) {
+        addRowFromBarcode()
+      }
+    })
+    barcodeCtrl.start()
+  } catch (err) {
+    console.error('Barcode listener init failed:', err)
+  }
+})
+
+onBeforeUnmount(() => {
+  barcodeCtrl?.stop()
+})
 
 // Utils
 const cryptoRandom = () => Math.random().toString(36).slice(2)

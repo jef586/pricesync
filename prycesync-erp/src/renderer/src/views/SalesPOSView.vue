@@ -3,7 +3,7 @@
     <div class="sales-pos-view">
       <PageHeader
         title="Ventas (POS)"
-        subtitle="Registrar ventas rápidas usando precios de lista"
+        subtitle="Registrar ventas rÃ¡pidas usando precios de lista"
       >
         <template #actions>
           <BaseButton variant="primary" @click="submitSale" :disabled="isSubmitting || cartItems.length === 0 || !selectedCustomer">
@@ -19,7 +19,7 @@
         </template>
       </PageHeader>
 
-      <!-- Selección de cliente -->
+      <!-- SelecciÃ³n de cliente -->
       <BaseCard class="mb-6">
         <template #header>
           <h3 class="text-lg font-medium text-gray-900">Cliente</h3>
@@ -46,14 +46,14 @@
         </div>
       </BaseCard>
 
-      <!-- Búsqueda y agregado de productos -->
+      <!-- BÃºsqueda y agregado de productos -->
       <BaseCard class="mb-6">
         <template #header>
           <h3 class="text-lg font-medium text-gray-900">Productos</h3>
         </template>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div class="md:col-span-2">
-            <BaseInput v-model="productQuery" placeholder="Buscar producto por código o nombre" @input="debouncedSearchProduct" />
+            <BaseInput id="pos-product-search" v-model="productQuery" placeholder="Buscar producto por cÃ³digo o nombre" @input="debouncedSearchProduct" />
             <div v-if="productResults.length > 0" class="mt-2 bg-white border rounded shadow max-h-64 overflow-y-auto">
               <ul>
                 <li v-for="prod in productResults" :key="prod.id" class="px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center justify-between" @click="addProductToCart(prod)">
@@ -89,7 +89,7 @@
                 <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Precio Unit.</th>
                 <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Desc. (%/$)</th>
                 <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Neto</th>
-                <th class="px-6 py-3" />
+                <th class="px-6 py-3"></th>
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
@@ -137,7 +137,7 @@
             <p class="text-lg font-semibold text-gray-900">${{ formatCurrency(totals.subtotalGross) }}</p>
           </div>
           <div>
-            <p class="text-sm text-gray-600">Desc. por ítems</p>
+            <p class="text-sm text-gray-600">Desc. por Ã­tems</p>
             <p class="text-lg font-semibold text-red-600">${{ formatCurrency(totals.itemsDiscountTotal) }}</p>
           </div>
           <div class="col-span-1 md:col-span-2">
@@ -181,7 +181,7 @@
     <ConfirmModal
       v-if="showConfirmPark"
       title="Estacionar venta"
-      message="La venta quedará congelada hasta que la reanudes. ¿Confirmas?"
+      message="La venta quedarÃ¡ congelada hasta que la reanudes. Â¿Confirmas?"
       @confirm="doPark"
       @cancel="showConfirmPark = false"
     />
@@ -195,20 +195,22 @@ import PageHeader from '@/components/molecules/PageHeader.vue'
 import BaseButton from '@/components/atoms/BaseButton.vue'
 import BaseCard from '@/components/atoms/BaseCard.vue'
 import BaseInput from '@/components/atoms/BaseInput.vue'
+import { useNotifications } from '@/composables/useNotifications'
 import ConfirmModal from '@/components/atoms/ConfirmModal.vue'
 import { useProducts } from '@/composables/useProducts'
 import { useCustomers } from '@/composables/useCustomers'
 import { useInvoices, type CreateInvoiceData } from '@/composables/useInvoices'
 import { usePOS } from '@/composables/usePOS'
-import { useBarcode } from '@/composables/useBarcode'
+import { useBarcodeListener } from '@/composables/useBarcodeListener'
 import { getPosBarcodeSettings } from '@/services/posBarcodeSettings'
 import { useSalesStore } from '@/stores/modules/sales'
 
 // Composables
-const { searchProducts } = useProducts()
+const { searchProducts, searchByBarcode } = useProducts()
 const { searchCustomers } = useCustomers()
 const { createInvoice, formatCurrency } = useInvoices()
 const { computeTotals, computeInvoicePayload } = usePOS()
+const notify = useNotifications()
 
 // Estado local
 const productQuery = ref('')
@@ -222,17 +224,42 @@ const showConfirmPark = ref(false)
 // Carrito (local view state, synced from sales store)
 const cartItems = ref<Array<{ tempId: string, productId: string, name: string, code: string, quantity: number, unitPrice: number, discountType?: 'PERCENT' | 'ABS', discountValue?: number, isDiscountable?: boolean }>>([])
 const sales = useSalesStore()
-let barcodeCtrl: ReturnType<typeof useBarcode> | null = null
+let barcodeCtrl: ReturnType<typeof useBarcodeListener> | null = null
 
 onMounted(async () => {
-  const settings = await getPosBarcodeSettings()
-  barcodeCtrl = useBarcode(settings)
-  barcodeCtrl.onScan((code) => {
-    sales.addItemByBarcode(code)
+  const raw = await getPosBarcodeSettings()
+  const settings: any = {
+    enabled: raw?.enabled ?? true,
+    windowMsMin: raw?.windowMsMin ?? 50,
+    interKeyTimeout: (raw as any)?.interKeyTimeout ?? raw?.windowMsMax ?? 200,
+    minLength: raw?.minLength ?? 6,
+    suffix: (raw as any)?.suffix ?? 'none',
+    preventInInputs: raw?.preventInInputs ?? true,
+    forceFocus: (raw as any)?.forceFocus ?? true,
+    autoSelectSingle: (raw as any)?.autoSelectSingle ?? true,
+  }
+  barcodeCtrl = useBarcodeListener(settings)
+  barcodeCtrl.onScan(async (code) => {
+    productQuery.value = code
+    if (settings.forceFocus) {
+      const el = document.getElementById('pos-product-search') as HTMLInputElement | null
+      el?.focus()
+    }
+    const results = await searchByBarcode(code)
+    if (Array.isArray(results) && results.length > 0) {
+      if (results.length === 1 && settings.autoSelectSingle) {
+        await sales.addItemByBarcode(code)
+        productResults.value = []
+        productQuery.value = ''
+      } else {
+        productResults.value = results
+      }
+    } else {
+      notify.error(`Producto no encontrado: ${code}`)
+    }
   })
   barcodeCtrl.start()
 })
-
 onBeforeUnmount(() => {
   barcodeCtrl?.stop()
 })
@@ -285,7 +312,7 @@ const doPark = async () => {
   showConfirmPark.value = false
 }
 
-// Métodos
+// MÃ©todos
 const debounce = (fn: Function, ms = 300) => {
   let t: any
   return (...args: any[]) => {
@@ -391,13 +418,14 @@ const submitSale = async () => {
 .sales-pos-view {
   @apply p-6 max-w-6xl mx-auto space-y-6;
 }
+
+
+
+
+
 </style>
-// Helpers
-function lineNet(item: { quantity: number, unitPrice: number, discountType?: 'PERCENT' | 'ABS', discountValue?: number, isDiscountable?: boolean }) {
-  const gross = item.quantity * item.unitPrice
-  const isDisc = item.isDiscountable !== false
-  if (!isDisc) return gross
-  if (item.discountType === 'ABS') return gross - Math.min(Math.max(item.discountValue || 0, 0), gross)
-  const pct = Math.min(Math.max(item.discountValue || 0, 0), 100)
-  return gross * (1 - pct / 100)
-}
+
+
+
+
+
