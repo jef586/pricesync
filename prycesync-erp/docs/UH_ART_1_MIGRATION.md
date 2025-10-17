@@ -64,3 +64,10 @@ docker compose exec app sh -c "psql -h db -U postgres -d pricesync -f prisma/mig
 - Este flujo evita ejecutar servidores locales; todo es `docker compose` + `exec app ...`
 - Si tu entorno fuera MySQL, ajustar types y comandos (`mysql`/`mysqldump`); el proyecto actual usa PostgreSQL.
 - El entrypoint ya usa `prisma migrate deploy` y genera el cliente Prisma en el contenedor.
+
+### Compatibilidad Frontend (Vite)
+- Variables expuestas al FE: `VITE_API_URL` y `VITE_FEATURE_PRODUCTS_ALIAS`.
+- `VITE_FEATURE_PRODUCTS_ALIAS=false` mantiene un alias temporal en `src/renderer/src/types/product.ts` que reexporta `types/article` (DEPRECATED).
+- Para detectar y erradicar usos residuales de `types/product`, setear `VITE_FEATURE_PRODUCTS_ALIAS=true` (rompe en runtime si alguien importa el alias).
+- Nuevo servicio FE: `src/renderer/src/services/articles.ts` (`/api/articles`) y store `src/renderer/src/stores/articles.ts`.
+- Pruebas unitarias del store: `src/renderer/src/stores/__tests__/articles.store.spec.ts` (incluidas en `vitest.config.ts`).

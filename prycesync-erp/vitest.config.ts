@@ -10,12 +10,13 @@ export default defineConfig({
       'src/backend/**/__tests__/*.{test,spec}.js',
       'src/backend/**/*.{test,spec}.js',
       // Incluir tests de componentes del renderer (se fuerza jsdom por archivo)
-      'src/renderer/src/components/**/__tests__/*.{test,spec}.ts'
+      'src/renderer/src/components/**/__tests__/*.{test,spec}.ts',
+      // Incluir tests de stores del renderer
+      'src/renderer/src/stores/**/__tests__/*.{test,spec}.ts'
     ],
     exclude: [
       '**/node_modules/**',
-      '**/dist/**',
-      'src/renderer/**'
+      '**/dist/**'
     ],
     coverage: {
       provider: 'v8',
