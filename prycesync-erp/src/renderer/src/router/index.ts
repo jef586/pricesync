@@ -26,6 +26,9 @@ import HelpView from '../views/HelpView.vue'
 import SalesPOSView from '../views/SalesPOSView.vue'
 import SalesNewView from '../views/SalesNewView.vue'
 import ParkedSalesView from '../views/ParkedSalesView.vue'
+import ArticlesView from '../views/ArticlesView.vue'
+import ArticleNewView from '../views/ArticleNewView.vue'
+import ArticleEditView from '../views/ArticleEditView.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -201,7 +204,25 @@ const router = createRouter({
       name: 'SalesNew',
       component: SalesNewView,
       meta: { requiresAuth: false }
-    }
+    },
+    {
+      path: '/articles',
+      name: 'Articles',
+      component: ArticlesView,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/articles/new',
+      name: 'ArticleNew',
+      component: ArticleNewView,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/articles/:id/edit',
+      name: 'ArticleEdit',
+      component: ArticleEditView,
+      meta: { requiresAuth: true }
+    },
   ]
 })
 
