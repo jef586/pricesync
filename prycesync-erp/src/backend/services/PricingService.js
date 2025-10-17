@@ -52,3 +52,40 @@ export function computeSalePrice({ costPrice, listPrice, pricing, supplierId }) 
 
   return value
 }
+
+function computeInternalTax(cost, internalTaxType, internalTaxValue) {
+  const c = Number(cost || 0)
+  if (!internalTaxType || internalTaxValue == null) return 0
+  const val = Number(internalTaxValue)
+  if (internalTaxType === 'ABS') return val
+  if (internalTaxType === 'PERCENT') return c * (val / 100)
+  return 0
+}
+
+// Calcula precio público directo en base a costo, margen y impuestos
+export function directPricing({ cost, gainPct = 0, taxRate = 21, internalTaxType = null, internalTaxValue = null }) {
+  const c = Number(cost || 0)
+  const g = Number(gainPct || 0)
+  const v = Number(taxRate || 0)
+  const internalTax = computeInternalTax(c, internalTaxType, internalTaxValue)
+  const baseWithMargin = c * (1 + g / 100)
+  const net = baseWithMargin + internalTax
+  const pricePublic = Number((net * (1 + v / 100)).toFixed(2))
+  return { pricePublic }
+}
+
+// Calcula margen (gainPct) inverso dado un precio público final
+export function inversePricing({ pricePublic, cost, taxRate = 21, internalTaxType = null, internalTaxValue = null }) {
+  const p = Number(pricePublic || 0)
+  const c = Number(cost || 0)
+  const v = Number(taxRate || 0)
+  if (!(c > 0)) {
+    return { gainPct: 0, pricePublic: Number(p.toFixed(2)) }
+  }
+  const internalTax = computeInternalTax(c, internalTaxType, internalTaxValue)
+  const netWithoutVAT = p / (1 + v / 100)
+  const baseWithMargin = netWithoutVAT - internalTax
+  const g = ((baseWithMargin / c) - 1) * 100
+  const gainPct = Number(g.toFixed(2))
+  return { gainPct, pricePublic: Number(p.toFixed(2)) }
+}

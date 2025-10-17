@@ -1,5 +1,5 @@
 import prisma from '../config/database.js';
-import { getCompanyPricing, computeSalePrice } from '../services/PricingService.js'
+import { getCompanyPricing, computeSalePrice, directPricing, inversePricing } from '../services/PricingService.js'
 
 class ArticleController {
   // Buscar artículos
@@ -65,7 +65,8 @@ class ArticleController {
         active,
         categoryId,
         sortBy = 'createdAt',
-        sortOrder = 'desc'
+        sortOrder = 'desc',
+        supplierSku
       } = req.query;
 
       const companyId = req.user.company.id;
@@ -77,13 +78,15 @@ class ArticleController {
         ...(active !== undefined && active !== '' ? { active: active === 'true' } : {}),
         ...(type && { type }),
         ...(categoryId && { categoryId }),
+        ...(supplierSku && { suppliers: { some: { supplierSku: { contains: supplierSku, mode: 'insensitive' } } } }),
         ...(search && {
           OR: [
             { name: { contains: search, mode: 'insensitive' } },
             { sku: { contains: search, mode: 'insensitive' } },
             { barcode: { contains: search, mode: 'insensitive' } },
             { description: { contains: search, mode: 'insensitive' } },
-            { barcodes: { some: { code: { contains: search, mode: 'insensitive' } } } }
+            { barcodes: { some: { code: { contains: search, mode: 'insensitive' } } } },
+            { suppliers: { some: { supplierSku: { contains: search, mode: 'insensitive' } } } }
           ]
         })
       };
@@ -102,6 +105,8 @@ class ArticleController {
             pricePublic: true,
             stock: true,
             stockMin: true,
+            stockMax: true,
+            controlStock: true,
             taxRate: true,
             categoryId: true,
             category: { select: { id: true, name: true } },
@@ -153,13 +158,13 @@ class ArticleController {
       });
 
       if (!article) {
-        return res.status(404).json({ success: false, message: 'Artículo no encontrado' });
+        return res.status(404).json({ error: 'NOT_FOUND', message: 'Artículo no encontrado' });
       }
 
-      res.json({ success: true, data: article });
+      res.json(article);
     } catch (error) {
       console.error('Error fetching article:', error);
-      res.status(500).json({ error: 'Error interno del servidor', message: 'No se pudo obtener el artículo' });
+      res.status(500).json({ error: 'SERVER_ERROR', message: 'No se pudo obtener el artículo' });
     }
   }
 
@@ -180,6 +185,8 @@ class ArticleController {
         pricePublic,
         stock = 0,
         stockMin,
+        stockMax,
+        controlStock,
         categoryId,
         supplierId,
         internalTaxType,
@@ -194,32 +201,40 @@ class ArticleController {
       const companyId = req.user.company.id;
 
       if (!name) {
-        return res.status(400).json({ success: false, message: 'Nombre es requerido' });
+        return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Nombre es requerido' });
+      }
+
+      if (cost == null) {
+        return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Cost es requerido' });
+      }
+      if (parseFloat(cost) < 0) {
+        return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Cost debe ser >= 0' });
+      }
+      if (pricePublic != null && parseFloat(pricePublic) < 0) {
+        return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'pricePublic debe ser >= 0' });
+      }
+      if (stockMax != null && stockMin != null && parseInt(stockMax) < parseInt(stockMin)) {
+        return res.status(409).json({ error: 'CONFLICT', message: 'stockMax debe ser >= stockMin' });
       }
 
       // Validar categoría si se envía
       if (categoryId) {
         const category = await prisma.category.findFirst({ where: { id: categoryId, companyId, deletedAt: null } });
         if (!category) {
-          return res.status(404).json({ success: false, message: 'Categoría no encontrada' });
+          return res.status(404).json({ error: 'NOT_FOUND', message: 'Categoría no encontrada' });
         }
       }
 
-      // Determinar precio público
-      let finalPricePublic = pricePublic !== undefined && pricePublic !== null ? parseFloat(pricePublic) : null;
-      try {
-        if (finalPricePublic == null) {
-          const pricing = await getCompanyPricing(companyId);
-          const sale = computeSalePrice({
-            costPrice: cost != null ? parseFloat(cost) : 0,
-            listPrice: null,
-            pricing,
-            supplierId: supplierId ?? null
-          });
-          finalPricePublic = sale;
-        }
-      } catch (e) {
-        console.warn('Pricing warning (createArticle):', e?.message || e);
+      // Pricing: directo o inverso
+      let finalGainPct = gainPct != null ? parseFloat(gainPct) : 0
+      let finalPricePublic
+      if (pricePublic != null) {
+        const inv = inversePricing({ pricePublic, cost, taxRate, internalTaxType, internalTaxValue })
+        finalGainPct = inv.gainPct
+        finalPricePublic = inv.pricePublic
+      } else {
+        const dir = directPricing({ cost, gainPct: finalGainPct, taxRate, internalTaxType, internalTaxValue })
+        finalPricePublic = dir.pricePublic
       }
 
       const article = await prisma.article.create({
@@ -232,11 +247,13 @@ class ArticleController {
           barcode: barcode?.trim() || null,
           barcodeType: barcodeType || null,
           taxRate: parseFloat(taxRate) || 21,
-          cost: cost != null ? parseFloat(cost) : null,
-          gainPct: gainPct != null ? parseFloat(gainPct) : null,
+          cost: parseFloat(cost),
+          gainPct: finalGainPct,
           pricePublic: finalPricePublic,
           stock: parseInt(stock) || 0,
           stockMin: stockMin != null ? parseInt(stockMin) : null,
+          stockMax: stockMax != null ? parseInt(stockMax) : null,
+          controlStock: !!controlStock,
           categoryId: categoryId || null,
           companyId,
           internalTaxType: internalTaxType || null,
@@ -250,13 +267,13 @@ class ArticleController {
         include: { category: { select: { id: true, name: true } } }
       });
 
-      res.status(201).json({ success: true, message: 'Artículo creado exitosamente', data: article });
+      res.status(201).json(article);
     } catch (error) {
       console.error('Error creating article:', error);
       if (error.code === 'P2002') {
-        return res.status(400).json({ success: false, message: 'SKU o código de barras duplicado' });
+        return res.status(409).json({ error: 'CONFLICT', message: 'SKU o código de barras duplicado' });
       }
-      res.status(500).json({ error: 'Error interno del servidor', message: 'No se pudo crear el artículo' });
+      res.status(500).json({ error: 'SERVER_ERROR', message: 'No se pudo crear el artículo' });
     }
   }
 
@@ -278,6 +295,8 @@ class ArticleController {
         pricePublic,
         stock,
         stockMin,
+        stockMax,
+        controlStock,
         categoryId,
         supplierId,
         internalTaxType,
@@ -293,14 +312,24 @@ class ArticleController {
 
       const existing = await prisma.article.findFirst({ where: { id, companyId, deletedAt: null } });
       if (!existing) {
-        return res.status(404).json({ success: false, message: 'Artículo no encontrado' });
+        return res.status(404).json({ error: 'NOT_FOUND', message: 'Artículo no encontrado' });
       }
 
       if (categoryId) {
         const category = await prisma.category.findFirst({ where: { id: categoryId, companyId, deletedAt: null } });
         if (!category) {
-          return res.status(404).json({ success: false, message: 'Categoría no encontrada' });
+          return res.status(404).json({ error: 'NOT_FOUND', message: 'Categoría no encontrada' });
         }
+      }
+
+      if (cost != null && parseFloat(cost) < 0) {
+        return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Cost debe ser >= 0' });
+      }
+      if (pricePublic != null && parseFloat(pricePublic) < 0) {
+        return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'pricePublic debe ser >= 0' });
+      }
+      if (stockMax != null && stockMin != null && parseInt(stockMax) < parseInt(stockMin)) {
+        return res.status(409).json({ error: 'CONFLICT', message: 'stockMax debe ser >= stockMin' });
       }
 
       const updateData = {};
@@ -311,12 +340,13 @@ class ArticleController {
       if (sku !== undefined) updateData.sku = sku?.trim() || null;
       if (barcode !== undefined) updateData.barcode = barcode?.trim() || null;
       if (barcodeType !== undefined) updateData.barcodeType = barcodeType || null;
-      if (taxRate !== undefined) updateData.taxRate = parseFloat(taxRate) || 21;
-      if (cost !== undefined) updateData.cost = cost != null ? parseFloat(cost) : null;
-      if (gainPct !== undefined) updateData.gainPct = gainPct != null ? parseFloat(gainPct) : null;
-      if (pricePublic !== undefined) updateData.pricePublic = parseFloat(pricePublic);
+      if (taxRate !== undefined) updateData.taxRate = parseFloat(taxRate) || existing.taxRate || 21;
+      if (cost !== undefined) updateData.cost = cost != null ? parseFloat(cost) : existing.cost;
+      if (gainPct !== undefined) updateData.gainPct = gainPct != null ? parseFloat(gainPct) : existing.gainPct;
       if (stock !== undefined) updateData.stock = parseInt(stock) || 0;
       if (stockMin !== undefined) updateData.stockMin = stockMin != null ? parseInt(stockMin) : null;
+      if (stockMax !== undefined) updateData.stockMax = stockMax != null ? parseInt(stockMax) : null;
+      if (controlStock !== undefined) updateData.controlStock = !!controlStock;
       if (categoryId !== undefined) updateData.categoryId = categoryId || null;
       if (internalTaxType !== undefined) updateData.internalTaxType = internalTaxType || null;
       if (internalTaxValue !== undefined) updateData.internalTaxValue = internalTaxValue != null ? parseFloat(internalTaxValue) : null;
@@ -326,22 +356,16 @@ class ArticleController {
       if (pointsPerUnit !== undefined) updateData.pointsPerUnit = pointsPerUnit != null ? parseInt(pointsPerUnit) : null;
       if (imageUrl !== undefined) updateData.imageUrl = imageUrl || null;
 
-      // Si se actualiza costo y no se envía pricePublic, aplicar pricing
-      try {
-        if (updateData.cost !== undefined && pricePublic === undefined) {
-          const pricing = await getCompanyPricing(companyId);
-          if (pricing.applyOnUpdate) {
-            const sale = computeSalePrice({
-              costPrice: updateData.cost ?? existing.cost ?? 0,
-              listPrice: null,
-              pricing,
-              supplierId: supplierId ?? null
-            });
-            updateData.pricePublic = sale;
-          }
-        }
-      } catch (e) {
-        console.warn('Pricing warning (updateArticle):', e?.message || e);
+      // Pricing directo/inverso en update
+      if (pricePublic !== undefined) {
+        // Inverso si viene pricePublic
+        const inv = inversePricing({ pricePublic, cost: updateData.cost ?? existing.cost ?? 0, taxRate: updateData.taxRate ?? existing.taxRate, internalTaxType: updateData.internalTaxType ?? existing.internalTaxType, internalTaxValue: updateData.internalTaxValue ?? existing.internalTaxValue })
+        updateData.gainPct = inv.gainPct
+        updateData.pricePublic = inv.pricePublic
+      } else if (updateData.cost !== undefined || updateData.gainPct !== undefined || updateData.taxRate !== undefined || updateData.internalTaxType !== undefined || updateData.internalTaxValue !== undefined) {
+        // Directo si cambian parámetros relevantes
+        const dir = directPricing({ cost: updateData.cost ?? existing.cost ?? 0, gainPct: updateData.gainPct ?? existing.gainPct ?? 0, taxRate: updateData.taxRate ?? existing.taxRate, internalTaxType: updateData.internalTaxType ?? existing.internalTaxType, internalTaxValue: updateData.internalTaxValue ?? existing.internalTaxValue })
+        updateData.pricePublic = dir.pricePublic
       }
 
       const article = await prisma.article.update({
@@ -350,10 +374,13 @@ class ArticleController {
         include: { category: { select: { id: true, name: true } } }
       });
 
-      res.json({ success: true, message: 'Artículo actualizado exitosamente', data: article });
+      res.json(article);
     } catch (error) {
       console.error('Error updating article:', error);
-      res.status(500).json({ error: 'Error interno del servidor', message: 'No se pudo actualizar el artículo' });
+      if (error.code === 'P2002') {
+        return res.status(409).json({ error: 'CONFLICT', message: 'SKU o código de barras duplicado' });
+      }
+      res.status(500).json({ error: 'SERVER_ERROR', message: 'No se pudo actualizar el artículo' });
     }
   }
 
