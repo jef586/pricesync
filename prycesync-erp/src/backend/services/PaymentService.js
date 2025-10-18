@@ -1,6 +1,7 @@
 import prisma from '../config/database.js'
 import EventEmitter from 'events'
 import { MercadoPagoMockProvider } from './providers/MercadoPagoMockProvider.js'
+import StockService from './StockService.js'
 
 // Simple event bus for emitting cashbox movements
 export const eventBus = new EventEmitter()
@@ -57,7 +58,7 @@ export class PaymentService {
     return { saleId: sale.id, status: sale.status, paid_total: Number(sale.paidTotal || 0), remaining: Number(remaining.toFixed(2)), payments }
   }
 
-  static async addSplitPayments(companyId, saleId, paymentsInput) {
+  static async addSplitPayments(companyId, saleId, paymentsInput, createdBy) {
     // Load sale and company config
     const [sale, company] = await Promise.all([
       prisma.salesOrder.findFirst({
@@ -168,6 +169,20 @@ export class PaymentService {
         },
         select: { id: true, status: true, totalRounded: true, paidTotal: true }
       })
+
+      // Trigger SALE_OUT stock movements when sale becomes fully paid
+      if (newStatus === 'paid') {
+        try {
+          await StockService.createSaleOutForOrder(tx, {
+            companyId,
+            saleId,
+            createdBy: createdBy || 'system'
+          })
+        } catch (err) {
+          // If stock fails, abort transaction
+          throw Object.assign(err, { httpCode: err?.httpCode || 500 })
+        }
+      }
 
       return {
         sale: updatedSale,

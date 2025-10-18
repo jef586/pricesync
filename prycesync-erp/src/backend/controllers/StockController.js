@@ -1,0 +1,151 @@
+import prisma from '../config/database.js'
+import StockService from '../services/StockService.js'
+
+class StockController {
+  static async listBalances(req, res) {
+    try {
+      const { page = 1, limit = 20, articleId, warehouseId } = req.query
+      const companyId = req.user.company.id
+      const skip = (Number(page) - 1) * Number(limit)
+
+      const where = {
+        companyId,
+        ...(articleId ? { articleId } : {}),
+        ...(warehouseId ? { warehouseId } : { warehouseId: null })
+      }
+
+      const [items, total] = await Promise.all([
+        prisma.stockBalance.findMany({
+          where,
+          include: { article: { select: { id: true, sku: true, name: true, categoryId: true } } },
+          orderBy: { updatedAt: 'desc' },
+          skip: Number(skip),
+          take: Number(limit)
+        }),
+        prisma.stockBalance.count({ where })
+      ])
+
+      res.json({
+        success: true,
+        data: items,
+        pagination: {
+          page: Number(page),
+          limit: Number(limit),
+          total,
+          pages: Math.ceil(total / Number(limit))
+        }
+      })
+    } catch (error) {
+      console.error('Error listBalances:', error)
+      res.status(500).json({ error: 'SERVER_ERROR', message: 'No se pudieron obtener balances de stock' })
+    }
+  }
+
+  static async listMovements(req, res) {
+    try {
+      const { page = 1, limit = 50, articleId, reason, direction, documentId } = req.query
+      const companyId = req.user.company.id
+      const skip = (Number(page) - 1) * Number(limit)
+
+      const where = {
+        companyId,
+        ...(articleId ? { articleId } : {}),
+        ...(reason ? { reason } : {}),
+        ...(direction ? { direction } : {}),
+        ...(documentId ? { documentId } : {})
+      }
+
+      const [items, total] = await Promise.all([
+        prisma.stockMovement.findMany({
+          where,
+          include: { article: { select: { id: true, sku: true, name: true } } },
+          orderBy: { createdAt: 'desc' },
+          skip: Number(skip),
+          take: Number(limit)
+        }),
+        prisma.stockMovement.count({ where })
+      ])
+
+      res.json({
+        success: true,
+        data: items,
+        pagination: {
+          page: Number(page),
+          limit: Number(limit),
+          total,
+          pages: Math.ceil(total / Number(limit))
+        }
+      })
+    } catch (error) {
+      console.error('Error listMovements:', error)
+      res.status(500).json({ error: 'SERVER_ERROR', message: 'No se pudieron obtener movimientos de stock' })
+    }
+  }
+
+  static async createMovement(req, res) {
+    try {
+      const companyId = req.user.company.id
+      const createdBy = req.user?.id || 'system'
+      const {
+        articleId,
+        warehouseId = null,
+        uom = 'UN',
+        qty,
+        direction, // 'IN' | 'OUT'
+        reason,
+        documentId = null,
+        documentType = null,
+        comment = null,
+        override = false,
+        clientOperationId = null
+      } = req.body || {}
+
+      if (!articleId) {
+        return res.status(400).json({ success: false, message: 'articleId es requerido' })
+      }
+      const qtyNumber = Number(qty)
+      if (!(qtyNumber > 0)) {
+        return res.status(400).json({ success: false, message: 'qty debe ser mayor a 0' })
+      }
+      const dir = (direction || '').toUpperCase()
+      if (!['IN', 'OUT'].includes(dir)) {
+        return res.status(400).json({ success: false, message: 'direction debe ser IN u OUT' })
+      }
+      if (!reason) {
+        return res.status(400).json({ success: false, message: 'reason es requerido' })
+      }
+
+      try {
+        const result = await prisma.$transaction(async (tx) => {
+          const { movement, balance } = await StockService.createMovement(tx, {
+            companyId,
+            articleId,
+            warehouseId,
+            uom,
+            qty: qtyNumber,
+            direction: dir,
+            reason,
+            documentId,
+            documentType,
+            comment,
+            override: !!override,
+            clientOperationId,
+            createdBy
+          })
+          return { movement, balance }
+        })
+
+        res.status(201).json({ success: true, message: 'Movimiento creado', data: result })
+      } catch (err) {
+        const code = err?.httpCode || 500
+        const msg = err?.message || 'Error creando movimiento'
+        return res.status(code).json({ success: false, message: msg })
+      }
+    } catch (error) {
+      console.error('Error createMovement:', error)
+      res.status(500).json({ error: 'SERVER_ERROR', message: 'No se pudo crear el movimiento' })
+    }
+  }
+}
+
+export default StockController

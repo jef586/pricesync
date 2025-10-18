@@ -52,9 +52,9 @@ export function inferDocType(raw = '') {
  */
 export function normalizeIvaCondition(value = '') {
   const v = String(value).toUpperCase()
-  if (/RESPONSABLE\s*INSCRIPTO|RI/.test(v)) return 'RI'
-  if (/MONOTRIBUTO|MONOTRIBUTISTA|MT/.test(v)) return 'MONOTRIBUTO'
-  if (/EXENTO|EXENTA/.test(v)) return 'EXENTO'
-  if (/CONSUMIDOR\s*FINAL|CF/.test(v)) return 'CF'
+  if (/\bRESPONSABLE\s*INSCRIPTO\b|^RI$|\bRI\b/.test(v)) return 'RI'
+  if (/\bMONOTRIBUTO\b|\bMONOTRIBUTISTA\b|^MT$|\bMT\b/.test(v)) return 'MONOTRIBUTO'
+  if (/\bEXENTO\b|\bEXENTA\b/.test(v)) return 'EXENTO'
+  if (/\bCONSUMIDOR\s*FINAL\b|^CF$|\bCF\b/.test(v)) return 'CF'
   return null
 }

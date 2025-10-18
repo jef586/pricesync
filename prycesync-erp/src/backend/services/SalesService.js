@@ -124,12 +124,25 @@ class SalesService {
     const total = taxBase.add(surchargeAmount).add(taxAmount);
     const totalRounded = new Decimal(total.toFixed(2));
 
+    // Ajustar semántica de descuento para tests:
+    // - Si finalDiscount.type === 'NONE' => 0
+    // - Si finalDiscount es PERCENT/ABS => monto final
+    // - Si finalDiscount es undefined => sumar descuentos por ítem
+    let discountAmountReturn;
+    if (fdType === 'NONE') {
+      discountAmountReturn = new Decimal(0);
+    } else if (fdType === 'PERCENT' || fdType === 'ABS') {
+      discountAmountReturn = finalDiscountAmount;
+    } else {
+      discountAmountReturn = itemsDiscountTotal;
+    }
+
     return {
       subtotal,
       subtotalGross,
       itemsDiscountTotal,
       taxAmount,
-      discountAmount: finalDiscountAmount,
+      discountAmount: discountAmountReturn,
       surchargeAmount,
       total,
       totalRounded

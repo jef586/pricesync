@@ -1,6 +1,7 @@
 import prisma from "../config/database.js";
 import SalesService from "../services/SalesService.js";
 import { randomUUID } from "crypto";
+import StockService from "../services/StockService.js";
 
 class SalesController {
   static async create(req, res) {
@@ -428,6 +429,15 @@ class SalesController {
           include: { items: true, payments: true }
         });
 
+        // If sale resumes and is fully paid, generate SALE_OUT movements
+        if (newStatus === 'paid') {
+          await StockService.createSaleOutForOrder(tx, {
+            companyId,
+            saleId: sale.id,
+            createdBy: req.user?.id || 'system'
+          })
+        }
+
         return {
           ok: true,
           saleId: updated.id,
@@ -445,66 +455,6 @@ class SalesController {
     } catch (error) {
       console.error("Error reanudando venta:", error);
       return res.status(500).json({ success: false, message: "Error interno reanudando venta" });
-    }
-  }
-
-  static async listParked(req, res) {
-    try {
-      const companyId = req.user?.company?.id;
-      if (!companyId) {
-        return res.status(403).json({ success: false, message: "Empresa no determinada para el usuario" });
-      }
-      const { search = "", page = 1, limit = 20 } = req.query;
-      const take = Math.max(1, Math.min(100, Number(limit)));
-      const skip = (Math.max(1, Number(page)) - 1) * take;
-
-      const where = {
-        companyId,
-        status: "parked",
-        OR: search
-          ? [
-              { parkToken: { contains: String(search), mode: "insensitive" } },
-              { customer: { name: { contains: String(search), mode: "insensitive" } } }
-            ]
-          : undefined
-      };
-
-      const [totalCount, rows] = await Promise.all([
-        prisma.salesOrder.count({ where }),
-        prisma.salesOrder.findMany({
-          where,
-          orderBy: { parkedAt: "desc" },
-          skip,
-          take,
-          select: {
-            id: true,
-            parkToken: true,
-            parkedAt: true,
-            totalRounded: true,
-            paidTotal: true,
-            customer: { select: { id: true, name: true } }
-          }
-        })
-      ]);
-
-      const data = rows.map((r) => ({
-        saleId: r.id,
-        token: r.parkToken,
-        customer: r.customer?.name || null,
-        total: Number(r.totalRounded || 0),
-        paid: Number(r.paidTotal || 0),
-        remaining: Number(((Number(r.totalRounded || 0) - Number(r.paidTotal || 0))).toFixed(2)),
-        parked_at: r.parkedAt
-      }));
-
-      return res.json({
-        success: true,
-        meta: { page: Number(page), limit: take, total: totalCount },
-        data
-      });
-    } catch (error) {
-      console.error("Error listando ventas estacionadas:", error);
-      return res.status(500).json({ success: false, message: "Error interno listando ventas estacionadas" });
     }
   }
 }

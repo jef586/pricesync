@@ -21,7 +21,7 @@ class PaymentController {
         return res.status(409).json({ success: false, message: 'Conflicto: la venta no admite pagos en su estado actual' })
       }
 
-      const result = await PaymentService.addSplitPayments(companyId, saleId, payments)
+      const result = await PaymentService.addSplitPayments(companyId, saleId, payments, req.user?.id)
       if (result?.error) {
         return res.status(result.error.code).json({ success: false, message: result.error.message })
       }

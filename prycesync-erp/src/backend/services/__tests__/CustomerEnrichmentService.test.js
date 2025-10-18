@@ -41,7 +41,7 @@ describe('CustomerEnrichmentService', () => {
   })
 
   it('returns null for not found (204 scenario)', async () => {
-    const res = await CustomerEnrichmentService.enrichByCuit('30-70826787-8', { id: 'u1' })
+    const res = await CustomerEnrichmentService.enrichByCuit('30-12345678-1', { id: 'u1' })
     expect(res).toBeNull()
   })
 

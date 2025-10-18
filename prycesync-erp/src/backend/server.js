@@ -13,6 +13,7 @@ import supplierRoutes from './routes/suppliers.js';
 import afipRoutes from './routes/afip.js';
 
 import salesRoutes from './routes/sales.js';
+import stockRoutes from './routes/stock.js';
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -47,6 +48,7 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/suppliers', supplierRoutes);
 app.use('/api/sales', salesRoutes);
+app.use('/api/stock', stockRoutes);
 app.use('/api/afip', afipRoutes);
 
 

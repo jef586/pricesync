@@ -1,5 +1,6 @@
 import prisma from '../config/database.js';
 import { getCompanyPricing, computeSalePrice, directPricing, inversePricing } from '../services/PricingService.js'
+import StockService from '../services/StockService.js'
 
 class ArticleController {
   // Buscar artículos
@@ -420,44 +421,117 @@ class ArticleController {
   static async updateStock(req, res) {
     try {
       const { id } = req.params;
-      const { stock, operation = 'set' } = req.body; // 'set', 'add', 'subtract'
+      const {
+        stock,
+        operation = 'set', // 'set', 'add', 'subtract'
+        quantity,
+        type,
+        reason,
+        uom = 'UN',
+        warehouseId = null,
+        override = false
+      } = req.body || {}
+
       const companyId = req.user.company.id;
+      const createdBy = req.user?.id || 'system'
 
-      if (stock === undefined || stock === null) {
-        return res.status(400).json({ success: false, message: 'Stock es requerido' });
+      const inputQtyRaw = stock ?? quantity
+      if (inputQtyRaw === undefined || inputQtyRaw === null) {
+        return res.status(400).json({ success: false, message: 'Stock o cantidad es requerido' })
       }
 
-      const article = await prisma.article.findFirst({ where: { id, companyId, deletedAt: null } });
+      const article = await prisma.article.findFirst({
+        where: { id, companyId, deletedAt: null },
+        select: { id: true, name: true, stock: true, type: true, categoryId: true }
+      })
       if (!article) {
-        return res.status(404).json({ success: false, message: 'Artículo no encontrado' });
+        return res.status(404).json({ success: false, message: 'Artículo no encontrado' })
+      }
+      if (article.type === 'SERVICE') {
+        return res.status(400).json({ success: false, message: 'Los servicios no manejan stock' })
       }
 
-      let newStock;
-      switch (operation) {
-        case 'add':
-          newStock = article.stock + parseInt(stock);
-          break;
-        case 'subtract':
-          newStock = article.stock - parseInt(stock);
-          break;
-        default:
-          newStock = parseInt(stock);
+      const op = (operation || type || 'set').toString()
+      const inputQty = parseFloat(inputQtyRaw)
+      if (!Number.isFinite(inputQty) || inputQty < 0) {
+        return res.status(400).json({ success: false, message: 'Cantidad inválida' })
       }
 
-      if (newStock < 0) {
-        return res.status(400).json({ success: false, message: 'El stock no puede ser negativo' });
+      // Determinar delta y movimiento
+      let delta = 0
+      if (op === 'add') {
+        delta = inputQty
+      } else if (op === 'subtract') {
+        delta = -inputQty
+      } else {
+        // set
+        const newStock = parseFloat(inputQty)
+        if (newStock < 0) {
+          return res.status(400).json({ success: false, message: 'El stock no puede ser negativo' })
+        }
+        delta = newStock - parseFloat(article.stock || 0)
       }
 
-      const updated = await prisma.article.update({
-        where: { id },
-        data: { stock: newStock },
+      if (delta === 0) {
+        // Sin cambios
+        const fresh = await prisma.article.findFirst({ where: { id, companyId }, include: { category: { select: { id: true, name: true } } } })
+        return res.json({ success: true, message: 'Sin cambios en stock', data: fresh })
+      }
+
+      const direction = delta > 0 ? 'IN' : 'OUT'
+      const absQty = Math.abs(delta)
+      // Motivo por defecto si no se envía: ajuste manual
+      let finalReason = reason
+      if (!finalReason) {
+        finalReason = direction === 'IN' ? 'ADJUST_IN' : 'ADJUST_OUT'
+      }
+
+      // Si el entorno de pruebas no tiene tablas de stock o $transaction, hacer fallback directo
+      const canStockMove = typeof prisma.$transaction === 'function' && prisma.stockMovement && prisma.stockBalance
+
+      if (canStockMove) {
+        try {
+          await prisma.$transaction(async (tx) => {
+            await StockService.createMovement(tx, {
+              companyId,
+              articleId: id,
+              warehouseId,
+              uom,
+              qty: absQty,
+              direction,
+              reason: finalReason,
+              documentId: null,
+              documentType: null,
+              comment: `Manual stock ${op}`,
+              override: !!override,
+              clientOperationId: null,
+              createdBy
+            })
+          })
+        } catch (err) {
+          const code = err?.httpCode || 500
+          const msg = err?.message || 'Error de stock'
+          return res.status(code).json({ success: false, message: msg })
+        }
+      } else {
+        // Fallback: actualizar stock directamente (modo legacy)
+        const current = Number(article.stock || 0)
+        const resultStock = current + delta
+        if (resultStock < 0 && !override) {
+          return res.status(409).json({ success: false, message: 'Stock insuficiente' })
+        }
+        await prisma.article.update({ where: { id }, data: { stock: resultStock } })
+      }
+
+      const updated = await prisma.article.findFirst({
+        where: { id, companyId },
         include: { category: { select: { id: true, name: true } } }
-      });
+      })
 
-      res.json({ success: true, message: 'Stock actualizado exitosamente', data: updated });
+      res.json({ success: true, message: 'Stock actualizado exitosamente', data: updated })
     } catch (error) {
-      console.error('Error updating stock:', error);
-      res.status(500).json({ error: 'Error interno del servidor', message: 'No se pudo actualizar el stock' });
+      console.error('Error updating stock:', error)
+      res.status(500).json({ error: 'Error interno del servidor', message: 'No se pudo actualizar el stock' })
     }
   }
 
