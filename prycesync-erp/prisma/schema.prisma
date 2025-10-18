@@ -292,7 +292,7 @@ model Article {
 
   // Impuesto interno
   internalTaxType  InternalTaxType?
-  internalTaxValue Decimal?  @map("internal_tax_value") @db.Decimal(12, 2)
+  internalTaxValue Decimal? @map("internal_tax_value") @db.Decimal(12, 2)
 
   // Flags fiscales
   subjectIIBB       Boolean   @default(false) @map("subject_iibb")
@@ -475,15 +475,41 @@ model InvoiceItem {
   taxAmount Decimal @map("tax_amount") @db.Decimal(10, 2)
   total     Decimal @db.Decimal(10, 2)
 
-  // Relaciones
   invoiceId String   @map("invoice_id")
   invoice   Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   articleId String?  @map("article_id") // Hacer opcional para permitir items sin artículo
   article   Article? @relation(fields: [articleId], references: [id])
 
+  // Snapshot de precio/impuestos/UoM
+  articleName String? @map("article_name")
+  sku         String?
+  barcode     String?
+
+  uom        UoM            @map("uom")
+  uomFactor  Decimal        @map("uom_factor") @db.Decimal(12, 6)
+  qty        Decimal        @map("qty") @db.Decimal(12, 3)
+  qtyUn      Decimal        @map("qty_un") @db.Decimal(12, 3)
+
+  unitPriceNet   Decimal    @map("unit_price_net") @db.Decimal(10, 2)
+  unitPriceGross Decimal    @map("unit_price_gross") @db.Decimal(10, 2)
+
+  internalTaxType  InternalTaxType? @map("internal_tax_type")
+  internalTaxValue Decimal?         @map("internal_tax_value") @db.Decimal(12,  2)
+
+  vatRate       Decimal       @map("vat_rate") @db.Decimal(5, 2)
+  discountType  DiscountType? @map("discount_type")
+  discountValue Decimal       @default(0) @map("discount_value") @db.Decimal(12, 2)
+  discountTotal Decimal       @default(0) @map("discount_total") @db.Decimal(10, 2)
+
+  subtotalNet    Decimal @map("subtotal_net") @db.Decimal(10, 2)
+  taxTotal       Decimal @map("tax_total") @db.Decimal(10, 2)
+  lineTotalGross Decimal @map("line_total_gross") @db.Decimal(10, 2)
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  @@index([invoiceId], map: "idx_invoice_items_invoice")
+  @@index([articleId], map: "idx_invoice_items_article")
   @@map("invoice_items")
 }
 

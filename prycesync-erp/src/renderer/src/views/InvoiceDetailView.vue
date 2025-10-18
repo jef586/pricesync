@@ -199,13 +199,16 @@
                   <td class="px-6 py-4 whitespace-nowrap">
                     <div>
                       <p class="text-sm font-medium text-gray-900">
-                        {{ item.product?.name || 'Producto personalizado' }}
+                        {{ item.article?.name || item.articleName || item.product?.name || item.description || 'Producto/Servicio' }}
                       </p>
-                      <p v-if="item.product?.code" class="text-sm text-gray-500">
-                        Código: {{ item.product.code }}
+                      <p v-if="item.article?.sku || item.sku || item.product?.code" class="text-sm text-gray-500">
+                        Código/SKU: {{ item.article?.sku || item.sku || item.product?.code }}
                       </p>
-                      <p v-if="item.product?.description" class="text-sm text-gray-500">
-                        {{ item.product.description }}
+                      <p v-if="item.article?.barcode || item.barcode" class="text-sm text-gray-500">
+                        Barcode: {{ item.article?.barcode || item.barcode }}
+                      </p>
+                      <p v-if="item.description" class="text-sm text-gray-500">
+                        {{ item.description }}
                       </p>
                     </div>
                   </td>

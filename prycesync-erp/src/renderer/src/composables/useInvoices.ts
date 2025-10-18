@@ -33,6 +33,7 @@ interface Invoice {
 
 interface InvoiceItem {
   id: string
+  articleId?: string
   productId?: string
   quantity: number
   unitPrice: number
@@ -41,6 +42,17 @@ interface InvoiceItem {
   subtotal: number
   taxAmount: number
   total: number
+  // Snapshots
+  articleName?: string
+  sku?: string
+  barcode?: string
+  // Relations
+  article?: {
+    id: string
+    name: string
+    sku?: string
+    barcode?: string
+  }
   product?: {
     id: string
     name: string
@@ -55,12 +67,15 @@ interface CreateInvoiceData {
   dueDate?: string
   notes?: string
   items: {
+    articleId?: string
     productId?: string
     description?: string
     quantity: number
     unitPrice: number
     discount?: number
     taxRate?: number
+    discountType?: 'PERCENT' | 'ABSOLUTE'
+    discountValue?: number
   }[]
 }
 

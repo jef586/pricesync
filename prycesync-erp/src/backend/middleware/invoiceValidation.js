@@ -43,6 +43,11 @@ export const validateCreateInvoice = [
     .optional()
     .custom(isCUID)
     .withMessage('El ID del producto debe ser un CUID válido'),
+
+  body('items.*.articleId')
+    .optional()
+    .custom(isCUID)
+    .withMessage('El ID del artículo debe ser un CUID válido'),
   
   body('items.*.quantity')
     .isFloat({ min: 0.01 })
@@ -56,11 +61,37 @@ export const validateCreateInvoice = [
     .optional()
     .isFloat({ min: 0, max: 100 })
     .withMessage('El descuento debe estar entre 0 y 100'),
+
+  body('items.*.discountType')
+    .optional()
+    .isIn(['PERCENT', 'ABSOLUTE'])
+    .withMessage('El tipo de descuento debe ser PERCENT o ABSOLUTE'),
+
+  body('items.*.discountValue')
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage('El valor de descuento debe ser mayor o igual a 0'),
   
   body('items.*.taxRate')
     .optional()
     .isFloat({ min: 0, max: 100 })
     .withMessage('La tasa de impuesto debe estar entre 0 y 100'),
+  
+  body('items.*.articleName').not().exists().withMessage('articleName es calculado por el servidor'),
+  body('items.*.sku').not().exists().withMessage('sku es calculado por el servidor'),
+  body('items.*.barcode').not().exists().withMessage('barcode es calculado por el servidor'),
+  body('items.*.uomId').not().exists().withMessage('uomId es calculado por el servidor'),
+  body('items.*.uomCode').not().exists().withMessage('uomCode es calculado por el servidor'),
+  body('items.*.uomPrecision').not().exists().withMessage('uomPrecision es calculado por el servidor'),
+  body('items.*.unitPriceNet').not().exists().withMessage('unitPriceNet es calculado por el servidor'),
+  body('items.*.unitPriceGross').not().exists().withMessage('unitPriceGross es calculado por el servidor'),
+  body('items.*.internalTaxType').not().exists().withMessage('internalTaxType es calculado por el servidor'),
+  body('items.*.internalTaxValue').not().exists().withMessage('internalTaxValue es calculado por el servidor'),
+  body('items.*.vatRate').not().exists().withMessage('vatRate es calculado por el servidor'),
+  body('items.*.discountTotal').not().exists().withMessage('discountTotal es calculado por el servidor'),
+  body('items.*.subtotalNet').not().exists().withMessage('subtotalNet es calculado por el servidor'),
+  body('items.*.taxTotal').not().exists().withMessage('taxTotal es calculado por el servidor'),
+  body('items.*.lineTotalGross').not().exists().withMessage('lineTotalGross es calculado por el servidor'),
   
   body('notes')
     .optional()
@@ -132,6 +163,11 @@ export const validateUpdateInvoice = [
     .optional()
     .custom(isCUID)
     .withMessage('El ID del producto debe ser un CUID válido'),
+
+  body('items.*.articleId')
+    .optional()
+    .custom(isCUID)
+    .withMessage('El ID del artículo debe ser un CUID válido'),
   
   body('items.*.description')
     .optional()
@@ -152,11 +188,37 @@ export const validateUpdateInvoice = [
     .optional()
     .isFloat({ min: 0, max: 100 })
     .withMessage('El descuento debe estar entre 0 y 100'),
+
+  body('items.*.discountType')
+    .optional()
+    .isIn(['PERCENT', 'ABSOLUTE'])
+    .withMessage('El tipo de descuento debe ser PERCENT o ABSOLUTE'),
+
+  body('items.*.discountValue')
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage('El valor de descuento debe ser mayor o igual a 0'),
   
   body('items.*.taxRate')
     .optional()
     .isFloat({ min: 0, max: 100 })
     .withMessage('La tasa de impuesto debe estar entre 0 y 100'),
+  
+  body('items.*.articleName').not().exists().withMessage('articleName es calculado por el servidor'),
+  body('items.*.sku').not().exists().withMessage('sku es calculado por el servidor'),
+  body('items.*.barcode').not().exists().withMessage('barcode es calculado por el servidor'),
+  body('items.*.uomId').not().exists().withMessage('uomId es calculado por el servidor'),
+  body('items.*.uomCode').not().exists().withMessage('uomCode es calculado por el servidor'),
+  body('items.*.uomPrecision').not().exists().withMessage('uomPrecision es calculado por el servidor'),
+  body('items.*.unitPriceNet').not().exists().withMessage('unitPriceNet es calculado por el servidor'),
+  body('items.*.unitPriceGross').not().exists().withMessage('unitPriceGross es calculado por el servidor'),
+  body('items.*.internalTaxType').not().exists().withMessage('internalTaxType es calculado por el servidor'),
+  body('items.*.internalTaxValue').not().exists().withMessage('internalTaxValue es calculado por el servidor'),
+  body('items.*.vatRate').not().exists().withMessage('vatRate es calculado por el servidor'),
+  body('items.*.discountTotal').not().exists().withMessage('discountTotal es calculado por el servidor'),
+  body('items.*.subtotalNet').not().exists().withMessage('subtotalNet es calculado por el servidor'),
+  body('items.*.taxTotal').not().exists().withMessage('taxTotal es calculado por el servidor'),
+  body('items.*.lineTotalGross').not().exists().withMessage('lineTotalGross es calculado por el servidor'),
   
   handleValidationErrors
 ];
@@ -305,7 +367,7 @@ export const validateInvoiceItems = (req, res, next) => {
     const item = items[i];
     
     // Validar que cada item tenga los campos requeridos
-    if (!item.quantity || !item.unitPrice) {
+    if (!item.quantity || item.unitPrice === undefined) {
       return res.status(400).json({
         success: false,
         message: `El item ${i + 1} debe tener quantity y unitPrice`
@@ -327,12 +389,29 @@ export const validateInvoiceItems = (req, res, next) => {
       });
     }
 
-    // Validar descuento si está presente
+    // Validar descuento si está presente (formato legado)
     if (item.discount !== undefined) {
       if (typeof item.discount !== 'number' || item.discount < 0 || item.discount > 100) {
         return res.status(400).json({
           success: false,
           message: `El descuento del item ${i + 1} debe estar entre 0 y 100`
+        });
+      }
+    }
+
+    // Validar esquema alternativo de descuento si está presente
+    if (item.discountType !== undefined || item.discountValue !== undefined) {
+      const validType = ['PERCENT', 'ABSOLUTE'];
+      if (item.discountType !== undefined && !validType.includes(item.discountType)) {
+        return res.status(400).json({
+          success: false,
+          message: `El tipo de descuento del item ${i + 1} debe ser PERCENT o ABSOLUTE`
+        });
+      }
+      if (item.discountValue !== undefined && (typeof item.discountValue !== 'number' || item.discountValue < 0)) {
+        return res.status(400).json({
+          success: false,
+          message: `El valor de descuento del item ${i + 1} debe ser un número mayor o igual a 0`
         });
       }
     }
@@ -343,6 +422,21 @@ export const validateInvoiceItems = (req, res, next) => {
         return res.status(400).json({
           success: false,
           message: `La tasa de impuesto del item ${i + 1} debe estar entre 0 y 100`
+        });
+      }
+    }
+
+    // No aceptar campos de snapshot provenientes del cliente
+    const snapshotFields = [
+      'articleName','sku','barcode','uomId','uomCode','uomPrecision',
+      'unitPriceNet','unitPriceGross','internalTaxType','internalTaxValue','vatRate',
+      'discountTotal','subtotalNet','taxTotal','lineTotalGross'
+    ];
+    for (const f of snapshotFields) {
+      if (Object.prototype.hasOwnProperty.call(item, f)) {
+        return res.status(400).json({
+          success: false,
+          message: `El campo ${f} del item ${i + 1} es calculado por el servidor`
         });
       }
     }

@@ -447,14 +447,15 @@ const loadInvoice = async () => {
       notes: invoiceData.notes || '',
       number: invoiceData.number,
       items: invoiceData.items.map(item => ({
-        id: item.id,
-        tempId: item.id,
-        description: item.description || item.product?.name || item.product?.description || '',
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        taxRate: item.taxRate,
-        subtotal: item.subtotal
-      }))
+      id: item.id,
+      tempId: item.id,
+      articleId: item.articleId || item.productId || null,
+      description: item.description || item.articleName || item.article?.name || item.product?.name || item.product?.description || '',
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      taxRate: item.taxRate,
+      subtotal: item.subtotal
+    }))
     }
     
     // Set selected customer
@@ -634,7 +635,7 @@ const updateInvoice = async () => {
       notes: form.value.notes,
       items: form.value.items.map(item => ({
         id: item.id,
-        productId: item.productId || null,
+        articleId: item.articleId ?? item.productId ?? null,
         description: item.description,
         quantity: item.quantity,
         unitPrice: item.unitPrice,

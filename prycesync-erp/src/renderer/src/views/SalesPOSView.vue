@@ -222,7 +222,7 @@ const isSubmitting = ref(false)
 const showConfirmPark = ref(false)
 
 // Carrito (local view state, synced from sales store)
-const cartItems = ref<Array<{ tempId: string, productId: string, name: string, code: string, quantity: number, unitPrice: number, discountType?: 'PERCENT' | 'ABS', discountValue?: number, isDiscountable?: boolean }>>([])
+const cartItems = ref<Array<{ tempId: string, productId: string, articleId?: string, name: string, code: string, quantity: number, unitPrice: number, discountType?: 'PERCENT' | 'ABS', discountValue?: number, isDiscountable?: boolean }>>([])
 const sales = useSalesStore()
 let barcodeCtrl: ReturnType<typeof useBarcodeListener> | null = null
 

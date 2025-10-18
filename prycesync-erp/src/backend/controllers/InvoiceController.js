@@ -91,46 +91,63 @@ class InvoiceController {
       const processedItems = [];
 
       for (const item of items) {
-        const { productId, description, quantity, unitPrice, discount = 0, taxRate = 21 } = item;
+        const { articleId: rawArticleId, productId: rawProductId, description, quantity, unitPrice, discount = 0, taxRate } = item;
+        const refId = rawArticleId ?? rawProductId ?? null;
 
-        // Verificar que el producto existe
-        if (productId) {
-          const product = await prisma.product.findFirst({
-            where: {
-              id: productId,
-              companyId: companyId,
-              deletedAt: null
-            }
+        // Verificar que el artículo existe (compat productId)
+        let article = null;
+        if (refId) {
+          article = await prisma.article.findFirst({
+            where: { id: refId, companyId, deletedAt: null }
           });
-
-          if (!product) {
-            return res.status(404).json({
-              success: false,
-              message: `Producto con ID ${productId} no encontrado`
-            });
+          if (!article) {
+            return res.status(404).json({ success: false, message: `Artículo con ID ${refId} no encontrado` });
           }
         }
 
         // Calcular montos del item
         const itemQuantity = new Decimal(quantity);
         const itemUnitPrice = new Decimal(unitPrice);
-        const itemDiscount = new Decimal(discount);
-        const itemTaxRate = new Decimal(taxRate);
+        const itemDiscountPct = new Decimal(discount);
+        const effectiveTaxRate = new Decimal(
+          taxRate != null ? taxRate : (article?.taxRate != null ? Number(article.taxRate) : 21)
+        );
 
-        const itemSubtotal = itemQuantity.mul(itemUnitPrice).mul(new Decimal(1).sub(itemDiscount.div(100)));
-        const itemTaxAmount = itemSubtotal.mul(itemTaxRate.div(100));
+        const rawSubtotal = itemQuantity.mul(itemUnitPrice);
+        const discountTotal = itemDiscountPct.gt(0) ? rawSubtotal.mul(itemDiscountPct.div(100)) : new Decimal(0);
+        const itemSubtotal = rawSubtotal.sub(discountTotal);
+        const itemTaxAmount = itemSubtotal.mul(effectiveTaxRate.div(100));
         const itemTotal = itemSubtotal.add(itemTaxAmount);
 
         processedItems.push({
-          productId: productId || null,
-          description: description || null,
+          articleId: refId || null,
+          description: description || (article ? article.name : null),
           quantity: itemQuantity,
           unitPrice: itemUnitPrice,
-          discount: itemDiscount,
-          taxRate: itemTaxRate,
+          discount: itemDiscountPct,
+          taxRate: effectiveTaxRate,
           subtotal: itemSubtotal,
           taxAmount: itemTaxAmount,
-          total: itemTotal
+          total: itemTotal,
+          // Snapshots
+          articleName: article?.name || null,
+          sku: article?.sku || null,
+          barcode: article?.barcode || null,
+          uom: 'UN',
+          uomFactor: new Decimal(1),
+          qty: itemQuantity,
+          qtyUn: itemQuantity,
+          unitPriceNet: itemUnitPrice,
+          unitPriceGross: itemUnitPrice.mul(new Decimal(1).add(effectiveTaxRate.div(100))),
+          internalTaxType: article?.internalTaxType || null,
+          internalTaxValue: article?.internalTaxValue != null ? new Decimal(article.internalTaxValue) : null,
+          vatRate: effectiveTaxRate,
+          discountType: itemDiscountPct.gt(0) ? 'PERCENT' : null,
+          discountValue: itemDiscountPct,
+          discountTotal: discountTotal,
+          subtotalNet: itemSubtotal,
+          taxTotal: itemTaxAmount,
+          lineTotalGross: itemTotal
         });
 
         subtotal = subtotal.add(itemSubtotal);
@@ -163,7 +180,7 @@ class InvoiceController {
           await tx.invoiceItem.create({
             data: {
               invoiceId: newInvoice.id,
-              productId: item.productId,
+              articleId: item.articleId,
               description: item.description,
               quantity: item.quantity,
               unitPrice: item.unitPrice,
@@ -171,7 +188,26 @@ class InvoiceController {
               taxRate: item.taxRate,
               subtotal: item.subtotal,
               taxAmount: item.taxAmount,
-              total: item.total
+              total: item.total,
+              // Snapshots
+              articleName: item.articleName,
+              sku: item.sku,
+              barcode: item.barcode,
+              uom: item.uom,
+              uomFactor: item.uomFactor,
+              qty: item.qty,
+              qtyUn: item.qtyUn,
+              unitPriceNet: item.unitPriceNet,
+              unitPriceGross: item.unitPriceGross,
+              internalTaxType: item.internalTaxType,
+              internalTaxValue: item.internalTaxValue,
+              vatRate: item.vatRate,
+              discountType: item.discountType ? 'PERCENT' : null,
+              discountValue: item.discountValue,
+              discountTotal: item.discountTotal,
+              subtotalNet: item.subtotalNet,
+              taxTotal: item.taxTotal,
+              lineTotalGross: item.lineTotalGross
             }
           });
         }
@@ -194,23 +230,10 @@ class InvoiceController {
           },
           items: {
             include: {
-              product: {
-                select: {
-                  id: true,
-                  name: true,
-                  code: true,
-                  description: true
-                }
-              }
+              article: { select: { id: true, name: true, sku: true, description: true, category: { select: { id: true, name: true } } } }
             }
           },
-          company: {
-            select: {
-              id: true,
-              name: true,
-              taxId: true
-            }
-          }
+          company: { select: { id: true, name: true, taxId: true } }
         }
       });
 
@@ -454,15 +477,7 @@ class InvoiceController {
   static async update(req, res) {
     try {
       const { id } = req.params;
-      const { 
-        type, 
-        customerId, 
-        dueDate, 
-        notes, 
-        items = [], 
-        status, 
-        paidDate 
-      } = req.body;
+      const { type, customerId, dueDate, notes, items = [], status, paidDate } = req.body;
       const companyId = req.user.company.id;
 
       // Verificar que la factura existe y pertenece a la empresa
@@ -500,44 +515,65 @@ class InvoiceController {
       let total = 0;
 
       if (items && items.length > 0) {
-        // Validar items
         for (const item of items) {
           if (!item.quantity || item.quantity <= 0) {
-            return res.status(400).json({
-              success: false,
-              message: 'La cantidad debe ser mayor a 0'
-            });
+            return res.status(400).json({ success: false, message: 'La cantidad debe ser mayor a 0' });
+          }
+          if (item.unitPrice == null || item.unitPrice < 0) {
+            return res.status(400).json({ success: false, message: 'El precio unitario debe ser mayor o igual a 0' });
           }
 
-          if (!item.unitPrice || item.unitPrice < 0) {
-            return res.status(400).json({
-              success: false,
-              message: 'El precio unitario debe ser mayor o igual a 0'
-            });
+          const refId = item.articleId ?? item.productId ?? null;
+          let article = null;
+          if (refId) {
+            article = await prisma.article.findFirst({ where: { id: refId, companyId, deletedAt: null } });
+            if (!article) return res.status(404).json({ success: false, message: 'Artículo no encontrado: ' + refId });
+            item.articleId = refId;
+            if (!item.description) item.description = article.name;
+          } else {
+            if (!item.description) return res.status(400).json({ success: false, message: 'Descripción requerida cuando no hay articleId' });
           }
 
           const quantity = parseFloat(item.quantity);
           const unitPrice = parseFloat(item.unitPrice);
           const discount = parseFloat(item.discount || 0);
-          const taxRate = parseFloat(item.taxRate || 21);
+          const taxRate = parseFloat(item.taxRate != null ? item.taxRate : (article?.taxRate ?? 21));
 
-          const itemSubtotal = quantity * unitPrice;
-          const discountAmount = (itemSubtotal * discount) / 100;
-          const itemSubtotalAfterDiscount = itemSubtotal - discountAmount;
+          const itemSubtotalGross = quantity * unitPrice;
+          const discountAmount = (itemSubtotalGross * discount) / 100;
+          const itemSubtotalAfterDiscount = itemSubtotalGross - discountAmount;
           const itemTaxAmount = (itemSubtotalAfterDiscount * taxRate) / 100;
           const itemTotal = itemSubtotalAfterDiscount + itemTaxAmount;
 
           processedItems.push({
-            id: item.id || undefined,
-            productId: item.productId || null,
-            quantity: quantity,
-            unitPrice: unitPrice,
-            discount: discount,
-            taxRate: taxRate,
+            articleId: item.articleId || null,
+            quantity,
+            unitPrice,
+            discount,
+            taxRate,
             subtotal: itemSubtotalAfterDiscount,
             taxAmount: itemTaxAmount,
             total: itemTotal,
-            description: item.description || null
+            description: item.description || null,
+            // Snapshots
+            articleName: article?.name || null,
+            sku: article?.sku || null,
+            barcode: article?.barcode || null,
+            uom: 'UN',
+            uomFactor: new Decimal(1),
+            qty: new Decimal(quantity),
+            qtyUn: new Decimal(quantity),
+            unitPriceNet: new Decimal(unitPrice),
+            unitPriceGross: new Decimal(unitPrice * (1 + taxRate / 100)),
+            internalTaxType: article?.internalTaxType || null,
+            internalTaxValue: article?.internalTaxValue != null ? new Decimal(article.internalTaxValue) : null,
+            vatRate: new Decimal(taxRate),
+            discountType: discount > 0 ? 'PERCENT' : null,
+            discountValue: new Decimal(discount),
+            discountTotal: new Decimal(discountAmount),
+            subtotalNet: new Decimal(itemSubtotalAfterDiscount),
+            taxTotal: new Decimal(itemTaxAmount),
+            lineTotalGross: new Decimal(itemTotal)
           });
 
           subtotal += itemSubtotalAfterDiscount;
@@ -603,56 +639,22 @@ class InvoiceController {
       const completeInvoice = await prisma.invoice.findUnique({
         where: { id },
         include: {
-          customer: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              phone: true,
-              taxId: true,
-              type: true,
-              address: true,
-              city: true,
-              state: true,
-              country: true,
-              zipCode: true
-            }
-          },
+          customer: { select: { id: true, name: true, email: true, phone: true, taxId: true, type: true, address: true, city: true, state: true, country: true, zipCode: true } },
           items: {
             include: {
-              product: {
+              article: {
                 select: {
                   id: true,
                   name: true,
-                  code: true,
+                  sku: true,
                   description: true,
-                  category: {
-                    select: {
-                      id: true,
-                      name: true
-                    }
-                  }
+                  category: { select: { id: true, name: true } }
                 }
               }
             },
-            orderBy: {
-              createdAt: 'asc'
-            }
+            orderBy: { createdAt: 'asc' }
           },
-          company: {
-            select: {
-              id: true,
-              name: true,
-              taxId: true,
-              address: true,
-              city: true,
-              state: true,
-              country: true,
-              zipCode: true,
-              phone: true,
-              email: true
-            }
-          }
+          company: { select: { id: true, name: true, taxId: true, address: true, city: true, state: true, country: true, zipCode: true, phone: true, email: true } }
         }
       });
 
@@ -826,17 +828,42 @@ class InvoiceController {
 
         // Duplicar items
         for (const item of originalInvoice.items) {
+          const articleId = item.articleId ?? item.productId ?? null;
+          let taxRate = Number(item.taxRate ?? 21);
+          const unitPrice = Number(item.unitPrice);
+          const quantity = Number(item.quantity);
+          const discount = Number(item.discount || 0);
+          const gross = quantity * unitPrice;
+          const discountTotal = (gross * discount) / 100;
+          const net = gross - discountTotal;
+          const taxAmount = (net * taxRate) / 100;
+          const total = net + taxAmount;
+
           await tx.invoiceItem.create({
             data: {
               invoiceId: newInvoice.id,
-              productId: item.productId,
-              quantity: item.quantity,
-              unitPrice: item.unitPrice,
-              discount: item.discount,
-              taxRate: item.taxRate,
-              subtotal: item.subtotal,
-              taxAmount: item.taxAmount,
-              total: item.total
+              articleId: articleId,
+              quantity: quantity,
+              unitPrice: unitPrice,
+              discount: discount,
+              taxRate: taxRate,
+              subtotal: net,
+              taxAmount: taxAmount,
+              total: total,
+              // Snapshots
+              uom: 'UN',
+              uomFactor: new Decimal(1),
+              qty: new Decimal(quantity),
+              qtyUn: new Decimal(quantity),
+              unitPriceNet: new Decimal(unitPrice),
+              unitPriceGross: new Decimal(unitPrice * (1 + taxRate / 100)),
+              vatRate: new Decimal(taxRate),
+              discountType: discount > 0 ? 'PERCENT' : null,
+              discountValue: new Decimal(discount),
+              discountTotal: new Decimal(discountTotal),
+              subtotalNet: new Decimal(net),
+              taxTotal: new Decimal(taxAmount),
+              lineTotalGross: new Decimal(total)
             }
           });
         }
@@ -848,27 +875,8 @@ class InvoiceController {
       const completeInvoice = await prisma.invoice.findUnique({
         where: { id: duplicatedInvoice.id },
         include: {
-          customer: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              taxId: true,
-              type: true
-            }
-          },
-          items: {
-            include: {
-              product: {
-                select: {
-                  id: true,
-                  name: true,
-                  code: true,
-                  description: true
-                }
-              }
-            }
-          }
+          customer: { select: { id: true, name: true, email: true, taxId: true, type: true } },
+          items: { include: { article: { select: { id: true, name: true, sku: true, description: true } } } }
         }
       });
 

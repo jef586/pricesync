@@ -3,6 +3,7 @@ import type { CreateInvoiceData } from './useInvoices'
 export type CartItem = {
   tempId: string
   productId: string
+  articleId?: string
   name: string
   code: string
   quantity: number
@@ -30,7 +31,7 @@ export function usePOS() {
       customerId,
       type,
       items: items.map(it => ({
-        productId: it.productId,
+        articleId: it.articleId ?? it.productId,
         quantity: it.quantity,
         unitPrice: it.unitPrice,
         discount: it.discount || 0,
