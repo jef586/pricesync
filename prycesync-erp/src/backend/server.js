@@ -11,6 +11,7 @@ import categoryRoutes from './routes/categories.js';
 import reportRoutes from './routes/reports.js';
 import supplierRoutes from './routes/suppliers.js';
 import afipRoutes from './routes/afip.js';
+import importsRoutes from './routes/imports.js'
 
 import salesRoutes from './routes/sales.js';
 import stockRoutes from './routes/stock.js';
@@ -50,6 +51,7 @@ app.use('/api/suppliers', supplierRoutes);
 app.use('/api/sales', salesRoutes);
 app.use('/api/stock', stockRoutes);
 app.use('/api/afip', afipRoutes);
+app.use('/api/imports', importsRoutes)
 
 
 // Endpoint de health check

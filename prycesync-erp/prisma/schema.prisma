@@ -808,3 +808,85 @@ model StockBalance {
   @@index([warehouseId, articleId], map: "idx_stock_balances_wh_article")
   @@map("stock_balances")
 }
+
+// ============================================================================
+// IMPORT JOBS & PRESETS SCHEMA
+// ============================================================================
+
+enum ImportJobStatus {
+  pending
+  processing
+  completed
+  failed
+}
+
+model SupplierPreset {
+  id        String  @id @default(cuid())
+  name      String
+  description String?
+  isActive  Boolean @default(true) @map("is_active")
+
+  // Target supplier (optional preset general)
+  supplierId String?  @map("supplier_id")
+  supplier   Supplier? @relation(fields: [supplierId], references: [id])
+
+  // Column→field mapping and defaults
+  mapping   Json      @default("{}") // e.g. { barcode:"Codigo", description:"Descripción", cost:"Costo" }
+  defaults  Json      @default("{}") // e.g. { iva:21, internalTaxType:"NONE" }
+
+  // Auditoría
+  createdBy String    @map("created_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  companyId String    @map("company_id")
+  company   Company   @relation(fields: [companyId], references: [id])
+
+  // Uniqueness: per company and supplier (optional) by name
+  @@unique([companyId, supplierId, name], map: "uniq_supplier_presets_company_supplier_name")
+  @@map("supplier_presets")
+}
+
+model ImportJob {
+  id          String          @id @default(cuid())
+  status      ImportJobStatus @default(pending)
+
+  // Archivo y preset
+  fileName    String          @map("file_name")
+  fileHash    String?         @map("file_hash")
+  presetId    String?         @map("preset_id")
+  preset      SupplierPreset? @relation(fields: [presetId], references: [id])
+
+  // Contexto
+  supplierId  String?         @map("supplier_id")
+  supplier    Supplier?       @relation(fields: [supplierId], references: [id])
+  companyId   String          @map("company_id")
+  company     Company         @relation(fields: [companyId], references: [id])
+  startedBy   String          @map("started_by") // user id
+
+  // Flags
+  isDryRun    Boolean         @default(true) @map("is_dry_run")
+  chunkSize   Int             @default(500)  @map("chunk_size")
+
+  // Métricas
+  totalRows      Int      @default(0) @map("total_rows")
+  processedRows  Int      @default(0) @map("processed_rows")
+  createdCount   Int      @default(0) @map("created_count")
+  updatedCount   Int      @default(0) @map("updated_count")
+  skippedCount   Int      @default(0) @map("skipped_count")
+  errorCount     Int      @default(0) @map("error_count")
+  warningCount   Int      @default(0) @map("warning_count")
+
+  // Enlaces/logs
+  previewJson Json?    @map("preview_json")
+  logCsvPath  String?  @map("log_csv_path")
+
+  // Auditoría
+  startedAt   DateTime  @default(now()) @map("started_at")
+  finishedAt  DateTime? @map("finished_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@index([companyId, status], map: "idx_import_jobs_company_status")
+  @@map("import_jobs")
+}

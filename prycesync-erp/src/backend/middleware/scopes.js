@@ -1,10 +1,10 @@
 // Middleware de verificación de scopes basado en rol
 
 const ROLE_SCOPES = {
-  admin: new Set(['article:read', 'article:write', 'stock:read', 'stock:write', 'stock:override']),
-  manager: new Set(['article:read', 'article:write', 'stock:read', 'stock:write']),
-  user: new Set(['article:read', 'stock:read']),
-  viewer: new Set(['article:read', 'stock:read'])
+  admin: new Set(['article:read', 'article:write', 'stock:read', 'stock:write', 'stock:override', 'imports:read', 'imports:write']),
+  manager: new Set(['article:read', 'article:write', 'stock:read', 'stock:write', 'imports:read', 'imports:write']),
+  user: new Set(['article:read', 'stock:read', 'imports:read']),
+  viewer: new Set(['article:read', 'stock:read', 'imports:read'])
 }
 
 export function requireScopes(...required) {

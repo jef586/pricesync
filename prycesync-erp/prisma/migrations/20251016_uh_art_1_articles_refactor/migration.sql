@@ -28,6 +28,8 @@ BEGIN
     WHERE table_name='articles' AND column_name='status'
   ) THEN
     UPDATE "articles" SET "active" = ("status"::text = 'active');
+    -- drop legacy status column
+    ALTER TABLE "articles" DROP COLUMN "status";
   END IF;
 
   -- Tipos: ProductType → ArticleType
@@ -220,7 +222,12 @@ CREATE TABLE IF NOT EXISTS "article_bundle_components" (
   CONSTRAINT "uniq_bundle_component" UNIQUE ("article_id","component_article_id")
 );
 
-CREATE TYPE IF NOT EXISTS "UoM" AS ENUM ('UN','BU','KG','LT');
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'UoM') THEN
+    CREATE TYPE "UoM" AS ENUM ('UN','BU','KG','LT');
+  END IF;
+END$$;
 
 CREATE TABLE IF NOT EXISTS "article_uoms" (
   "id" text PRIMARY KEY,
