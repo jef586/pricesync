@@ -3,11 +3,20 @@ import ArticleController from '../controllers/ArticleController.js'
 import { authenticate } from '../middleware/auth.js'
 import { requireScopes } from '../middleware/scopes.js'
 import { rateLimit } from '../middleware/rateLimit.js'
+import { recordArticleRequest } from '../observability/deprecationMetrics.js'
 
 const router = express.Router()
 
 // Proteger todas las rutas
 router.use(authenticate)
+
+// Instrumentación básica para sucesor (para % legacy vs total)
+router.use((req, res, next) => {
+  res.on('finish', () => {
+    recordArticleRequest()
+  })
+  next()
+})
 
 // Lectura: 60/min
 const readLimit = rateLimit({ keyPrefix: 'rl:articles:read', limit: 60, windowSeconds: 60 })

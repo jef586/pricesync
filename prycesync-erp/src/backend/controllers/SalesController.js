@@ -457,6 +457,48 @@ class SalesController {
       return res.status(500).json({ success: false, message: "Error interno reanudando venta" });
     }
   }
+
+  static async listParked(req, res) {
+    try {
+      const companyId = req.user?.company?.id;
+      if (!companyId) {
+        return res.status(403).json({ success: false, message: "Empresa no determinada para el usuario" });
+      }
+
+      const { page = 1, limit = 20 } = req.query;
+      const take = Math.max(Number(limit) || 20, 1);
+      const skip = Math.max((Number(page) || 1) - 1, 0) * take;
+
+      const [items, total] = await Promise.all([
+        prisma.salesOrder.findMany({
+          where: { companyId, status: 'parked' },
+          orderBy: { parkedAt: 'desc' },
+          skip,
+          take,
+          include: {
+            customer: { select: { id: true, name: true, email: true } },
+            items: true,
+            payments: true,
+          }
+        }),
+        prisma.salesOrder.count({ where: { companyId, status: 'parked' } })
+      ]);
+
+      return res.json({
+        success: true,
+        data: items,
+        pagination: {
+          page: Number(page) || 1,
+          limit: take,
+          total,
+          totalPages: Math.ceil(total / take) || 1
+        }
+      });
+    } catch (error) {
+      console.error('Error listando ventas estacionadas:', error);
+      return res.status(500).json({ success: false, message: 'Error interno listando ventas estacionadas' });
+    }
+  }
 }
 
 export default SalesController;

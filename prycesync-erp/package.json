@@ -16,6 +16,7 @@
         "electron": "electron src/main/main.js",
         "build": "run-p type-check \"build-only {@}\" --",
         "preview": "vite preview",
+        "test:deprecation": "node test-deprecation.js",
         "test:unit": "vitest",
         "test:e2e": "playwright test",
         "build-only": "vite build",
