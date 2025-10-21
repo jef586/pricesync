@@ -125,16 +125,25 @@
                                                                                     "    pm.response.to.have.status(200);",
                                                                                     "});",
                                                                                     "",
-                                                                                    "pm.test(\"Response has token\", function () {",
-                                                                                    "    var jsonData = pm.response.json();",
-                                                                                    "    pm.expect(jsonData).to.have.property(\u0027token\u0027);",
-                                                                                    "    pm.expect(jsonData).to.have.property(\u0027user\u0027);",
+                                                                                    "var jsonData = pm.response.json();",
+                                                                                    "var data = (jsonData && jsonData.data) || {};",
+                                                                                    "var tokens = data.tokens || {};",
+                                                                                    "var user = data.user || {};",
+                                                                                    "pm.test(\"Response has access and refresh tokens\", function () {",
+                                                                                    "    pm.expect(tokens).to.have.property('accessToken');",
+                                                                                    "    pm.expect(tokens).to.have.property('refreshToken');",
+                                                                                    "});",
+                                                                                    "pm.test(\"Response has user object\", function () {",
+                                                                                    "    pm.expect(user).to.have.property('id');",
+                                                                                    "    pm.expect(user).to.have.property('email');",
                                                                                     "});",
                                                                                     "",
-                                                                                    "// Guardar el token automÃ¡ticamente",
+                                                                                    "// Guardar tokens y datos en entorno",
                                                                                     "if (pm.response.code === 200) {",
-                                                                                    "    var jsonData = pm.response.json();",
-                                                                                    "    pm.environment.set(\"auth_token\", jsonData.token);",
+                                                                                    "    pm.environment.set(\"auth_token\", tokens.accessToken || \"\");",
+                                                                                    "    pm.environment.set(\"refresh_token\", tokens.refreshToken || \"\");",
+                                                                                    "    pm.environment.set(\"user_id\", user.id || \"\");",
+                                                                                    "    pm.environment.set(\"company_id\", user.companyId || \"\");",
                                                                                     "}"
                                                                                 ],
                                                                        "type":  "text/javascript"
@@ -655,82 +664,100 @@
                      "name":  "�� Sales",
                      "item":  [
                                   {
-                                      "request":  {
-                                                      "url":  {
-                                                                  "host":  [
-                                                                               "{{base_url}}"
-                                                                           ],
-                                                                  "raw":  "{{base_url}}/api/sales",
-                                                                  "path":  [
-                                                                               "api",
-                                                                               "sales"
-                                                                           ]
-                                                              },
-                                                      "method":  "POST",
-                                                      "body":  {
-                                                                   "raw":  "{\n  \"customerId\": \"{{customer_id}}\",\n  \"items\": [{ \"description\": \"Producto Demo\", \"quantity\": 1, \"unitPrice\": 1000, \"taxRate\": 21 }],\n  \"payments\": [{ \"method\": \"cash\", \"amount\": 1000 }]\n}",
-                                                                   "mode":  "raw"
-                                                               },
-                                                      "header":  [
-                                                                     {
-                                                                         "key":  "Authorization",
-                                                                         "value":  "Bearer {{auth_token}}"
-                                                                     },
-                                                                     {
-                                                                         "key":  "Content-Type",
-                                                                         "value":  "application/json"
-                                                                     }
-                                                                 ]
-                                                  },
                                       "name":  "Create Sale",
-                                      "event":  [
-                                                    {
-                                                        "script":  {
-                                                                       "exec":  [
-                                                                                    "pm.test(\"Status code is 201\", function () { pm.response.to.have.status(201); });",
-                                                                                    "var jsonData = pm.response.json(); pm.environment.set(\"sale_id\", (jsonData.data \u0026\u0026 jsonData.data.id) || \"\");"
-                                                                                ],
-                                                                       "type":  "text/javascript"
-                                                                   },
-                                                        "listen":  "test"
-                                                    }
-                                                ]
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     { "key":  "Authorization", "value":  "Bearer {{auth_token}}" },
+                                                                     { "key":  "Content-Type", "value":  "application/json" }
+                                                                 ],
+                                                      "body":  { "mode":  "raw", "raw":  "{\n  \"customerId\": \"{{customer_id}}\",\n  \"items\": [{ \"description\": \"Producto Demo\", \"quantity\": 1, \"unitPrice\": 1000, \"taxRate\": 21 }],\n  \"payments\": [{ \"method\": \"cash\", \"amount\": 1000 }]\n}" },
+                                                      "url":  { "raw":  "{{base_url}}/api/sales", "host":  ["{{base_url}}"], "path":  ["api","sales"] }
+                                                  },
+                                      "event":  [ { "listen":  "test", "script":  { "type":  "text/javascript", "exec":  [
+                                        "pm.test(\"Status code is 201\", function () { pm.response.to.have.status(201); });",
+                                        "var jsonData = pm.response.json(); pm.environment.set(\"sale_id\", (jsonData.data \u0026\u0026 jsonData.data.id) || \"\");"
+                                      ] } } ]
                                   },
                                   {
+                                      "name":  "Get Sale by ID",
                                       "request":  {
                                                       "method":  "GET",
-                                                      "url":  {
-                                                                  "host":  [
-                                                                               "{{base_url}}"
-                                                                           ],
-                                                                  "raw":  "{{base_url}}/api/sales/{{sale_id}}",
-                                                                  "path":  [
-                                                                               "api",
-                                                                               "sales",
-                                                                               "{{sale_id}}"
-                                                                           ]
-                                                              },
-                                                      "header":  [
-                                                                     {
-                                                                         "key":  "Authorization",
-                                                                         "value":  "Bearer {{auth_token}}"
-                                                                     }
-                                                                 ]
+                                                      "header":  [ { "key":  "Authorization", "value":  "Bearer {{auth_token}}" } ],
+                                                      "url":  { "raw":  "{{base_url}}/api/sales/{{sale_id}}", "host":  ["{{base_url}}"], "path":  ["api","sales","{{sale_id}}"] }
                                                   },
-                                      "name":  "Get Sale by ID",
-                                      "event":  [
-                                                    {
-                                                        "script":  {
-                                                                       "exec":  [
-                                                                                    "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });",
-                                                                                    "var jsonData = pm.response.json(); pm.expect(jsonData.success).to.eql(true);"
-                                                                                ],
-                                                                       "type":  "text/javascript"
-                                                                   },
-                                                        "listen":  "test"
-                                                    }
-                                                ]
+                                      "event":  [ { "listen":  "test", "script":  { "type":  "text/javascript", "exec":  [
+                                        "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });",
+                                        "var jsonData = pm.response.json(); pm.expect(jsonData.success).to.eql(true);"
+                                      ] } } ]
+                                  },
+                                  {
+                                      "name":  "Update Sale",
+                                      "request":  {
+                                                      "method":  "PUT",
+                                                      "header":  [ { "key":  "Authorization", "value":  "Bearer {{auth_token}}" }, { "key":  "Content-Type", "value":  "application/json" } ],
+                                                      "body":  { "mode":  "raw", "raw":  "{\n  \"notes\": \"Actualización de venta\"\n}" },
+                                                      "url":  { "raw":  "{{base_url}}/api/sales/{{sale_id}}", "host":  ["{{base_url}}"], "path":  ["api","sales","{{sale_id}}"] }
+                                                  }
+                                  },
+                                  {
+                                      "name":  "Add Payments",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [ { "key":  "Authorization", "value":  "Bearer {{auth_token}}" }, { "key":  "Content-Type", "value":  "application/json" } ],
+                                                      "body":  { "mode":  "raw", "raw":  "{\n  \"payments\": [{ \"method\": \"cash\", \"amount\": 500 }]\n}" },
+                                                      "url":  { "raw":  "{{base_url}}/api/sales/{{sale_id}}/payments", "host":  ["{{base_url}}"], "path":  ["api","sales","{{sale_id}}","payments"] }
+                                                  }
+                                  },
+                                  {
+                                      "name":  "List Payments",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "header":  [ { "key":  "Authorization", "value":  "Bearer {{auth_token}}" } ],
+                                                      "url":  { "raw":  "{{base_url}}/api/sales/{{sale_id}}/payments", "host":  ["{{base_url}}"], "path":  ["api","sales","{{sale_id}}","payments"] }
+                                                  }
+                                  },
+                                  {
+                                      "name":  "Park Sale",
+                                      "request":  { "method":  "POST", "header":  [ { "key":  "Authorization", "value":  "Bearer {{auth_token}}" } ], "url":  { "raw":  "{{base_url}}/api/sales/{{sale_id}}/park", "host":  ["{{base_url}}"], "path":  ["api","sales","{{sale_id}}","park"] } }
+                                  },
+                                  {
+                                      "name":  "Resume Sale",
+                                      "request":  { "method":  "POST", "header":  [ { "key":  "Authorization", "value":  "Bearer {{auth_token}}" } ], "url":  { "raw":  "{{base_url}}/api/sales/{{sale_id}}/resume", "host":  ["{{base_url}}"], "path":  ["api","sales","{{sale_id}}","resume"] } }
+                                  },
+                                  {
+                                      "name":  "List Parked Sales",
+                                      "request":  { "method":  "GET", "header":  [ { "key":  "Authorization", "value":  "Bearer {{auth_token}}" } ], "url":  { "raw":  "{{base_url}}/api/sales/parked?page=1&limit=10", "host":  ["{{base_url}}"], "path":  ["api","sales","parked"] } }
                                   }
+                              ]
+                 },
+                 {
+                     "name":  "Articles",
+                     "item":  [
+                                  { "name":  "List Articles", "request":  { "method":  "GET", "header":  [ { "key":  "Authorization", "value":  "Bearer {{auth_token}}" } ], "url":  { "raw":  "{{base_url}}/api/articles?page={{page}}&limit={{limit}}", "host":  ["{{base_url}}"], "path":  ["api","articles"] } } },
+                                  { "name":  "Search Articles", "request":  { "method":  "GET", "header":  [ { "key":  "Authorization", "value":  "Bearer {{auth_token}}" } ], "url":  { "raw":  "{{base_url}}/api/articles?q={{query}}&page={{page}}&limit={{limit}}", "host":  ["{{base_url}}"], "path":  ["api","articles"] } } },
+                                  { "name":  "Get Article by ID", "request":  { "method":  "GET", "header":  [ { "key":  "Authorization", "value":  "Bearer {{auth_token}}" } ], "url":  { "raw":  "{{base_url}}/api/articles/{{article_id}}", "host":  ["{{base_url}}"], "path":  ["api","articles","{{article_id}}"] } } },
+                                  { "name":  "Get Article Stock", "request":  { "method":  "GET", "header":  [ { "key":  "Authorization", "value":  "Bearer {{auth_token}}" } ], "url":  { "raw":  "{{base_url}}/api/articles/{{article_id}}/stock", "host":  ["{{base_url}}"], "path":  ["api","articles","{{article_id}}","stock"] } } },
+                                  { "name":  "Create Article", "request":  { "method":  "POST", "header":  [ { "key":  "Authorization", "value":  "Bearer {{auth_token}}" }, { "key":  "Content-Type", "value":  "application/json" } ], "body":  { "mode":  "raw", "raw":  "{\n  \"description\": \"Artículo demo\",\n  \"code\": \"A-001\",\n  \"price\": 1000,\n  \"taxRate\": 21\n}" }, "url":  { "raw":  "{{base_url}}/api/articles", "host":  ["{{base_url}}"], "path":  ["api","articles"] } } },
+                                  { "name":  "Update Article", "request":  { "method":  "PUT", "header":  [ { "key":  "Authorization", "value":  "Bearer {{auth_token}}" }, { "key":  "Content-Type", "value":  "application/json" } ], "body":  { "mode":  "raw", "raw":  "{\n  \"price\": 1200\n}" }, "url":  { "raw":  "{{base_url}}/api/articles/{{article_id}}", "host":  ["{{base_url}}"], "path":  ["api","articles","{{article_id}}"] } } },
+                                  { "name":  "Set Barcode", "request":  { "method":  "POST", "header":  [ { "key":  "Authorization", "value":  "Bearer {{auth_token}}" }, { "key":  "Content-Type", "value":  "application/json" } ], "body":  { "mode":  "raw", "raw":  "{\n  \"barcode\": \"{{barcode}}\"\n}" }, "url":  { "raw":  "{{base_url}}/api/articles/{{article_id}}/barcode", "host":  ["{{base_url}}"], "path":  ["api","articles","{{article_id}}","barcode"] } } }
+                              ]
+                 },
+                 {
+                     "name":  "Products (Legacy Alias)",
+                     "item":  [
+                                  { "name":  "List Products", "request":  { "method":  "GET", "header":  [ { "key":  "Authorization", "value":  "Bearer {{auth_token}}" } ], "url":  { "raw":  "{{base_url}}/api/products?page={{page}}&limit={{limit}}", "host":  ["{{base_url}}"], "path":  ["api","products"] } }, "event":  [ { "listen":  "test", "script":  { "type":  "text/javascript", "exec":  [
+                                      "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });",
+                                      "pm.expect(pm.response.headers.get('Deprecation')).to.exist;"
+                                  ] } } ] },
+                                  { "name":  "Get Product by ID", "request":  { "method":  "GET", "header":  [ { "key":  "Authorization", "value":  "Bearer {{auth_token}}" } ], "url":  { "raw":  "{{base_url}}/api/products/{{product_id}}", "host":  ["{{base_url}}"], "path":  ["api","products","{{product_id}}"] } } }
+                              ]
+                 },
+                 {
+                     "name":  "Ops",
+                     "item":  [
+                                  { "name":  "Deprecation State", "request":  { "method":  "GET", "url":  { "raw":  "{{base_url}}/ops/deprecation-state", "host":  ["{{base_url}}"], "path":  ["ops","deprecation-state"] } }, "event":  [ { "listen":  "test", "script":  { "type":  "text/javascript", "exec":  [ "pm.response.to.have.status(200);" ] } } ] },
+                                  { "name":  "Feature Flags", "request":  { "method":  "GET", "url":  { "raw":  "{{base_url}}/ops/feature-flags", "host":  ["{{base_url}}"], "path":  ["ops","feature-flags"] } } }
                               ]
                  }
              ],

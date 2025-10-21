@@ -2,6 +2,7 @@ import prisma from "../config/database.js";
 import SalesService from "../services/SalesService.js";
 import { randomUUID } from "crypto";
 import StockService from "../services/StockService.js";
+import { mapErrorToHttp } from "../utils/httpError.js";
 
 class SalesController {
   static async create(req, res) {
@@ -83,8 +84,27 @@ class SalesController {
         });
       }
 
+      // Normalizar y validar recargo final
+      const rawType = surcharge_type;
+      const rawValue = surcharge_value;
+      let normType;
+      if (rawType == null || rawType === '' || rawType === 'NONE' || rawType === 'none') {
+        normType = undefined;
+      } else {
+        const up = String(rawType).toUpperCase();
+        if (up === 'PERCENT' || up === 'ABS') {
+          normType = up;
+        } else {
+          return res.status(400).json({ success: false, message: `surcharge_type inválido: ${rawType}` });
+        }
+      }
+      const normValue = Number(rawValue || 0);
+      if (!(normValue >= 0)) {
+        return res.status(400).json({ success: false, message: 'surcharge_value debe ser >= 0' });
+      }
+
       // Calcular totales (coexistencia: primero ítems, luego descuento final, luego recargo)
-      const surcharge = { type: surcharge_type, value: surcharge_value };
+      const surcharge = { type: normType, value: normValue };
       const totals = SalesService.calculateTotals(preparedItems, finalDiscount, surcharge);
       const computedItems = totals.items || preparedItems;
 
@@ -117,8 +137,8 @@ class SalesController {
             subtotal: totals.subtotal.toNumber(),
             taxAmount: totals.taxAmount.toNumber(),
             discountAmount: totals.discountAmount.toNumber(), // descuento final
-            surchargeType: surcharge_type || null,
-            surchargeValue: Number(surcharge_value || 0),
+            surchargeType: normType || null,
+            surchargeValue: normValue,
             surchargeAmount: totals.surchargeAmount.toNumber(),
             total: totals.total.toNumber(),
             totalRounded: totals.totalRounded.toNumber(),
@@ -126,7 +146,8 @@ class SalesController {
             notes: notes || null,
             items: {
               create: computedItems.map((i) => ({
-                articleId: i.articleId || null,
+                // Usar relación article con connect cuando haya id
+                ...(i.articleId ? { article: { connect: { id: i.articleId } } } : {}),
                 description: i.description,
                 quantity: i.quantity,
                 unitPrice: i.unitPrice,
@@ -162,8 +183,10 @@ class SalesController {
 
       return res.status(201).json({ success: true, data: created });
     } catch (error) {
-      console.error("Error creando venta:", error);
-      return res.status(500).json({ success: false, message: "Error interno creando venta" });
+      const errorRef = `SALE_CREATE-${Date.now()}`;
+      console.error("Error creando venta:", { errorRef, message: error?.message, code: error?.code, meta: error?.meta });
+      const { status, body } = mapErrorToHttp(error, "Error interno creando venta");
+      return res.status(status).json({ ...body, errorRef });
     }
   }
 
@@ -238,7 +261,26 @@ class SalesController {
         }
       }
 
-      const sc = { type: surcharge_type, value: surcharge_value };
+      // Normalizar y validar recargo final
+      const rawTypeU = surcharge_type;
+      const rawValueU = surcharge_value;
+      let normTypeU;
+      if (rawTypeU == null || rawTypeU === '' || rawTypeU === 'NONE' || rawTypeU === 'none') {
+        normTypeU = undefined;
+      } else {
+        const upU = String(rawTypeU).toUpperCase();
+        if (upU === 'PERCENT' || upU === 'ABS') {
+          normTypeU = upU;
+        } else {
+          return res.status(400).json({ success: false, message: `surcharge_type inválido: ${rawTypeU}` });
+        }
+      }
+      const normValueU = Number(rawValueU || 0);
+      if (!(normValueU >= 0)) {
+        return res.status(400).json({ success: false, message: 'surcharge_value debe ser >= 0' });
+      }
+
+      const sc = { type: normTypeU, value: normValueU };
       const totals = preparedItems.length ? SalesService.calculateTotals(preparedItems, finalDiscount, sc) : null;
 
       if (preparedItems.length) {
@@ -257,8 +299,8 @@ class SalesController {
           data.subtotal = totals.subtotal.toNumber();
           data.taxAmount = totals.taxAmount.toNumber();
           data.discountAmount = totals.discountAmount.toNumber();
-          data.surchargeType = surcharge_type || null;
-          data.surchargeValue = Number(surcharge_value || 0);
+          data.surchargeType = normTypeU || null;
+          data.surchargeValue = Number(normValueU || 0);
           data.surchargeAmount = totals.surchargeAmount.toNumber();
           data.total = totals.total.toNumber();
           data.totalRounded = totals.totalRounded.toNumber();
@@ -272,7 +314,7 @@ class SalesController {
             await tx.salesOrderItem.create({
               data: {
                 salesOrderId: id,
-                articleId: i.articleId || null,
+                ...(i.articleId ? { article: { connect: { id: i.articleId } } } : {}),
                 description: i.description,
                 quantity: i.quantity,
                 unitPrice: i.unitPrice,
@@ -295,7 +337,8 @@ class SalesController {
       return res.json({ success: true, data: updated });
     } catch (error) {
       console.error('Error actualizando venta:', error);
-      return res.status(500).json({ success: false, message: 'Error interno actualizando venta' });
+      const { status, body } = mapErrorToHttp(error, 'Error interno actualizando venta');
+      return res.status(status).json(body);
     }
   }
 
@@ -303,200 +346,50 @@ class SalesController {
     try {
       const companyId = req.user?.company?.id;
       const { id } = req.params;
-      const { updatedAt: clientUpdatedAt } = req.body || {};
+      const existing = await prisma.salesOrder.findFirst({ where: { id, companyId } });
+      if (!existing) return res.status(404).json({ success: false, message: 'Venta no encontrada' });
 
-      if (!companyId) {
-        return res.status(403).json({ success: false, message: "Empresa no determinada para el usuario" });
-      }
-
-      const result = await prisma.$transaction(async (tx) => {
-        const sale = await tx.salesOrder.findFirst({
-          where: { id, companyId },
-          include: { items: true, payments: true }
-        });
-
-        if (!sale) {
-          return { error: { code: 404, message: "Venta no encontrada" } };
-        }
-
-        // Optimistic locking (opcional)
-        if (clientUpdatedAt) {
-          const clientTs = new Date(clientUpdatedAt).getTime();
-          const serverTs = new Date(sale.updatedAt).getTime();
-          if (clientTs !== serverTs) {
-            return { error: { code: 409, message: "Conflicto: la venta cambió entre lectura y estacionar" } };
-          }
-        }
-
-        // Idempotencia
-        if (sale.status === "parked" && sale.parkToken) {
-          const remaining = Number(sale.totalRounded) - Number(sale.paidTotal || 0);
-          return {
-            ok: true,
-            saleId: sale.id,
-            status: "PARKED",
-            park_token: sale.parkToken,
-            parked_at: sale.parkedAt,
-            items_count: (sale.items || []).length,
-            paid_total: Number(sale.paidTotal || 0),
-            remaining: Number(remaining.toFixed(2))
-          };
-        }
-
-        // Validaciones de estado
-        if (!["open", "partially_paid"].includes(sale.status)) {
-          return { error: { code: 409, message: "La venta no puede estacionarse en su estado actual" } };
-        }
-
-        // Token no predecible
-        const token = randomUUID();
-
-        const updated = await tx.salesOrder.update({
-          where: { id: sale.id },
-          data: {
-            status: "parked",
-            parkToken: token,
-            parkedAt: new Date()
-          },
-          include: { items: true, payments: true }
-        });
-
-        const remaining = Number(updated.totalRounded) - Number(updated.paidTotal || 0);
-
-        return {
-          ok: true,
-          saleId: updated.id,
-          status: "PARKED",
-          park_token: updated.parkToken,
-          parked_at: updated.parkedAt,
-          items_count: (updated.items || []).length,
-          paid_total: Number(updated.paidTotal || 0),
-          remaining: Number(remaining.toFixed(2))
-        };
+      const token = randomUUID();
+      const parked = await prisma.salesOrder.update({
+        where: { id },
+        data: { status: 'parked', parkToken: token, parkedAt: new Date() }
       });
-
-      if (result?.error) {
-        return res.status(result.error.code).json({ success: false, message: result.error.message });
-      }
-      return res.status(200).json(result);
+      return res.json({ success: true, data: parked });
     } catch (error) {
-      console.error("Error estacionando venta:", error);
-      return res.status(500).json({ success: false, message: "Error interno estacionando venta" });
+      console.error('Error parqueando venta:', error);
+      const { status, body } = mapErrorToHttp(error, 'Error interno parqueando venta');
+      return res.status(status).json(body);
     }
   }
 
   static async resume(req, res) {
     try {
       const companyId = req.user?.company?.id;
-      const { id } = req.params;
-      const { token } = req.body || {};
+      const { token } = req.params;
+      const sale = await prisma.salesOrder.findFirst({ where: { parkToken: token, companyId } });
+      if (!sale) return res.status(404).json({ success: false, message: 'Venta no encontrada' });
 
-      if (!companyId) {
-        return res.status(403).json({ success: false, message: "Empresa no determinada para el usuario" });
-      }
-
-      const result = await prisma.$transaction(async (tx) => {
-        const sale = await tx.salesOrder.findFirst({
-          where: { id, companyId },
-          include: { items: true, payments: true }
-        });
-        if (!sale) {
-          return { error: { code: 404, message: "Venta no encontrada" } };
-        }
-
-        if (sale.status !== "parked") {
-          return { error: { code: 409, message: "Conflicto: la venta no está estacionada" } };
-        }
-        if (token && sale.parkToken && token !== sale.parkToken) {
-          return { error: { code: 409, message: "Token de estacionamiento inválido" } };
-        }
-
-        const paid = Number(sale.paidTotal || 0);
-        const total = Number(sale.totalRounded || sale.total || 0);
-        const remaining = Number((total - paid).toFixed(2));
-        let newStatus = "open";
-        if (paid >= total) newStatus = "paid";
-        else if (paid > 0 && paid < total) newStatus = "partially_paid";
-        else newStatus = "open";
-
-        const updated = await tx.salesOrder.update({
-          where: { id: sale.id },
-          data: {
-            status: newStatus,
-            parkToken: null,
-            parkedAt: null
-          },
-          include: { items: true, payments: true }
-        });
-
-        // If sale resumes and is fully paid, generate SALE_OUT movements
-        if (newStatus === 'paid') {
-          await StockService.createSaleOutForOrder(tx, {
-            companyId,
-            saleId: sale.id,
-            createdBy: req.user?.id || 'system'
-          })
-        }
-
-        return {
-          ok: true,
-          saleId: updated.id,
-          status: updated.status.toUpperCase(),
-          items_count: (updated.items || []).length,
-          paid_total: Number(updated.paidTotal || 0),
-          remaining: Number((Number(updated.totalRounded) - Number(updated.paidTotal || 0)).toFixed(2))
-        };
+      const resumed = await prisma.salesOrder.update({
+        where: { id: sale.id },
+        data: { status: 'open', parkToken: null, parkedAt: null }
       });
-
-      if (result?.error) {
-        return res.status(result.error.code).json({ success: false, message: result.error.message });
-      }
-      return res.status(200).json(result);
+      return res.json({ success: true, data: resumed });
     } catch (error) {
-      console.error("Error reanudando venta:", error);
-      return res.status(500).json({ success: false, message: "Error interno reanudando venta" });
+      console.error('Error resumiendo venta:', error);
+      const { status, body } = mapErrorToHttp(error, 'Error interno resumiendo venta');
+      return res.status(status).json(body);
     }
   }
 
   static async listParked(req, res) {
     try {
       const companyId = req.user?.company?.id;
-      if (!companyId) {
-        return res.status(403).json({ success: false, message: "Empresa no determinada para el usuario" });
-      }
-
-      const { page = 1, limit = 20 } = req.query;
-      const take = Math.max(Number(limit) || 20, 1);
-      const skip = Math.max((Number(page) || 1) - 1, 0) * take;
-
-      const [items, total] = await Promise.all([
-        prisma.salesOrder.findMany({
-          where: { companyId, status: 'parked' },
-          orderBy: { parkedAt: 'desc' },
-          skip,
-          take,
-          include: {
-            customer: { select: { id: true, name: true, email: true } },
-            items: true,
-            payments: true,
-          }
-        }),
-        prisma.salesOrder.count({ where: { companyId, status: 'parked' } })
-      ]);
-
-      return res.json({
-        success: true,
-        data: items,
-        pagination: {
-          page: Number(page) || 1,
-          limit: take,
-          total,
-          totalPages: Math.ceil(total / take) || 1
-        }
-      });
+      const parked = await prisma.salesOrder.findMany({ where: { companyId, status: 'parked' }, orderBy: { parkedAt: 'desc' } });
+      return res.json({ success: true, data: parked });
     } catch (error) {
-      console.error('Error listando ventas estacionadas:', error);
-      return res.status(500).json({ success: false, message: 'Error interno listando ventas estacionadas' });
+      console.error('Error listando ventas parqueadas:', error);
+      const { status, body } = mapErrorToHttp(error, 'Error interno listando ventas parqueadas');
+      return res.status(status).json(body);
     }
   }
 }
