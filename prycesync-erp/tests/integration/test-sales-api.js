@@ -1,4 +1,4 @@
-﻿// Simple script to test sales API endpoints
+// Simple script to test sales API endpoints
 // Usage: node test-sales-api.js
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3002'
