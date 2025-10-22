@@ -13,6 +13,7 @@ import supplierRoutes from './routes/suppliers.js';
 import afipRoutes from './routes/afip.js';
 import importsRoutes from './routes/imports.js'
 import opsRoutes from './routes/ops.js'
+import aiRoutes from './routes/ai.js';
 
 import salesRoutes from './routes/sales.js';
 import stockRoutes from './routes/stock.js';
@@ -53,6 +54,7 @@ app.use('/api/sales', salesRoutes);
 app.use('/api/stock', stockRoutes);
 app.use('/api/afip', afipRoutes);
 app.use('/api/imports', importsRoutes)
+app.use('/api/ai', aiRoutes);
 
 // Ops endpoints
 app.use('/ops', opsRoutes)

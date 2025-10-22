@@ -2,184 +2,127 @@
 
 ## 📋 Descripción General
 
-Funcionalidad de chat con inteligencia artificial integrada en el sistema PryceSync ERP que permite a los usuarios realizar consultas en lenguaje natural sobre stock, precios y productos del inventario.
+Chat IA integrado en PryceSync ERP que permite consultas en lenguaje natural sobre stock, precios y productos. Implementado con Backend Node 20 + Express + Prisma y Frontend Vue 3 + Pinia + Tailwind.
 
-**Estado**: 🔮 **Funcionalidad Futura** - Planificada para Fase 3 (Semanas 10-11)
+**Estado**: ✅ Implementado (MVP) — con seguridad, rate-limiting y auditoría básica.
 
 ## 🎯 Objetivos
 
-- Facilitar consultas rápidas sobre inventario mediante lenguaje natural
-- Reducir tiempo de búsqueda y navegación en el sistema
-- Proporcionar respuestas contextuales basadas en datos reales
-- Mantener seguridad y prevenir inyección SQL
-- Ofrecer experiencia de usuario similar a ChatGPT
+- Consultar inventario (stock, precios, productos) con lenguaje natural.
+- Responder con datos reales del ERP y formato claro para la UI.
+- Seguridad: validación SQL, sanitización de inputs y consultas parametrizadas.
+- Experiencia similar a ChatGPT con modo oscuro y sugerencias.
 
 ## 🏗️ Arquitectura Técnica
 
-### Componentes Frontend
+### Frontend
 ```
 src/renderer/src/components/business/
-└── ChatInterface.vue           # Componente principal del chat
-    ├── ChatWindow.vue         # Ventana de conversación
-    ├── ChatInput.vue          # Input para mensajes
-    ├── ChatMessage.vue        # Componente mensaje individual
+└── ChatInterface.vue           # Contenedor del chat
+    ├── ChatWindow.vue         # Lista de mensajes
+    ├── ChatInput.vue          # Input de texto y envío
+    ├── ChatMessage.vue        # Burbuja + tabla de resultados
     └── ChatTyping.vue         # Indicador de escritura
+
+src/renderer/src/stores/modules/auto-parts/
+└── chat.ts                    # Store Pinia (historial persistente)
 ```
 
-### Servicios Backend
+Ruta protegida:
+- `/ai-chat` → `AIChatView.vue`
+
+### Backend
 ```
 src/backend/integrations/ai/chat-service/
-├── query-processor.ts         # Procesamiento consultas NL
-├── sql-validator.ts           # Validación seguridad SQL
-├── response-formatter.ts      # Formateo respuestas
-└── context-manager.ts         # Gestión contexto conversación
+├── query-processor.js         # Heurísticas NL + fallback IA JSON
+├── sql-validator.js           # Valida solo SELECT y tablas permitidas
+├── response-formatter.js      # Construye payload tabla para UI
+└── context-manager.js         # Proveedor, límites, tablas permitidas
 
-src/backend/modules/auto-parts/ai/chat/
-├── ChatController.ts          # Controller para endpoints
-├── ChatService.ts             # Lógica de negocio
-└── ChatValidation.ts          # Validaciones específicas
+src/backend/services/ChatService.js       # Orquesta, audita y formatea
+src/backend/controllers/ChatController.js # Validación input + endpoint
+src/backend/routes/ai.js                  # POST /api/ai/chat con rate-limit
 ```
 
-### Estado y Stores
+- Prisma consulta: `articles`, `stock_balances`, `categories`.
+- Auditoría: `core_reports/ai_chat.log` (JSONL por línea)
+
+## 🔧 Configuración
+
+Variables `.env.docker` (Dockerizado):
 ```
-src/renderer/src/stores/modules/auto-parts/
-└── chat.ts                    # Store Pinia para estado del chat
-```
-
-## 🔧 Funcionalidades Planificadas
-
-### Consultas Soportadas
-- **Stock**: "¿Cuántas pastillas de freno tengo?"
-- **Precios**: "¿Cuál es el precio del aceite 5W30?"
-- **Productos**: "Muéstrame todos los filtros de aire"
-- **Comparaciones**: "¿Qué producto es más caro, X o Y?"
-- **Reportes**: "¿Cuáles son los productos con bajo stock?"
-
-### Características de Seguridad
-- Validación estricta de consultas SQL generadas
-- Sanitización de inputs del usuario
-- Limitación de acceso solo a tablas permitidas
-- Rate limiting para prevenir abuso
-- Logging de todas las consultas para auditoría
-
-### Integración con Servicios IA
-- **OpenAI GPT**: Para procesamiento de lenguaje natural
-- **Anthropic Claude**: Como alternativa/backup
-- **Google Gemini**: Para casos específicos
-- Configuración flexible para cambiar entre proveedores
-
-## 📱 Experiencia de Usuario
-
-### Interfaz de Chat
-- Diseño similar a ChatGPT con burbujas de conversación
-- Indicadores de estado (escribiendo, procesando, error)
-- Historial de conversaciones persistente
-- Sugerencias de consultas comunes
-- Modo claro/oscuro siguiendo tema del sistema
-
-### Flujo de Interacción
-1. Usuario escribe consulta en lenguaje natural
-2. Sistema procesa y valida la consulta
-3. Se genera consulta SQL segura
-4. Se ejecuta contra la base de datos
-5. Respuesta formateada y contextualizada
-6. Presentación en interfaz de chat
-
-## 🔒 Consideraciones de Seguridad
-
-### Prevención de Inyección SQL
-```typescript
-// Ejemplo de validación
-interface QueryValidation {
-  allowedTables: string[];
-  allowedColumns: string[];
-  forbiddenOperations: string[];
-  maxResultLimit: number;
-}
-
-const securityRules: QueryValidation = {
-  allowedTables: ['products', 'inventory', 'categories'],
-  allowedColumns: ['name', 'price', 'stock', 'category'],
-  forbiddenOperations: ['DROP', 'DELETE', 'UPDATE', 'INSERT'],
-  maxResultLimit: 100
-};
+OPENAI_API_KEY=
+AI_PROVIDER=openai
+AI_MAX_TOKENS=300
+VITE_AI_PROVIDER=openai
 ```
 
-### Control de Acceso
-- Respeto a permisos de usuario existentes
-- Filtrado por empresa/sucursal activa
-- Limitación de datos sensibles
-- Auditoría de consultas realizadas
+- `AI_PROVIDER`: `openai` (otros proveedores planificados)
+- `AI_MAX_TOKENS`: límite de tokens por respuesta IA
+- `VITE_AI_PROVIDER`: mostrado en la UI
 
-## 📊 Métricas y Monitoreo
+## 🚀 Uso
 
-### KPIs a Medir
-- Número de consultas por usuario/día
-- Tiempo de respuesta promedio
-- Tasa de éxito de consultas
-- Tipos de consultas más frecuentes
-- Errores y fallos del sistema
-
-### Logging
-```typescript
-interface ChatLogEntry {
-  timestamp: string;
-  userId: string;
-  companyId: string;
-  query: string;
-  generatedSQL: string;
-  responseTime: number;
-  success: boolean;
-  error?: string;
+### Endpoint Express (validado con Postman)
+- Método: `POST`
+- URL: `http://localhost:3002/api/ai/chat`
+- Body JSON: `{ "text": "stock del filtro de aceite Mann" }`
+- Respuesta:
+```
+{
+  ok: true,
+  message: "Encontrados N resultado(s).",
+  payload: {
+    type: "table",
+    count: N,
+    data: [ { id, name, sku, pricePublic, stockOnHand } ],
+    meta: { source: "heuristic|ai_json", timestamp }
+  },
+  elapsedMs: 123
 }
 ```
 
-## 🚀 Plan de Implementación
+### Interfaz de Usuario (Electron + Vue 3)
+- Abrir `/ai-chat` en el ERP.
+- Escribir consultas (ejemplos):
+  - "Stock del alternador Bosch 12V?"
+  - "Precio del filtro de aceite Mann?"
+  - "Productos de la categoría Frenos"
+- Historial persiste hasta cerrar sesión.
+- Modo oscuro respeta tema del sistema.
 
-### Fase 1: Infraestructura Base (Semana 10)
-- [ ] Configuración servicios IA (OpenAI/Claude/Gemini)
-- [ ] Implementación query processor básico
-- [ ] Sistema de validación SQL
-- [ ] Componente chat básico en Vue
+## 🔒 Seguridad
 
-### Fase 2: Funcionalidades Core (Semana 11)
-- [ ] Procesamiento consultas de inventario
-- [ ] Formateo de respuestas contextuales
-- [ ] Integración con stores Pinia
-- [ ] Testing y validación de seguridad
+- Rate-limiting: 10 req/min/usuario/ip.
+- Sanitización de texto en `query-processor.js`.
+- `sql-validator.js`: solo `SELECT`, sin `INSERT/UPDATE/DELETE`, sin `;`.
+- Tablas permitidas: `products`, `inventory`, `categories` (mapeadas a tablas reales).
+- Consultas Prisma parametrizadas.
 
-### Fase 3: Pulido y Optimización (Semana 12)
-- [ ] Mejoras UX/UI del chat
-- [ ] Optimización performance
-- [ ] Documentación completa
-- [ ] Testing end-to-end
+## 🧪 Pruebas
 
-## 🔗 Dependencias
+- Vitest unit tests:
+  - `sql-validator.spec.js` → casos válidos/ inválidos.
+  - `query-processor.spec.js` → heurísticas y fallback IA (mock provider/prisma).
+  - `ChatService.spec.js` → auditoría y formateo (mock processQuery y fs).
+- Playwright: navegación básica a `/ai-chat` y render de componentes.
+- Objetivo cobertura: ≥ 70% en módulo IA.
 
-### Técnicas
-- Servicios IA configurados (OpenAI/Claude/Gemini)
-- Base de datos con esquema completo
-- Sistema de autenticación funcionando
-- Permisos y roles implementados
+## 📊 Logs y Auditoría
 
-### De Negocio
-- Catálogo de productos completo
-- Datos de inventario actualizados
-- Definición de consultas permitidas
-- Políticas de seguridad aprobadas
+- Archivo: `core_reports/ai_chat.log` (JSON por línea)
+- Campos: `{ type, userId, text, source, error, count, elapsedMs, at }`
 
-## 📚 Referencias y Recursos
+## 🧭 Definition of Done (DoD)
 
-### Documentación Relacionada
-- [ARCHITECTURE.md](./ARCHITECTURE.md) - Arquitectura general del sistema
-- [ROADMAP.md](./ROADMAP.md) - Planificación temporal
-- [DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md) - Esquema de base de datos
+- Endpoint `/api/ai/chat` funcionando y probado en Postman.
+- UI renderizada dentro del ERP dockerizado sin errores.
+- Logs en `core_reports` por cada consulta.
+- Tests mínimos con cobertura ≥ 70% en módulo IA.
+- Documentación actualizada (este documento).
 
-### APIs y Servicios
-- [OpenAI API Documentation](https://platform.openai.com/docs)
-- [Anthropic Claude API](https://docs.anthropic.com/)
-- [Google Gemini API](https://ai.google.dev/docs)
+## 📝 Notas
 
----
-
-**Nota**: Esta funcionalidad está planificada para implementación futura y puede sufrir modificaciones según las prioridades del proyecto y feedback de usuarios.
+- Proveedores adicionales (`claude`, `gemini`) planificados.
+- Ajustar prompts y heurísticas según feedback.
+- Considerar permisos/roles para filtrar resultados por compañía.

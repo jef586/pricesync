@@ -29,6 +29,7 @@ import ParkedSalesView from '../views/ParkedSalesView.vue'
 import ArticlesView from '../views/ArticlesView.vue'
 import ArticleNewView from '../views/ArticleNewView.vue'
 import ArticleEditView from '../views/ArticleEditView.vue'
+import AIChatView from '../views/AIChatView.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -221,6 +222,12 @@ const router = createRouter({
       path: '/articles/:id/edit',
       name: 'ArticleEdit',
       component: ArticleEditView,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/ai-chat',
+      name: 'AIChat',
+      component: AIChatView,
       meta: { requiresAuth: true }
     },
   ]
