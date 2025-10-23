@@ -35,8 +35,16 @@
         </div>
         <!-- Proveedor 1 -->
         <div>
-          <label class="block text-sm mb-1">Proveedor 1*</label>
-          <BaseSelect v-model="form.supplierId" :options="supplierOptions" />
+          <EntitySearch
+            label="Proveedor 1*"
+            :model-value="selectedSupplier1"
+            @update:model-value="onSupplier1ModelUpdate"
+            @select="onSupplier1Select"
+            :search-function="searchSuppliers"
+            placeholder="Buscar proveedor..."
+            :secondary-field="'code'"
+            :min-search-length="2"
+          />
           <p v-if="errors.supplierId" class="text-red-600 text-sm">{{ errors.supplierId }}</p>
         </div>
         <!-- Nuevo proveedor -->
@@ -257,13 +265,33 @@
       <h2 id="suppliers-section" class="text-lg font-semibold">{{ t('inventory.article.sections.suppliers') }}</h2>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
-          <label class="block text-sm mb-1">Proveedor 1*</label>
-          <BaseSelect v-model="form.supplierId" :options="supplierOptions" />
+          <EntitySearch
+            label="Proveedor 1*"
+            :model-value="selectedSupplier1"
+            @update:model-value="onSupplier1ModelUpdate"
+            @select="onSupplier1Select"
+            :search-function="searchSuppliers"
+            placeholder="Buscar proveedor..."
+            :secondary-field="'code'"
+            :min-search-length="2"
+          />
           <p v-if="errors.supplierId" class="text-red-600 text-sm">{{ errors.supplierId }}</p>
         </div>
+        <!-- Nuevo proveedor -->
+        <div class="flex items-end">
+          <BaseButton type="button" variant="secondary" @click="showSupplierModal = true">{{ t('inventory.article.actions.newSupplier') }}</BaseButton>
+        </div>
         <div>
-          <label class="block text-sm mb-1">Proveedor 2</label>
-          <BaseSelect v-model="form.supplier2Id" :options="supplierOptions" />
+          <EntitySearch
+            label="Proveedor 2"
+            :model-value="selectedSupplier2"
+            @update:model-value="onSupplier2ModelUpdate"
+            @select="onSupplier2Select"
+            :search-function="searchSuppliers"
+            placeholder="Buscar proveedor..."
+            :secondary-field="'code'"
+            :min-search-length="2"
+          />
         </div>
         <div class="flex items-end">
           <BaseButton variant="secondary" type="button" @click="showSupplierModal = true">{{ t('inventory.article.actions.newSupplier') }}</BaseButton>
@@ -386,13 +414,6 @@
       </div>
     </section>
 
-    <!-- Acciones -->
-    <section aria-labelledby="actions-section">
-      <div class="flex justify-end gap-2">
-        <BaseButton variant="secondary" type="button" @click="onCancel">{{ t('actions.close') }}</BaseButton>
-        <BaseButton variant="primary" type="submit" :loading="saving">{{ t('actions.save') }}</BaseButton>
-      </div>
-    </section>
 
     <!-- Confirmación de borrado -->
     <ConfirmModal v-model="showDeleteModal" :title="t('actions.delete')" :message="t('inventory.article.confirm.delete')" @confirm="onSoftDelete" />
@@ -409,9 +430,11 @@ import { useArticleStore } from '@/stores/articles'
 import { useCategories } from '@/composables/useCategories'
 import { useSuppliers } from '@/composables/useSuppliers'
 import { useNotifications } from '@/composables/useNotifications'
+import EntitySearch from '@/components/molecules/EntitySearch.vue'
+import { addArticleSupplierLink } from '@/services/articles'
 
 const props = defineProps<{ mode: 'create' | 'edit'; initial?: any }>()
-const emits = defineEmits(['saved', 'cancel'])
+const emits = defineEmits(['saved', 'cancel', 'price-change'])
 
 function t(key: string) {
   const dict: Record<string, string> = {
@@ -450,7 +473,7 @@ function t(key: string) {
 
 const store = useArticleStore()
 const { categories, subcategoriesByParent } = useCategories()
-const { suppliers, reload: reloadSuppliers } = useSuppliers()
+const { suppliers, searchSuppliers, getSupplier, fetchSuppliers } = useSuppliers()
 const { success, error: notifyError } = useNotifications()
 
 const typeOptions = [
@@ -517,6 +540,27 @@ const newBarcode = ref('')
 const saving = ref(false)
 const showDeleteModal = ref(false)
 const showSupplierModal = ref(false)
+const showAdvanced = ref(false)
+
+// Selección de proveedores con EntitySearch
+const selectedSupplier1 = ref<any | null>(null)
+const selectedSupplier2 = ref<any | null>(null)
+function onSupplier1Select(s: any) {
+  selectedSupplier1.value = s
+  form.supplierId = s?.id || null
+}
+function onSupplier1ModelUpdate(val: any) {
+  selectedSupplier1.value = val
+  form.supplierId = val?.id || null
+}
+function onSupplier2Select(s: any) {
+  selectedSupplier2.value = s
+  form.supplier2Id = s?.id || null
+}
+function onSupplier2ModelUpdate(val: any) {
+  selectedSupplier2.value = val
+  form.supplier2Id = val?.id || null
+}
 
 const stockWindow = ref(30)
 
@@ -535,13 +579,22 @@ const supplierOptions = computed(() => [
   ...suppliers.value.map((s: any) => ({ label: s.name, value: s.id }))
 ])
 
-onMounted(() => {
+onMounted(async () => {
   if (props.initial) {
     Object.assign(form, {
       ...props.initial,
       comboComponents: props.initial.comboComponents || [],
       wholesaleTiers: props.initial.wholesaleTiers || []
     })
+  }
+  // Pre-popular selección de proveedores si existen IDs iniciales
+  if (form.supplierId) {
+    const s1 = await getSupplier(String(form.supplierId))
+    selectedSupplier1.value = s1
+  }
+  if (form.supplier2Id) {
+    const s2 = await getSupplier(String(form.supplier2Id))
+    selectedSupplier2.value = s2
   }
   // keyboard shortcuts
   window.addEventListener('keydown', onKeyDown)
@@ -551,12 +604,25 @@ watch(() => form.categoryId, () => {
   form.subcategoryId = null
 })
 
+watch([
+  () => form.cost,
+  () => form.gainPct,
+  () => form.taxRate,
+  () => internalTaxType.value,
+  () => internalTaxValue.value
+], () => {
+  emits('price-change', getPriceBreakdown())
+})
+
 function onKeyDown(e: KeyboardEvent) {
   if (e.ctrlKey && e.key.toLowerCase() === 's') {
     e.preventDefault(); onSubmit()
   }
   if (e.key === 'Escape') {
     e.preventDefault(); onCancel()
+  }
+  if (e.altKey && e.key.toLowerCase() === 'n') {
+    e.preventDefault(); showSupplierModal.value = true
   }
 }
 
@@ -595,6 +661,7 @@ function recalcFromCost() {
   const costBase = Number(form.cost) + internalTaxAmount(Number(form.cost))
   const neto = costBase * (1 + Number(form.gainPct) / 100)
   form.pricePublic = round2(neto * (1 + Number(form.taxRate) / 100))
+  emits('price-change', getPriceBreakdown())
 }
 
 function recalcFromPublic() {
@@ -604,6 +671,18 @@ function recalcFromPublic() {
   const costBase = Number(form.cost) + internalTaxAmount(Number(form.cost))
   const margen = sinIva / costBase - 1
   form.gainPct = round2(margen * 100)
+  emits('price-change', getPriceBreakdown())
+}
+
+function getPriceBreakdown() {
+  const cost = Number(form.cost ?? 0)
+  const gain = Number(form.gainPct ?? 0)
+  const ivaPct = Number(form.taxRate ?? 0)
+  const base = cost + internalTaxAmount(cost)
+  const neto = base * (1 + gain / 100)
+  const iva = neto * (ivaPct / 100)
+  const publico = neto + iva
+  return { base: round2(base), neto: round2(neto), iva: round2(iva), publico: round2(publico) }
 }
 
 function validateRequired() {
@@ -656,9 +735,24 @@ function normalizePayload() {
   delete payload.comboComponents
   delete payload.wholesaleTiers
   delete payload.leadTimeDays
+  delete payload.supplierId
   delete payload.supplier2Id
 
   return payload
+}
+
+async function linkSuppliers(articleId: string) {
+  try {
+    if (form.supplierId) {
+      await addArticleSupplierLink(articleId, String(form.supplierId), { isPrimary: true })
+    }
+    if (form.supplier2Id) {
+      await addArticleSupplierLink(articleId, String(form.supplier2Id), { isPrimary: false })
+    }
+  } catch (e: any) {
+    console.error('Error al vincular proveedores', e)
+    notifyError('Error al vincular proveedores')
+  }
 }
 
 async function onSubmit() {
@@ -668,6 +762,7 @@ async function onSubmit() {
     const payload = normalizePayload()
     if (props.mode === 'create') {
       const created = await store.create(payload)
+      await linkSuppliers(created.id)
       success('Artículo creado')
       emits('saved', created.id)
     } else {
@@ -774,7 +869,13 @@ onMounted(() => {
 })
 
 function onSupplierCreated() {
-  reloadSuppliers()
+  fetchSuppliers()
   showSupplierModal.value = false
 }
+defineExpose({
+  submit: onSubmit,
+  cancel: onCancel,
+  toggleAdvanced: () => { showAdvanced.value = !showAdvanced.value },
+  getPriceBreakdown
+})
 </script>

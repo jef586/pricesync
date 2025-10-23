@@ -77,3 +77,18 @@ export async function updateArticle(id: string, payload: Partial<ArticleDTO>): P
 export async function removeArticle(id: string): Promise<void> {
   await apiClient.delete(`/articles/${id}`)
 }
+
+// Vinculación de proveedores al artículo
+export async function addArticleSupplierLink(
+  articleId: string,
+  supplierId: string,
+  options: { supplierSku?: string; isPrimary?: boolean } = {}
+): Promise<any> {
+  const payload = {
+    supplierId,
+    supplierSku: options.supplierSku,
+    isPrimary: options.isPrimary
+  }
+  const resp = await apiClient.post(`/articles/${articleId}/suppliers`, payload)
+  return resp.data?.data || resp.data
+}
