@@ -685,6 +685,131 @@ class ArticleController {
       res.status(500).json({ error: 'Error interno del servidor' });
     }
   }
+
+  // --- NUEVO: Actualizar vínculo con proveedor ---
+  static async updateSupplierLink(req, res) {
+    try {
+      const { id, linkId } = req.params;
+      const { supplierSku, isPrimary } = req.body || {};
+      const companyId = req.user.company.id;
+
+      const article = await prisma.article.findFirst({ where: { id, companyId, deletedAt: null } });
+      if (!article) {
+        return res.status(404).json({ success: false, message: 'Artículo no encontrado' });
+      }
+
+      const link = await prisma.articleSupplier.findFirst({ where: { id: linkId, articleId: id }, include: { supplier: true } });
+      if (!link) {
+        return res.status(404).json({ success: false, message: 'Vínculo no encontrado' });
+      }
+
+      // Preparar datos de actualización
+      const data = {};
+      if (supplierSku !== undefined) data.supplierSku = supplierSku?.toString().trim();
+      if (isPrimary !== undefined) data.isPrimary = !!isPrimary;
+
+      try {
+        const result = await prisma.$transaction(async (tx) => {
+          // Si se establece como primario, desmarcar otros
+          if (data.isPrimary === true) {
+            await tx.articleSupplier.updateMany({
+              where: { articleId: id, id: { not: linkId } },
+              data: { isPrimary: false }
+            })
+          }
+          const updated = await tx.articleSupplier.update({
+            where: { id: linkId },
+            data,
+            include: { supplier: { select: { id: true, code: true, name: true } } }
+          })
+          return updated
+        })
+
+        return res.json({ success: true, message: 'Vínculo actualizado', data: result })
+      } catch (error) {
+        if (error?.code === 'P2002') {
+          return res.status(409).json({ success: false, message: 'supplierSku duplicado para este proveedor' })
+        }
+        throw error
+      }
+    } catch (error) {
+      console.error('Error updating supplier link:', error)
+      res.status(500).json({ error: 'Error interno del servidor' })
+    }
+  }
+
+  // --- NUEVO: Resolver artículo ---
+  static async resolveArticle(req, res) {
+    try {
+      const { barcode, sku, supplierId, supplierSku } = req.query || {};
+      const companyId = req.user.company.id;
+
+      const articleSelect = {
+        id: true,
+        sku: true,
+        name: true,
+        description: true,
+        type: true,
+        active: true,
+        cost: true,
+        pricePublic: true,
+        stock: true,
+        taxRate: true,
+        category: { select: { id: true, name: true } }
+      }
+
+      // 1) Por barcode exacto (campo principal o tabla secundaria)
+      if (barcode) {
+        const byBarcode = await prisma.article.findFirst({
+          where: {
+            companyId,
+            deletedAt: null,
+            OR: [
+              { barcode: barcode.toString().trim() },
+              { barcodes: { some: { code: barcode.toString().trim() } } }
+            ]
+          },
+          select: articleSelect
+        })
+        if (byBarcode) {
+          return res.json({ success: true, data: byBarcode })
+        }
+      }
+
+      // 2) Por SKU/código
+      if (sku) {
+        const bySku = await prisma.article.findFirst({
+          where: { companyId, deletedAt: null, sku: sku.toString().trim() },
+          select: articleSelect
+        })
+        if (bySku) {
+          return res.json({ success: true, data: bySku })
+        }
+      }
+
+      // 3) Por equivalencia de proveedor (estricto supplierId + supplierSku)
+      if (supplierId && supplierSku) {
+        const bySupplier = await prisma.articleSupplier.findFirst({
+          where: {
+            supplierId: supplierId.toString().trim(),
+            supplierSku: supplierSku.toString().trim(),
+            article: { companyId, deletedAt: null }
+          },
+          include: {
+            article: { select: articleSelect }
+          }
+        })
+        if (bySupplier?.article) {
+          return res.json({ success: true, data: bySupplier.article })
+        }
+      }
+
+      return res.status(404).json({ success: false, message: 'Artículo no encontrado' })
+    } catch (error) {
+      console.error('Error resolving article:', error)
+      res.status(500).json({ error: 'Error interno del servidor' })
+    }
+  }
 }
 
 export default ArticleController;

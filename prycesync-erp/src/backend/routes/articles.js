@@ -21,6 +21,8 @@ router.use((req, res, next) => {
 // Lectura: 60/min
 const readLimit = rateLimit({ keyPrefix: 'rl:articles:read', limit: 60, windowSeconds: 60 })
 const requireRead = requireScopes('article:read')
+// Resolver artículos en compras (permiso específico)
+const requireResolve = requireScopes('purchases:resolve')
 
 // Escritura: 20/min
 const writeLimit = rateLimit({ keyPrefix: 'rl:articles:write', limit: 20, windowSeconds: 60 })
@@ -29,6 +31,8 @@ const requireWrite = requireScopes('article:write')
 // Búsqueda y listado
 router.get('/search', requireRead, readLimit, ArticleController.searchArticles)
 router.get('/', requireRead, readLimit, ArticleController.getArticles)
+// Resolver
+router.get('/resolve', requireResolve, readLimit, ArticleController.resolveArticle)
 
 // CRUD
 router.get('/:id', requireRead, readLimit, ArticleController.getArticleById)
@@ -47,6 +51,7 @@ router.delete('/:id/barcodes/:barcodeId', requireWrite, writeLimit, ArticleContr
 // Subrecursos: proveedores
 router.get('/:id/suppliers', requireRead, readLimit, ArticleController.getSuppliers)
 router.post('/:id/suppliers', requireWrite, writeLimit, ArticleController.addSupplierLink)
+router.put('/:id/suppliers/:linkId', requireWrite, writeLimit, ArticleController.updateSupplierLink)
 router.delete('/:id/suppliers/:linkId', requireWrite, writeLimit, ArticleController.deleteSupplierLink)
 
 export default router

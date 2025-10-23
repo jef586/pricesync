@@ -92,3 +92,46 @@ export async function addArticleSupplierLink(
   const resp = await apiClient.post(`/articles/${articleId}/suppliers`, payload)
   return resp.data?.data || resp.data
 }
+
+// Obtener vínculos de proveedores de un artículo
+export async function getArticleSuppliers(articleId: string): Promise<any[]> {
+  const resp = await apiClient.get(`/articles/${articleId}/suppliers`)
+  return resp.data?.data || resp.data || []
+}
+
+// Actualizar un vínculo proveedor-artículo
+export async function updateArticleSupplierLink(
+  articleId: string,
+  linkId: string,
+  payload: { supplierSku?: string; isPrimary?: boolean }
+): Promise<any> {
+  const resp = await apiClient.put(`/articles/${articleId}/suppliers/${linkId}`, payload)
+  return resp.data?.data || resp.data
+}
+
+// Eliminar un vínculo proveedor-artículo
+export async function deleteArticleSupplierLink(articleId: string, linkId: string): Promise<void> {
+  await apiClient.delete(`/articles/${articleId}/suppliers/${linkId}`)
+}
+
+// Resolver artículo por barcode/sku o equivalencia de proveedor
+export async function resolveArticle(params: {
+  barcode?: string
+  sku?: string
+  supplierId?: string
+  supplierSku?: string
+}): Promise<ArticleDTO | null> {
+  const query = new URLSearchParams()
+  if (params.barcode) query.append('barcode', params.barcode)
+  if (params.sku) query.append('sku', params.sku)
+  if (params.supplierId) query.append('supplierId', params.supplierId)
+  if (params.supplierSku) query.append('supplierSku', params.supplierSku)
+
+  try {
+    const resp = await apiClient.get(`/articles/resolve?${query.toString()}`)
+    return (resp.data?.data || resp.data) as ArticleDTO
+  } catch (err: any) {
+    if (err?.response?.status === 404) return null
+    throw err
+  }
+}
