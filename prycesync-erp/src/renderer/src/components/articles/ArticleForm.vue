@@ -431,7 +431,7 @@ import { useCategories } from '@/composables/useCategories'
 import { useSuppliers } from '@/composables/useSuppliers'
 import { useNotifications } from '@/composables/useNotifications'
 import EntitySearch from '@/components/molecules/EntitySearch.vue'
-import { addArticleSupplierLink } from '@/services/articles'
+import { addArticleSupplierLink, getArticleBarcodes, addArticleBarcode, deleteArticleBarcode } from '@/services/articles'
 
 const props = defineProps<{ mode: 'create' | 'edit'; initial?: any }>()
 const emits = defineEmits(['saved', 'cancel', 'price-change'])
@@ -814,21 +814,42 @@ const photoPreview = ref('')
 
 // Secondary barcodes (edit mode)
 async function loadSecondaryBarcodes() {
-  // Placeholder: would call service /api/articles/:id/barcodes
-  secondaryBarcodes.value = []
+  if (props.mode !== 'edit' || !props.initial?.id) { secondaryBarcodes.value = []; return }
+  try {
+    const rows = await getArticleBarcodes(props.initial!.id)
+    secondaryBarcodes.value = rows
+    errors.secondaryBarcodes = ''
+  } catch (e: any) {
+    errors.secondaryBarcodes = e?.response?.data?.message || 'Error al cargar códigos'
+    secondaryBarcodes.value = []
+  }
 }
 async function addSecondaryBarcode() {
-  if (!newBarcode.value) return
+  if (!newBarcode.value || props.mode !== 'edit' || !props.initial?.id) return
   try {
-    // Call backend to add; here we just push locally
-    secondaryBarcodes.value.push({ id: Math.random().toString(36).slice(2), code: newBarcode.value })
+    const type =
+      /^\d{13}$/.test(newBarcode.value) ? 'EAN13' :
+      /^\d{8}$/.test(newBarcode.value) ? 'EAN8' : null
+    const created = await addArticleBarcode(props.initial!.id, newBarcode.value, type)
+    secondaryBarcodes.value.push(created)
     newBarcode.value = ''
+    errors.secondaryBarcodes = ''
   } catch (e: any) {
-    errors.secondaryBarcodes = 'Error al agregar código'
+    if (e?.response?.status === 400) {
+      errors.secondaryBarcodes = 'Código duplicado'
+    } else {
+      errors.secondaryBarcodes = e?.response?.data?.message || 'Error al agregar código'
+    }
   }
 }
 async function removeSecondaryBarcode(id: string) {
-  secondaryBarcodes.value = secondaryBarcodes.value.filter((b) => b.id !== id)
+  if (props.mode !== 'edit' || !props.initial?.id) return
+  try {
+    await deleteArticleBarcode(props.initial!.id, id)
+    secondaryBarcodes.value = secondaryBarcodes.value.filter((b) => b.id !== id)
+  } catch (e: any) {
+    errors.secondaryBarcodes = e?.response?.data?.message || 'Error al eliminar código'
+  }
 }
 
 // Combos
@@ -864,6 +885,12 @@ function computeStockDays(): number | null {
 
 onMounted(() => {
   if (props.mode === 'edit' && props.initial?.id) {
+    loadSecondaryBarcodes()
+  }
+})
+// Add watcher to reload secondary barcodes when initial.id changes
+watch(() => props.initial?.id, (id) => {
+  if (props.mode === 'edit' && id) {
     loadSecondaryBarcodes()
   }
 })

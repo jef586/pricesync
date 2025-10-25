@@ -340,6 +340,7 @@ const addProductToCart = (prod: any) => {
   const item = {
     tempId: Math.random().toString(36).slice(2),
     productId: prod.id,
+    articleId: prod.id, // asegurar payload con articleId
     name: prod.name,
     code: prod.code,
     quantity: 1,
@@ -391,6 +392,7 @@ const submitSale = async () => {
     // Construir payload compatible con backend /sales
     const items = cartItems.value.map(it => ({
       productId: it.productId,
+      articleId: it.articleId || it.productId,
       quantity: it.quantity,
       unitPrice: it.unitPrice,
       discountType: it.isDiscountable !== false ? it.discountType : undefined,

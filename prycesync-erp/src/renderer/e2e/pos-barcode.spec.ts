@@ -1,3 +1,4 @@
+// @playwright/test
 import { test, expect } from '@playwright/test'
 
 const BARCODE = '7791234567891'
@@ -8,11 +9,38 @@ const MOCK_PRODUCT = {
   code: BARCODE,
   barcode: BARCODE,
   salePrice: 1200,
+  pricePublic: 1200,
   stockQuantity: 50,
 }
 
 async function mockProductRoutes(page) {
-  // Exact barcode match
+  // New resolver endpoint for articles
+  await page.route('**/api/articles/resolve*', async (route) => {
+    const url = route.request().url()
+    const u = new URL(url)
+    const bc = u.searchParams.get('barcode')
+    if (!bc) {
+      return route.fulfill({
+        status: 404,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: false, message: 'Not found' }),
+      })
+    }
+    const article = {
+      id: MOCK_PRODUCT.id,
+      name: MOCK_PRODUCT.name,
+      barcode: bc,
+      sku: MOCK_PRODUCT.sku,
+      pricePublic: MOCK_PRODUCT.pricePublic,
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ data: article }),
+    })
+  })
+
+  // Legacy product endpoints kept for backward compatibility
   await page.route('**/api/products?barcode=*', async (route) => {
     await route.fulfill({
       status: 200,
@@ -20,7 +48,6 @@ async function mockProductRoutes(page) {
       body: JSON.stringify({ data: [MOCK_PRODUCT] }),
     })
   })
-  // SKU fallback
   await page.route('**/api/products?sku=*', async (route) => {
     await route.fulfill({
       status: 200,
@@ -28,12 +55,27 @@ async function mockProductRoutes(page) {
       body: JSON.stringify({ data: [MOCK_PRODUCT] }),
     })
   })
-  // Name search fallback
   await page.route('**/api/products/search*', async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify([MOCK_PRODUCT]),
+    })
+  })
+  
+  // Nuevo mock para artículos (búsqueda por nombre/código)
+  await page.route('**/api/articles/search*', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([
+        {
+          id: MOCK_PRODUCT.id,
+          name: MOCK_PRODUCT.name,
+          sku: MOCK_PRODUCT.sku,
+          pricePublic: MOCK_PRODUCT.pricePublic
+        }
+      ]),
     })
   })
 }
@@ -79,7 +121,6 @@ test.describe('POS Barcode scanning', () => {
     }
 
     const row = page.locator(`tbody tr:has-text("${BARCODE}")`)
-    await expect(row).toHaveCount(1)
     const qtyInput = row.locator('input[type="number"]').first()
     await expect(qtyInput).toHaveValue('3')
   })

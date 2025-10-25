@@ -83,6 +83,7 @@
             <td class="py-2 px-3">
               <div class="text-sm">{{ item.barcode || '—' }}</div>
               <div class="text-xs text-gray-500">{{ item.sku || '—' }}</div>
+              <div v-if="item.barcodesCount > 0" class="mt-1 inline-block text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded" aria-label="Alias count">Alias: {{ item.barcodesCount }}</div>
             </td>
             <td class="py-2 px-3">
               <div class="flex items-center gap-2">

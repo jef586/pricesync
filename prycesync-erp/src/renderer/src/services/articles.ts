@@ -44,7 +44,7 @@ export async function listArticles(filters: ArticleFilters = {}): Promise<Pagina
 
   const resp = await apiClient.get(`/articles?${params.toString()}`)
   const payload = resp.data
-  const items: ArticleDTO[] = Array.isArray(payload?.data)
+  const rawItems: any[] = Array.isArray(payload?.data)
     ? payload.data
     : Array.isArray(payload?.items)
     ? payload.items
@@ -53,6 +53,14 @@ export async function listArticles(filters: ArticleFilters = {}): Promise<Pagina
     : Array.isArray(payload)
     ? payload
     : []
+
+  // Map view helper fields
+  const items: ArticleDTO[] = rawItems.map((a: any) => ({
+    ...a,
+    categoryName: a?.category?.name,
+    barcodesCount: a?._count?.barcodes ?? 0
+  }))
+
   return normalizePagination<ArticleDTO>(payload, items)
 }
 
@@ -112,6 +120,26 @@ export async function updateArticleSupplierLink(
 // Eliminar un vínculo proveedor-artículo
 export async function deleteArticleSupplierLink(articleId: string, linkId: string): Promise<void> {
   await apiClient.delete(`/articles/${articleId}/suppliers/${linkId}`)
+}
+
+// --- Subrecursos: códigos de barras secundarios ---
+export async function getArticleBarcodes(articleId: string): Promise<Array<{ id: string; code: string }>> {
+  const resp = await apiClient.get(`/articles/${articleId}/barcodes`)
+  const rows = resp.data?.data || resp.data || []
+  // Normalize to minimal shape expected by form
+  return rows.map((r: any) => ({ id: r.id, code: r.code }))
+}
+
+export async function addArticleBarcode(articleId: string, code: string, type: string | null = null): Promise<{ id: string; code: string }> {
+  const payload: any = { code }
+  if (type) payload.type = type
+  const resp = await apiClient.post(`/articles/${articleId}/barcodes`, payload)
+  const r = resp.data?.data || resp.data
+  return { id: r.id, code: r.code }
+}
+
+export async function deleteArticleBarcode(articleId: string, barcodeId: string): Promise<void> {
+  await apiClient.delete(`/articles/${articleId}/barcodes/${barcodeId}`)
 }
 
 // Resolver artículo por barcode/sku o equivalencia de proveedor

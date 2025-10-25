@@ -112,7 +112,8 @@ class ArticleController {
             categoryId: true,
             category: { select: { id: true, name: true } },
             createdAt: true,
-            updatedAt: true
+            updatedAt: true,
+            _count: { select: { barcodes: true } }
           },
           skip: parseInt(skip),
           take: parseInt(limit),
@@ -238,13 +239,19 @@ class ArticleController {
         finalPricePublic = dir.pricePublic
       }
 
+      // Generar SKU si no se envía o está vacío
+      const rawSku = sku?.toString().trim()
+      const finalSku = rawSku && rawSku.length > 0
+        ? rawSku
+        : `SKU-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,6)}`
+
       const article = await prisma.article.create({
         data: {
           name: name.trim(),
           description: description?.trim() || null,
           type,
           active: !!active,
-          sku: sku?.trim() || null,
+          sku: finalSku,
           barcode: barcode?.trim() || null,
           barcodeType: barcodeType || null,
           taxRate: parseFloat(taxRate) || 21,
@@ -266,15 +273,15 @@ class ArticleController {
           imageUrl: imageUrl || null
         },
         include: { category: { select: { id: true, name: true } } }
-      });
+      })
 
-      res.status(201).json(article);
+      res.status(201).json(article)
     } catch (error) {
-      console.error('Error creating article:', error);
+      console.error('Error creating article:', error)
       if (error.code === 'P2002') {
-        return res.status(409).json({ error: 'CONFLICT', message: 'SKU o código de barras duplicado' });
+        return res.status(409).json({ error: 'CONFLICT', message: 'SKU o código de barras duplicado' })
       }
-      res.status(500).json({ error: 'SERVER_ERROR', message: 'No se pudo crear el artículo' });
+      res.status(500).json({ error: 'SERVER_ERROR', message: 'No se pudo crear el artículo' })
     }
   }
 
@@ -338,7 +345,7 @@ class ArticleController {
       if (description !== undefined) updateData.description = description?.trim() || null;
       if (type !== undefined) updateData.type = type;
       if (active !== undefined) updateData.active = !!active;
-      if (sku !== undefined) updateData.sku = sku?.trim() || null;
+      if (sku !== undefined) updateData.sku = sku?.trim() || existing.sku
       if (barcode !== undefined) updateData.barcode = barcode?.trim() || null;
       if (barcodeType !== undefined) updateData.barcodeType = barcodeType || null;
       if (taxRate !== undefined) updateData.taxRate = parseFloat(taxRate) || existing.taxRate || 21;

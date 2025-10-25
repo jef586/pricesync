@@ -1,5 +1,6 @@
-﻿import { ref, computed, readonly } from 'vue'
+import { ref, computed, readonly } from 'vue'
 import axios from 'axios'
+import { resolveArticle } from '@/services/articles'
 
 // Types
 interface Product {
@@ -140,29 +141,52 @@ export function useProducts() {
       console.log('useProducts - fetchProducts called with filters:', filters)
       
       const params = new URLSearchParams()
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== '') {
-          params.append(key, String(value))
-        }
-      })
+      // Map legacy filters to articles endpoint
+      if (filters.search) params.append('search', String(filters.search))
+      if (filters.categoryId) params.append('categoryId', String(filters.categoryId))
+      if (filters.page) params.append('page', String(filters.page))
+      if (filters.limit) params.append('limit', String(filters.limit))
+      if (filters.sortBy) params.append('sortBy', String(filters.sortBy))
+      if (filters.sortOrder) params.append('sortOrder', String(filters.sortOrder))
+      // status -> active (true/false)
+      if (filters.status) {
+        const s = String(filters.status).toLowerCase()
+        if (s === 'active') params.append('active', 'true')
+        else if (s === 'inactive') params.append('active', 'false')
+      }
 
-      console.log('useProducts - making API call to:', `/products?${params.toString()}`)
-      const response = await apiClient.get(`/products?${params.toString()}`)
+      console.log('useProducts - making API call to:', `/articles?${params.toString()}`)
+      const response = await apiClient.get(`/articles?${params.toString()}`)
       console.log('useProducts - API response:', response.data)
       
-      // La API de productos devuelve { success, data, pagination }
-      // mientras que otras APIs devuelven { items, pagination }
-      const productsData = response.data.data || response.data.products || response.data.items || response.data
-      products.value = Array.isArray(productsData) ? productsData : []
-      
-      console.log('useProducts - products.value after assignment:', products.value)
-      console.log('useProducts - products.value type:', typeof products.value)
-      console.log('useProducts - products.value isArray:', Array.isArray(products.value))
+      // La API de artículos puede devolver { data | items | articles }
+      const raw = response.data
+      const productsData = raw?.data || raw?.items || raw?.articles || (Array.isArray(raw) ? raw : [])
+      const arr = Array.isArray(productsData) ? productsData : []
+
+      // Mapear artículos -> Product (compatibilidad)
+      products.value = arr.map((a: any) => ({
+        id: a.id,
+        sku: a.sku || '',
+        name: a.name,
+        description: a.description || undefined,
+        categoryId: a.categoryId || a.category?.id,
+        category: a.category ? { id: a.category.id, name: a.category.name } : undefined,
+        costPrice: a.cost ?? 0,
+        salePrice: (a as any).salePrice ?? a.pricePublic ?? 0,
+        stockQuantity: a.stock ?? 0,
+        minStock: a.stockMin ?? undefined,
+        maxStock: a.stockMax ?? undefined,
+        unit: (a.unit || 'UN'),
+        status: (a.active === false) ? 'inactive' : 'active',
+        createdAt: a.createdAt,
+        updatedAt: a.updatedAt
+      }))
       
       // Fallback robusto si la API no entrega 'pagination'
-      const rawPagination = response.data.pagination || response.data.meta?.pagination || null
+      const rawPagination = raw?.pagination || raw?.meta?.pagination || null
       const limit = rawPagination?.limit ?? filters.limit ?? 10
-      const total = rawPagination?.total ?? (Array.isArray(productsData) ? productsData.length : 0)
+      const total = rawPagination?.total ?? (Array.isArray(arr) ? arr.length : 0)
       const pages = rawPagination?.pages ?? rawPagination?.totalPages ?? Math.ceil(total / (limit || 10))
 
       pagination.value = {
@@ -185,15 +209,28 @@ export function useProducts() {
     try {
       setLoading(true)
       
-      const response = await apiClient.get(`/products/${id}`)
-      
-      if (response.status === 200 || response.data.success) {
-        const productData = response.data.data || response.data
-        currentProduct.value = productData
-        return productData
-      } else {
-        throw new Error(response.data.message || 'Error al cargar producto')
+      const response = await apiClient.get(`/articles/${id}`)
+      const raw = response.data?.data || response.data
+      const a: any = raw
+      const productData: Product = {
+        id: a.id,
+        sku: a.sku || '',
+        name: a.name,
+        description: a.description || undefined,
+        categoryId: a.categoryId || a.category?.id,
+        category: a.category ? { id: a.category.id, name: a.category.name } : undefined,
+        costPrice: a.cost ?? 0,
+        salePrice: (a as any).salePrice ?? a.pricePublic ?? 0,
+        stockQuantity: a.stock ?? 0,
+        minStock: a.stockMin ?? undefined,
+        maxStock: a.stockMax ?? undefined,
+        unit: (a.unit || 'UN'),
+        status: (a.active === false) ? 'inactive' : 'active',
+        createdAt: a.createdAt,
+        updatedAt: a.updatedAt
       }
+      currentProduct.value = productData
+      return productData
     } catch (err: any) {
       error.value = err.response?.data?.message || err.message || 'Error al cargar producto'
       currentProduct.value = null
@@ -214,9 +251,19 @@ export function useProducts() {
       params.append('q', query)
       params.append('limit', limit.toString())
 
-      const response = await apiClient.get(`/products/search?${params.toString()}`)
-      
-      return response.data || []
+      // Refactor: usar artículos
+      const response = await apiClient.get(`/articles/search?${params.toString()}`)
+      const items = Array.isArray(response.data) ? response.data : (response.data?.data || [])
+
+      // Mapear al formato esperado por las vistas POS
+      return items.map((a: any) => ({
+        id: a.id,
+        name: a.name,
+        sku: a.sku || '',
+        code: a.sku || '',
+        salePrice: (a as any).salePrice ?? a.pricePublic ?? 0,
+        imageUrl: (a as any).imageUrl ?? null
+      }))
     } catch (err: any) {
       console.error('Error searching products:', err)
       return []
@@ -227,28 +274,14 @@ export function useProducts() {
   const searchByBarcode = async (barcode: string): Promise<any[]> => {
     try {
       if (!barcode || barcode.length < 2) return []
-      const results: any[] = []
-      // Exact barcode match
-      const resp1 = await apiClient.get(`/products?barcode=${encodeURIComponent(barcode)}`)
-      const data1 = resp1.data?.data || resp1.data?.products || resp1.data
-      if (Array.isArray(data1)) {
-        results.push(...data1)
-      }
-      // Fallback by sku/code
-      const resp2 = await apiClient.get(`/products?sku=${encodeURIComponent(barcode)}`)
-      const data2 = resp2.data?.data || resp2.data?.products || resp2.data
-      if (Array.isArray(data2)) {
-        // Avoid duplicates by id
-        const ids = new Set(results.map(r => r.id))
-        for (const r of data2) { if (!ids.has(r.id)) results.push(r) }
-      }
-      // Fallback partial search
-      if (results.length === 0) {
-        const resp3 = await apiClient.get(`/products/search?q=${encodeURIComponent(barcode)}&limit=10`)
-        const data3 = resp3.data?.data || resp3.data?.items || resp3.data
-        if (Array.isArray(data3)) return data3
-      }
-      return results
+      const art = await resolveArticle({ barcode })
+      if (!art) return []
+      return [{
+        id: art.id,
+        name: art.name,
+        code: art.sku || art.barcode || barcode,
+        salePrice: (art as any).salePrice ?? art.pricePublic ?? 0
+      }]
     } catch (err) {
       console.error('Error searching products by barcode:', err)
       return []

@@ -31,6 +31,11 @@ export interface ArticleDTO {
   createdAt: string
   updatedAt: string
   deletedAt?: string | null
+  // Extended view fields
+  barcodesCount?: number
+  categoryName?: string
+  subcategoryName?: string
+  supplierName?: string
 }
 
 export interface ArticleFilters {

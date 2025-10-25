@@ -270,14 +270,14 @@ model Article {
   active Boolean     @default(true)
 
   // Identificación
-  sku         String?      @unique
+  sku         String       @unique
   barcode     String?      @unique
-  barcodeType BarcodeType?
+  barcodeType BarcodeType? @map("barcode_type")
 
   // Clasificación
   categoryId    String?   @map("category_id")
   category      Category? @relation(fields: [categoryId], references: [id])
-  subcategoryId String?   @map("subcategory_id")
+
 
   // Impuestos y precios
   taxRate     Decimal  @default(21) @map("tax_rate") @db.Decimal(5, 2)
@@ -296,7 +296,7 @@ model Article {
   imageUrl    String? @map("image_url")
 
   // Impuesto interno
-  internalTaxType  InternalTaxType?
+  internalTaxType  InternalTaxType? @map("internal_tax_type")
   internalTaxValue Decimal?         @map("internal_tax_value") @db.Decimal(12, 2)
 
   // Flags fiscales

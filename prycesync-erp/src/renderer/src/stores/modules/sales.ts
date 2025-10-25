@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { apiClient } from '../../services/api'
+import { resolveArticle } from '@/services/articles'
 
 export interface SaleItem {
   tempId: string
@@ -97,33 +98,10 @@ export const useSalesStore = defineStore('sales', () => {
   // Search product by barcode
   const findProductByBarcode = async (barcode: string) => {
     try {
-      // First try exact barcode match
-      const barcodeResponse = await apiClient.get(`/products?barcode=${encodeURIComponent(barcode)}`)
-      const barcodeData = barcodeResponse.data.data || barcodeResponse.data.products || barcodeResponse.data
-      
-      if (Array.isArray(barcodeData) && barcodeData.length > 0) {
-        return barcodeData[0]
-      }
-      
-      // Fallback: search by SKU/code (in case barcode field isn't populated but code is used)
-      const skuResponse = await apiClient.get(`/products?sku=${encodeURIComponent(barcode)}`)
-      const skuData = skuResponse.data.data || skuResponse.data.products || skuResponse.data
-      
-      if (Array.isArray(skuData) && skuData.length > 0) {
-        return skuData[0]
-      }
-
-      // Additional fallback: search in product name/description
-      const searchResponse = await apiClient.get(`/products/search?q=${encodeURIComponent(barcode)}&limit=1`)
-      const searchData = searchResponse.data
-      
-      if (Array.isArray(searchData) && searchData.length > 0) {
-        return searchData[0]
-      }
-
-      return null
+      const article = await resolveArticle({ barcode })
+      return article
     } catch (err) {
-      console.error('Error searching product by barcode:', err)
+      console.error('Error resolving article by barcode:', err)
       return null
     }
   }
@@ -136,31 +114,31 @@ export const useSalesStore = defineStore('sales', () => {
       
       initCurrentSale()
       
-      // 1) Search for product by barcode
-      const product = await findProductByBarcode(barcode)
-      if (!product) {
-        error.value = `Producto no encontrado para código: ${barcode}`
+      // 1) Resolve article by barcode
+      const article = await findProductByBarcode(barcode)
+      if (!article) {
+        error.value = `Artículo no encontrado para código: ${barcode}`
         return false
       }
       
-      // 2) Check if product already exists in current sale
+      // 2) Check if article already exists in current sale
       const existingItemIndex = currentSale.value!.items.findIndex(
-        item => item.productId === product.id
+        item => item.productId === article.id
       )
       
       if (existingItemIndex >= 0) {
-        // 3a) Product exists, increment quantity
+        // 3a) Article exists, increment quantity
         currentSale.value!.items[existingItemIndex].quantity += 1
       } else {
-        // 3b) New product, add as new item
+        // 3b) New article, add as new item
         const newItem: SaleItem = {
           tempId: Math.random().toString(36).slice(2),
-          productId: product.id,
-          name: product.name || 'Producto sin nombre',
-          code: product.sku || product.code || barcode,
+          productId: article.id,
+          name: article.name || 'Artículo sin nombre',
+          code: article.sku || article.barcode || barcode,
           barcode: barcode,
           quantity: 1,
-          unitPrice: product.salePrice || 0,
+          unitPrice: (article as any).salePrice ?? article.pricePublic ?? 0,
           discount: 0,
           discountType: 'PERCENT',
           discountValue: 0,
@@ -169,13 +147,13 @@ export const useSalesStore = defineStore('sales', () => {
         currentSale.value!.items.push(newItem)
       }
       
-      // 4) Recalculate totals (respects universal pricing engine - no recalc rules here)
+      // 4) Recalculate totals
       computeTotals()
       
       return true
     } catch (err: any) {
       console.error('Error adding item by barcode:', err)
-      error.value = err.message || 'Error al agregar producto'
+      error.value = err.message || 'Error al agregar artículo'
       return false
     } finally {
       isLoading.value = false
