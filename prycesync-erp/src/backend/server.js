@@ -1,4 +1,6 @@
 import express from 'express';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import cors from 'cors';
 import { connectDatabase } from './config/database.js';
 import prisma from './config/database.js';
@@ -21,6 +23,14 @@ import stockRoutes from './routes/stock.js';
 const app = express();
 const PORT = process.env.PORT || 3002;
 
+// Static assets for articles (images)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const ASSETS_DIR = process.env.ASSETS_DIR || (process.env.NODE_ENV === 'development'
+  ? path.resolve(__dirname, '../../assets')
+  : '/app/assets');
+const ARTICLES_ASSETS_DIR = path.join(ASSETS_DIR, 'articles');
+
 // Middleware CORS para permitir conexiones desde el frontend Vue (puerto 5173)
 app.use(cors({
   origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
@@ -30,6 +40,17 @@ app.use(cors({
 // Middleware para parsing JSON
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Static route to serve article images
+app.use('/static/articles', express.static(ARTICLES_ASSETS_DIR, {
+  maxAge: '7d',
+  immutable: true,
+  index: false,
+  setHeaders: (res, filePath) => {
+    // Basic security headers and content type best-effort
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+  }
+}));
 
 // Middleware de logging bÃ¡sico
 app.use((req, res, next) => {

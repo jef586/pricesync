@@ -13,6 +13,8 @@ services:
       - .:/app
       - /app/node_modules
       - ./secrets/afip:/app/secrets/afip:ro
+      # Volumen de assets: configurable por ASSETS_HOST_DIR, fallback a ./.assets
+      - ${ASSETS_HOST_DIR:-./.assets}:/app/assets
     working_dir: /app
     env_file:
       - .env.docker

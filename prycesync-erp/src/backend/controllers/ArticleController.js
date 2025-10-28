@@ -1,4 +1,7 @@
 import prisma from '../config/database.js';
+import fs from 'fs';
+import path from 'path';
+import sharp from 'sharp';
 import { getCompanyPricing, computeSalePrice, directPricing, inversePricing } from '../services/PricingService.js'
 import StockService from '../services/StockService.js'
 
@@ -815,6 +818,142 @@ class ArticleController {
     } catch (error) {
       console.error('Error resolving article:', error)
       res.status(500).json({ error: 'Error interno del servidor' })
+    }
+  }
+
+  // --- Subrecurso: Imagen principal ---
+  static async uploadImage(req, res) {
+    try {
+      const { id } = req.params;
+      const companyId = req.user.company.id;
+      const file = req.file;
+
+      if (!file) {
+        return res.status(400).json({ success: false, message: 'Archivo de imagen requerido (campo "image")' });
+      }
+
+      const article = await prisma.article.findFirst({ where: { id, companyId, deletedAt: null }, select: { id: true } });
+      if (!article) {
+        return res.status(404).json({ success: false, message: 'Artículo no encontrado' });
+      }
+
+      const ASSETS_DIR = process.env.ASSETS_DIR || (process.env.NODE_ENV === 'development'
+        ? path.resolve(path.join(process.cwd(), 'assets'))
+        : '/app/assets');
+      const targetDir = path.join(ASSETS_DIR, 'articles', companyId, id);
+      await fs.promises.mkdir(targetDir, { recursive: true });
+
+      // Determinar extensión según mimetype
+      const extMap = {
+        'image/jpeg': 'jpg',
+        'image/png': 'png',
+        'image/webp': 'webp'
+      };
+      const ext = extMap[file.mimetype] || 'jpg';
+
+      const originalName = `original.${ext}`;
+      const originalPath = path.join(targetDir, originalName);
+      await fs.promises.writeFile(originalPath, file.buffer);
+
+      // Generar thumbnail (webp)
+      const thumbName = 'thumb.webp';
+      const thumbPath = path.join(targetDir, thumbName);
+      try {
+        await sharp(file.buffer)
+          .resize(512, 512, { fit: 'inside', withoutEnlargement: true })
+          .toFormat('webp', { quality: 80 })
+          .toFile(thumbPath);
+      } catch (err) {
+        console.warn('Thumbnail generation failed, continuing without thumbnail:', err?.message);
+      }
+
+      const originalUrl = `/static/articles/${companyId}/${id}/${originalName}`;
+      const thumbUrl = `/static/articles/${companyId}/${id}/${thumbName}`;
+
+      // Obtener metadatos de la imagen
+      let meta = {};
+      try {
+        meta = await sharp(file.buffer).metadata();
+      } catch (err) {
+        console.warn('Failed to read image metadata:', err?.message);
+      }
+
+      // Persistir en Prisma: ArticleImage y vincular imageId
+      await prisma.$transaction(async (tx) => {
+        const current = await tx.article.findUnique({ where: { id }, select: { imageId: true } });
+        if (current?.imageId) {
+          await tx.articleImage.update({
+            where: { id: current.imageId },
+            data: {
+              imageUrl: originalUrl,
+              thumbnailUrl: thumbUrl,
+              mimeType: file.mimetype,
+              sizeBytes: file.size ?? file.buffer?.length ?? null,
+              width: meta?.width ?? null,
+              height: meta?.height ?? null
+            }
+          });
+          await tx.article.update({ where: { id }, data: { imageUrl: originalUrl } });
+        } else {
+          const createdImg = await tx.articleImage.create({
+            data: {
+              articleId: id,
+              imageUrl: originalUrl,
+              thumbnailUrl: thumbUrl,
+              mimeType: file.mimetype,
+              sizeBytes: file.size ?? file.buffer?.length ?? null,
+              width: meta?.width ?? null,
+              height: meta?.height ?? null
+            }
+          });
+          await tx.article.update({ where: { id }, data: { imageUrl: originalUrl, imageId: createdImg.id } });
+        }
+      });
+
+      return res.status(201).json({ success: true, message: 'Imagen cargada', data: { imageUrl: originalUrl, thumbnailUrl: thumbUrl, articleId: id } });
+    } catch (error) {
+      console.error('Error uploading article image:', error);
+      return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+    }
+  }
+
+  static async deleteImage(req, res) {
+    try {
+      const { id } = req.params;
+      const companyId = req.user.company.id;
+
+      const article = await prisma.article.findFirst({ where: { id, companyId, deletedAt: null }, select: { id: true, imageId: true } });
+      if (!article) {
+        return res.status(404).json({ success: false, message: 'Artículo no encontrado' });
+      }
+
+      const ASSETS_DIR = process.env.ASSETS_DIR || (process.env.NODE_ENV === 'development'
+        ? path.resolve(path.join(process.cwd(), 'assets'))
+        : '/app/assets');
+      const targetDir = path.join(ASSETS_DIR, 'articles', companyId, id);
+
+      // Borrar archivos y carpeta
+      try {
+        await fs.promises.rm(targetDir, { recursive: true, force: true });
+      } catch (err) {
+        console.warn('Delete image: nothing to remove or failed:', err?.message);
+      }
+
+      await prisma.$transaction(async (tx) => {
+        if (article.imageId) {
+          try {
+            await tx.articleImage.delete({ where: { id: article.imageId } });
+          } catch (err) {
+            console.warn('Delete image record failed:', err?.message);
+          }
+        }
+        await tx.article.update({ where: { id }, data: { imageUrl: null, imageId: null } });
+      })
+
+      return res.json({ success: true, message: 'Imagen eliminada' });
+    } catch (error) {
+      console.error('Error deleting article image:', error);
+      return res.status(500).json({ success: false, message: 'Error interno del servidor' });
     }
   }
 }

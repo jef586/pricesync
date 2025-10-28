@@ -163,3 +163,18 @@ export async function resolveArticle(params: {
     throw err
   }
 }
+
+// --- Subrecurso: imagen principal del artículo ---
+export async function uploadArticleImage(articleId: string, file: File): Promise<{ imageUrl: string; thumbnailUrl?: string }> {
+  const form = new FormData()
+  form.append('image', file)
+  const resp = await apiClient.post(`/articles/${articleId}/image`, form, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+  const data = resp.data?.data || resp.data
+  return { imageUrl: data?.imageUrl, thumbnailUrl: data?.thumbnailUrl }
+}
+
+export async function deleteArticleImage(articleId: string): Promise<void> {
+  await apiClient.delete(`/articles/${articleId}/image`)
+}

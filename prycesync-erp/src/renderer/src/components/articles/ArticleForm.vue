@@ -255,7 +255,11 @@
         </div>
         <div>
           <label class="block text-sm mb-1">Foto</label>
-          <input type="file" class="border rounded px-3 py-2 w-full" />
+          <input type="file" class="border rounded px-3 py-2 w-full" @change="onFileChange" accept="image/*" />
+          <div v-if="photoPreview" class="mt-2 flex items-center gap-3">
+            <img :src="photoPreview" alt="Preview" class="h-20 w-20 object-cover rounded border" />
+            <BaseButton variant="ghost" type="button" @click="removePhoto">Quitar</BaseButton>
+          </div>
         </div>
       </div>
     </section>
@@ -431,7 +435,7 @@ import { useCategories } from '@/composables/useCategories'
 import { useSuppliers } from '@/composables/useSuppliers'
 import { useNotifications } from '@/composables/useNotifications'
 import EntitySearch from '@/components/molecules/EntitySearch.vue'
-import { addArticleSupplierLink, getArticleBarcodes, addArticleBarcode, deleteArticleBarcode } from '@/services/articles'
+import { addArticleSupplierLink, getArticleBarcodes, addArticleBarcode, deleteArticleBarcode, uploadArticleImage, deleteArticleImage } from '@/services/articles'
 
 const props = defineProps<{ mode: 'create' | 'edit'; initial?: any }>()
 const emits = defineEmits(['saved', 'cancel', 'price-change'])
@@ -541,6 +545,7 @@ const saving = ref(false)
 const showDeleteModal = ref(false)
 const showSupplierModal = ref(false)
 const showAdvanced = ref(false)
+const apiBase = String((import.meta as any).env?.VITE_API_URL || '')
 
 // Selección de proveedores con EntitySearch
 const selectedSupplier1 = ref<any | null>(null)
@@ -763,10 +768,26 @@ async function onSubmit() {
     if (props.mode === 'create') {
       const created = await store.create(payload)
       await linkSuppliers(created.id)
+      if (photoFile.value) {
+        try {
+          const result = await uploadArticleImage(created.id, photoFile.value)
+          photoPreview.value = result?.imageUrl ? `${apiBase}${result.imageUrl}` : photoPreview.value
+        } catch (err: any) {
+          console.error('Upload image failed:', err)
+        }
+      }
       success('Artículo creado')
       emits('saved', created.id)
     } else {
       await store.update(props.initial!.id, payload)
+      if (photoFile.value) {
+        try {
+          const result = await uploadArticleImage(props.initial!.id, photoFile.value)
+          photoPreview.value = result?.imageUrl ? `${apiBase}${result.imageUrl}` : photoPreview.value
+        } catch (err: any) {
+          console.error('Upload image failed:', err)
+        }
+      }
       success('Artículo actualizado')
       emits('saved', props.initial!.id)
     }
@@ -807,10 +828,12 @@ function onFileChange(e: Event) {
     photoPreview.value = String(reader.result)
   }
   reader.readAsDataURL(file)
+  photoFile.value = file
 }
 
-function removePhoto() { photoPreview.value = '' }
+function removePhoto() { photoPreview.value = ''; photoFile.value = null }
 const photoPreview = ref('')
+const photoFile = ref<File | null>(null)
 
 // Secondary barcodes (edit mode)
 async function loadSecondaryBarcodes() {
@@ -886,6 +909,8 @@ function computeStockDays(): number | null {
 onMounted(() => {
   if (props.mode === 'edit' && props.initial?.id) {
     loadSecondaryBarcodes()
+    const url = props.initial?.imageUrl
+    if (url) photoPreview.value = `${apiBase}${url}`
   }
 })
 // Add watcher to reload secondary barcodes when initial.id changes

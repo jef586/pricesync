@@ -4,6 +4,7 @@ import { authenticate } from '../middleware/auth.js'
 import { requireScopes } from '../middleware/scopes.js'
 import { rateLimit } from '../middleware/rateLimit.js'
 import { recordArticleRequest } from '../observability/deprecationMetrics.js'
+import multer from 'multer'
 
 const router = express.Router()
 
@@ -53,5 +54,18 @@ router.get('/:id/suppliers', requireRead, readLimit, ArticleController.getSuppli
 router.post('/:id/suppliers', requireWrite, writeLimit, ArticleController.addSupplierLink)
 router.put('/:id/suppliers/:linkId', requireWrite, writeLimit, ArticleController.updateSupplierLink)
 router.delete('/:id/suppliers/:linkId', requireWrite, writeLimit, ArticleController.deleteSupplierLink)
+
+// Subrecurso: imagen principal del artículo
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  fileFilter: (req, file, cb) => {
+    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+    if (allowed.includes(file.mimetype)) cb(null, true);
+    else cb(new Error('Formato de imagen no soportado'));
+  }
+});
+router.post('/:id/image', requireWrite, writeLimit, upload.single('image'), ArticleController.uploadImage)
+router.delete('/:id/image', requireWrite, writeLimit, ArticleController.deleteImage)
 
 export default router
