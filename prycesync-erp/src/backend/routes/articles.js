@@ -5,6 +5,7 @@ import { requireScopes } from '../middleware/scopes.js'
 import { rateLimit } from '../middleware/rateLimit.js'
 import { recordArticleRequest } from '../observability/deprecationMetrics.js'
 import multer from 'multer'
+import ArticleBulkPricingController from '../controllers/ArticleBulkPricingController.js'
 
 const router = express.Router()
 
@@ -55,6 +56,12 @@ router.post('/:id/price', requireRead, readLimit, ArticleController.priceForUom)
 router.get('/:id/barcodes', requireRead, readLimit, ArticleController.getBarcodes)
 router.post('/:id/barcodes', requireWrite, writeLimit, ArticleController.addBarcode)
 router.delete('/:id/barcodes/:barcodeId', requireWrite, writeLimit, ArticleController.deleteBarcode)
+
+// Subrecurso: reglas de precio por mayor (bulk pricing)
+router.get('/:id/bulk-pricing', requireRead, readLimit, ArticleBulkPricingController.list)
+router.post('/:id/bulk-pricing', requireWrite, writeLimit, ArticleBulkPricingController.create)
+router.put('/:id/bulk-pricing/:ruleId', requireWrite, writeLimit, ArticleBulkPricingController.update)
+router.delete('/:id/bulk-pricing/:ruleId', requireWrite, writeLimit, ArticleBulkPricingController.remove)
 
 // Subrecursos: proveedores
 router.get('/:id/suppliers', requireRead, readLimit, ArticleController.getSuppliers)

@@ -247,6 +247,12 @@ enum UoM {
   LT
 }
 
+// Bulk pricing modes for wholesale tiers
+enum BulkPriceMode {
+  UNIT_PRICE
+  PERCENT_OFF
+}
+
 model Category {
   id          String     @id @default(cuid())
   name        String
@@ -426,6 +432,28 @@ model ArticleWholesaleTier {
 
   @@index([articleId], map: "idx_wholesale_article")
   @@map("article_wholesale_tiers")
+}
+
+// New article bulk pricing table (UH-ART-19)
+model ArticleBulkPricing {
+  id         String        @id @default(cuid())
+  articleId  String        @map("article_id")
+  article    Article       @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  uom        UoM           @map("uom_code")
+  minQty     Decimal       @map("min_qty") @db.Decimal(12, 3)
+  mode       BulkPriceMode
+  unitPrice  Decimal?      @map("unit_price") @db.Decimal(12, 2)
+  percentOff Decimal?      @map("percent_off") @db.Decimal(5, 2)
+  priority   Int           @default(0)
+  active     Boolean       @default(true)
+  validFrom  DateTime?     @map("valid_from")
+  validTo    DateTime?     @map("valid_to")
+  createdAt  DateTime      @default(now()) @map("created_at")
+  updatedAt  DateTime      @updatedAt @map("updated_at")
+  deletedAt  DateTime?     @map("deleted_at")
+
+  @@index([articleId, uom, minQty, priority], map: "idx_article_bulk_pricing_rule")
+  @@map("article_bulk_pricing")
 }
 
 // ============================================================================

@@ -385,22 +385,11 @@
     <!-- Precio por mayor -->
     <section v-if="showAdvanced" aria-labelledby="wholesale-section">
       <h2 id="wholesale-section" class="text-lg font-semibold">{{ t('inventory.article.sections.wholesale') }}</h2>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <label class="block text-sm mb-1">Cantidad mínima</label>
-          <input v-model.number="form.wholesaleMinQty" type="number" step="1" min="0" class="border rounded px-3 py-2 w-full" />
-        </div>
-        <div>
-          <label class="block text-sm mb-1">Precio mayorista</label>
-          <input v-model.number="form.wholesalePrice" type="number" step="0.01" min="0" class="border rounded px-3 py-2 w-full" />
-        </div>
-        <div>
-          <label class="block text-sm mb-1">Aplicar IVA</label>
-          <label class="inline-flex items-center gap-2">
-            <input type="checkbox" v-model="form.wholesaleHasTax" />
-            <span>Sí</span>
-          </label>
-        </div>
+      <div v-if="mode === 'edit' && props.initial?.id">
+        <ArticleBulkPricingGrid :article-id="String(props.initial.id)" />
+      </div>
+      <div v-else class="text-sm text-slate-600">
+        Guarda el artículo para gestionar las reglas mayoristas.
       </div>
     </section>
 
@@ -431,6 +420,7 @@ import BaseSelect from '@/components/atoms/BaseSelect.vue'
 import BaseButton from '@/components/atoms/BaseButton.vue'
 import ConfirmModal from '@/components/atoms/ConfirmModal.vue'
 import SupplierFormModal from '@/components/suppliers/SupplierFormModal.vue'
+import ArticleBulkPricingGrid from '@/components/articles/ArticleBulkPricingGrid.vue'
 import { useArticleStore } from '@/stores/articles'
 import { useCategories } from '@/composables/useCategories'
 import { useSuppliers } from '@/composables/useSuppliers'

@@ -100,12 +100,15 @@
                 <td class="px-6 py-4">
                   <div class="text-sm font-medium text-gray-900">{{ item.name }}</div>
                   <div class="text-xs text-gray-500">{{ item.code }}</div>
+                  <div v-if="item.bulkInfo?.applied" class="mt-1">
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">Precio x Mayor</span>
+                  </div>
                 </td>
                 <td class="px-6 py-4 text-right">
-                  <BaseInput type="number" min="1" step="1" v-model.number="item.quantity" @input="updateItemTotals(item)" />
+                  <BaseInput type="number" min="1" step="1" v-model.number="item.quantity" @input="onQtyChanged(item)" />
                 </td>
                 <td class="px-6 py-4 text-right">
-                  <BaseInput type="number" min="0" step="0.01" v-model.number="item.unitPrice" @input="updateItemTotals(item)" />
+                  <BaseInput type="number" min="0" step="0.01" v-model.number="item.unitPrice" @input="onUnitPriceEdited(item)" />
                 </td>
                 <td class="px-6 py-4 text-right">
                   <div class="flex items-center justify-end gap-2">
@@ -189,7 +192,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch, computed } from 'vue'
+import { ref, onMounted, onBeforeUnmount, watch, computed, nextTick } from 'vue'
 import DashboardLayout from '@/components/organisms/DashboardLayout.vue'
 import PageHeader from '@/components/molecules/PageHeader.vue'
 import BaseButton from '@/components/atoms/BaseButton.vue'
@@ -204,6 +207,7 @@ import { usePOS } from '@/composables/usePOS'
 import { useBarcodeListener } from '@/composables/useBarcodeListener'
 import { getPosBarcodeSettings } from '@/services/posBarcodeSettings'
 import { useSalesStore } from '@/stores/modules/sales'
+import { resolveBulk } from '@/services/bulkPricingService'
 
 // Composables
 const { searchProducts, searchByBarcode } = useProducts()
@@ -222,7 +226,22 @@ const isSubmitting = ref(false)
 const showConfirmPark = ref(false)
 
 // Carrito (local view state, synced from sales store)
-const cartItems = ref<Array<{ tempId: string, productId: string, articleId?: string, name: string, code: string, quantity: number, unitPrice: number, discountType?: 'PERCENT' | 'ABS', discountValue?: number, isDiscountable?: boolean }>>([])
+const cartItems = ref<Array<{
+  tempId: string,
+  productId: string,
+  articleId?: string,
+  name: string,
+  code: string,
+  quantity: number,
+  unitPrice: number,
+  basePrice?: number,
+  uom?: 'UN' | 'BU' | 'KG' | 'LT',
+  discountType?: 'PERCENT' | 'ABS',
+  discountValue?: number,
+  isDiscountable?: boolean,
+  _unitPriceEdited?: boolean,
+  bulkInfo?: { applied: boolean, rule?: any }
+}>>([])
 const sales = useSalesStore()
 let barcodeCtrl: ReturnType<typeof useBarcodeListener> | null = null
 
@@ -280,11 +299,22 @@ watch(
       code: it.code,
       quantity: it.quantity,
       unitPrice: it.unitPrice,
+      basePrice: it.unitPrice, // usar precio de lista como base
+      uom: 'UN',
       discountType: it.discountType ?? (it.discount != null ? 'PERCENT' : undefined),
       discountValue: it.discountValue ?? (it.discount || 0),
-      isDiscountable: it.isDiscountable !== false
+      isDiscountable: it.isDiscountable !== false,
+      _unitPriceEdited: false
     }))
-    recalcTotals()
+    // Intentar resolver mayorista para nuevos/actualizados (evita pisar precio manual)
+    nextTick(async () => {
+      for (const it of cartItems.value) {
+        if (!it._unitPriceEdited && Number(it.quantity) > 0) {
+          await maybeResolveBulk(it)
+        }
+      }
+      recalcTotals()
+    })
   },
   { deep: true, immediate: true }
 )
@@ -335,9 +365,9 @@ const selectCustomer = (cust: any) => {
   customerQuery.value = cust.name
 }
 
-const addProductToCart = (prod: any) => {
+const addProductToCart = async (prod: any) => {
   // Keep local behavior for manual add, but also sync store for consistency
-  const item = {
+  const item: any = {
     tempId: Math.random().toString(36).slice(2),
     productId: prod.id,
     articleId: prod.id, // asegurar payload con articleId
@@ -345,11 +375,15 @@ const addProductToCart = (prod: any) => {
     code: prod.code,
     quantity: 1,
     unitPrice: prod.salePrice || 0,
-    discount: 0
+    basePrice: prod.salePrice || 0,
+    uom: 'UN',
+    discount: 0,
+    _unitPriceEdited: false
   }
   cartItems.value.push(item)
   productResults.value = []
   productQuery.value = ''
+  await maybeResolveBulk(item)
   recalcTotals()
 }
 
@@ -360,6 +394,59 @@ const removeFromCart = (index: number) => {
 
 const updateItemTotals = (_item: any) => {
   recalcTotals()
+}
+
+function lineNet(it: any) {
+  const qty = Number(it?.quantity || 0)
+  const unit = Number(it?.unitPrice || 0)
+  const gross = qty * unit
+  const isDisc = it?.isDiscountable !== false
+  if (!isDisc) return gross
+  if (it?.discountType === 'ABS') {
+    const abs = Math.min(Math.max(Number(it?.discountValue || 0), 0), gross)
+    return gross - abs
+  }
+  const pct = Math.min(Math.max(Number(it?.discountValue || 0), 0), 100)
+  return gross - gross * (pct / 100)
+}
+
+async function maybeResolveBulk(item: any) {
+  try {
+    const articleId = String(item.articleId || item.productId || '')
+    if (!articleId) return
+    if (item._unitPriceEdited) return // respetar precio manual
+    const uom = item.uom || 'UN'
+    const qty = Number(item.quantity || 0)
+    const basePrice = typeof item.basePrice === 'number' ? item.basePrice : Number(item.unitPrice || 0)
+    if (!qty || !isFinite(basePrice)) return
+    const res = await resolveBulk({ articleId, uom, qty, basePrice })
+    if (res && typeof res.finalUnitPrice === 'number' && isFinite(res.finalUnitPrice) && res.finalUnitPrice > 0) {
+      // solo actualizar si cambia para evitar parpadeos
+      if (Math.abs(Number(item.unitPrice) - Number(res.finalUnitPrice)) > 0.0001) {
+        item.unitPrice = Number(res.finalUnitPrice)
+      }
+    }
+    if (res?.appliedRule) {
+      item.bulkInfo = { applied: true, rule: res.appliedRule }
+    } else {
+      item.bulkInfo = undefined
+    }
+  } catch (err) {
+    console.error('Error resolviendo precio mayorista', err)
+    item.bulkInfo = undefined
+  }
+}
+
+function onQtyChanged(item: any) {
+  // Recalcular totales y aplicar mayorista según cantidad
+  maybeResolveBulk(item).finally(() => updateItemTotals(item))
+}
+
+function onUnitPriceEdited(item: any) {
+  // Si el usuario toca el precio, no pisar con mayorista
+  item._unitPriceEdited = true
+  item.bulkInfo = undefined
+  updateItemTotals(item)
 }
 
 function recalcTotals() {
