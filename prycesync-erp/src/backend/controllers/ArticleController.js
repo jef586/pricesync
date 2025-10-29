@@ -4,6 +4,7 @@ import path from 'path';
 import sharp from 'sharp';
 import { getCompanyPricing, computeSalePrice, directPricing, inversePricing, forCombo } from '../services/PricingService.js'
 import StockService from '../services/StockService.js'
+import UomService from '../services/UomService.js'
 
 class ArticleController {
   // Buscar artículos
@@ -331,6 +332,9 @@ class ArticleController {
           include: { category: { select: { id: true, name: true } } }
         })
 
+        // Backfill UoM base UN
+        await tx.articleUom.create({ data: { articleId: created.id, uom: 'UN', factor: 1 } }).catch(() => {})
+
         if (normalizedComponents.length > 0) {
           for (const nc of normalizedComponents) {
             await tx.articleBundleComponent.create({
@@ -624,7 +628,14 @@ class ArticleController {
       }
 
       const direction = delta > 0 ? 'IN' : 'OUT'
-      const absQty = Math.abs(delta)
+      const absQtyRaw = Math.abs(delta)
+      let absQty
+      try {
+        absQty = UomService.normalizeQtyInput(uom, absQtyRaw).toNumber()
+      } catch (e) {
+        const code = e?.httpCode || 400
+        return res.status(code).json({ success: false, message: e?.message || 'Cantidad inválida para UoM' })
+      }
       // Motivo por defecto si no se envía: ajuste manual
       let finalReason = reason
       if (!finalReason) {
@@ -677,6 +688,99 @@ class ArticleController {
     } catch (error) {
       console.error('Error updating stock:', error)
       res.status(500).json({ error: 'Error interno del servidor', message: 'No se pudo actualizar el stock' })
+    }
+  }
+
+  // --- Subrecursos: UoM ---
+  static async getUoms(req, res) {
+    try {
+      const { id } = req.params
+      const companyId = req.user.company.id
+      const exists = await prisma.article.findFirst({ where: { id, companyId, deletedAt: null }, select: { id: true } })
+      if (!exists) return res.status(404).json({ success: false, message: 'Artículo no encontrado' })
+      const uoms = await UomService.listArticleUoms(id)
+      return res.json({ success: true, data: uoms })
+    } catch (error) {
+      console.error('Error getUoms:', error)
+      return res.status(500).json({ error: 'SERVER_ERROR', message: 'No se pudieron obtener UoMs' })
+    }
+  }
+
+  static async upsertUom(req, res) {
+    try {
+      const { id } = req.params
+      const companyId = req.user.company.id
+      const { uom, factor, priceOverride } = req.body || {}
+
+      const exists = await prisma.article.findFirst({ where: { id, companyId, deletedAt: null }, select: { id: true, taxRate: true, pricePublic: true } })
+      if (!exists) return res.status(404).json({ success: false, message: 'Artículo no encontrado' })
+
+      const updated = await UomService.upsertArticleUom(id, uom, factor, priceOverride)
+      const pricing = await UomService.priceFor(id, updated.uom, exists.pricePublic, Number(exists.taxRate || 21))
+      return res.status(201).json({ success: true, data: { ...updated, priceSuggestedNet: pricing.net.toNumber(), priceSuggestedGross: pricing.gross.toNumber() } })
+    } catch (error) {
+      const code = error?.httpCode || 500
+      const msg = error?.message || 'No se pudo guardar UoM'
+      console.error('Error upsertUom:', error)
+      return res.status(code).json({ success: false, message: msg })
+    }
+  }
+
+  static async deleteUom(req, res) {
+    try {
+      const { id, uom } = req.params
+      const companyId = req.user.company.id
+      UomService.parseUom(uom) // valida formato
+      if (String(uom).toUpperCase() === 'UN') {
+        return res.status(400).json({ success: false, message: 'No se puede eliminar UoM base UN' })
+      }
+      const exists = await prisma.article.findFirst({ where: { id, companyId, deletedAt: null }, select: { id: true } })
+      if (!exists) return res.status(404).json({ success: false, message: 'Artículo no encontrado' })
+      const found = await prisma.articleUom.findFirst({ where: { articleId: id, uom: String(uom).toUpperCase() } })
+      if (!found) return res.status(404).json({ success: false, message: 'UoM no configurada' })
+      await prisma.articleUom.delete({ where: { id: found.id } })
+      return res.json({ success: true })
+    } catch (error) {
+      const code = error?.httpCode || 500
+      const msg = error?.message || 'No se pudo eliminar UoM'
+      console.error('Error deleteUom:', error)
+      return res.status(code).json({ success: false, message: msg })
+    }
+  }
+
+  static async convertUom(req, res) {
+    try {
+      const { id } = req.params
+      const companyId = req.user.company.id
+      const { uom, qty } = req.body || {}
+      const exists = await prisma.article.findFirst({ where: { id, companyId, deletedAt: null }, select: { id: true } })
+      if (!exists) return res.status(404).json({ success: false, message: 'Artículo no encontrado' })
+      const qtyUn = await UomService.convertToUN(id, uom, qty)
+      const factor = await UomService.getFactor(id, uom)
+      return res.json({ success: true, data: { qtyUn: qtyUn.toNumber(), factor: factor.toNumber() } })
+    } catch (error) {
+      const code = error?.httpCode || 500
+      const msg = error?.message || 'No se pudo convertir cantidad'
+      console.error('Error convertUom:', error)
+      return res.status(code).json({ success: false, message: msg })
+    }
+  }
+
+  static async priceForUom(req, res) {
+    try {
+      const { id } = req.params
+      const companyId = req.user.company.id
+      const { uom, basePrice } = req.body || {}
+      const art = await prisma.article.findFirst({ where: { id, companyId, deletedAt: null }, select: { id: true, pricePublic: true, taxRate: true } })
+      if (!art) return res.status(404).json({ success: false, message: 'Artículo no encontrado' })
+      const usedBase = basePrice != null ? Number(basePrice) : Number(art.pricePublic)
+      const pricing = await UomService.priceFor(id, uom, usedBase, Number(art.taxRate || 21))
+      return res.json({ success: true, data: { priceNet: pricing.net.toNumber(), priceGross: pricing.gross.toNumber() } })
+    } catch (error) {
+      const code = error?.httpCode || 500
+      const msg = error?.message || 'No se pudo calcular precio'
+      console.error('Error priceForUom:', error)
+      return res.status(code).json({ success: false, message: msg })
     }
   }
 

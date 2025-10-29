@@ -1,19 +1,18 @@
 import prisma from '../config/database.js'
 import Decimal from 'decimal.js'
+import UomService from './UomService.js'
 
 function toDecimal(n) { return new Decimal(n || 0) }
 
 export default class StockService {
   static async getUomFactor(articleId, uom) {
-    const u = String(uom || 'UN').toUpperCase()
-    if (u === 'UN') return new Decimal(1)
-    const found = await prisma.articleUom.findFirst({ where: { articleId, uom: u } })
-    return found?.factor ? new Decimal(found.factor) : new Decimal(1)
+    return UomService.getFactor(articleId, uom)
   }
 
   static async normalizeQtyUn(articleId, uom, qty) {
+    const qtyNorm = UomService.normalizeQtyInput(uom, qty)
     const factor = await StockService.getUomFactor(articleId, uom)
-    return toDecimal(qty).mul(factor)
+    return qtyNorm.mul(factor).toDecimalPlaces(3)
   }
 
   static async upsertBalance(tx, { companyId, articleId, warehouseId = null, deltaUn, override = false }) {

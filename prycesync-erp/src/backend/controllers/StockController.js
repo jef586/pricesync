@@ -1,5 +1,6 @@
 import prisma from '../config/database.js'
 import StockService from '../services/StockService.js'
+import UomService from '../services/UomService.js'
 
 class StockController {
   static async listBalances(req, res) {
@@ -115,6 +116,16 @@ class StockController {
         return res.status(400).json({ success: false, message: 'reason es requerido' })
       }
 
+      // Validar y normalizar cantidad según UoM antes de transaccionar
+      let qtyNormalized
+      try {
+        qtyNormalized = UomService.normalizeQtyInput(uom, qtyNumber).toNumber()
+      } catch (e) {
+        const code = e?.httpCode || 400
+        const msg = e?.message || 'Cantidad/UoM inválida'
+        return res.status(code).json({ success: false, message: msg })
+      }
+
       try {
         const result = await prisma.$transaction(async (tx) => {
           const { movement, balance } = await StockService.createMovement(tx, {
@@ -122,7 +133,7 @@ class StockController {
             articleId,
             warehouseId,
             uom,
-            qty: qtyNumber,
+            qty: qtyNormalized,
             direction: dir,
             reason,
             documentId,

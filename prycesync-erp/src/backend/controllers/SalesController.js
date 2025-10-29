@@ -2,6 +2,7 @@ import prisma from "../config/database.js";
 import SalesService from "../services/SalesService.js";
 import { randomUUID } from "crypto";
 import StockService from "../services/StockService.js";
+import UomService from "../services/UomService.js";
 import { mapErrorToHttp } from "../utils/httpError.js";
 
 class SalesController {
@@ -38,10 +39,20 @@ class SalesController {
       }
 
 
-      // Normalizar/validar descuentos por ítem y preparar ítems
+      // Normalizar UoM/cantidad y descuentos por ítem; preparar ítems
       const preparedItems = [];
       for (const item of items) {
-        const quantity = Number(item.quantity);
+        // UoM y cantidad: normalizar/validar
+        let uom
+        let quantity
+        try {
+          uom = UomService.parseUom(item.uom || 'UN')
+          quantity = UomService.normalizeQtyInput(uom, item.quantity).toNumber()
+        } catch (e) {
+          const code = e?.httpCode || 400
+          return res.status(code).json({ success: false, message: e?.message || 'Cantidad/UoM inválida' })
+        }
+
         const unitPrice = Number(item.unitPrice);
         const taxRate = Number(item.taxRate ?? 21);
 
@@ -75,6 +86,7 @@ class SalesController {
         preparedItems.push({
           articleId: item.articleId ?? item.productId ?? null,
           description: item.description,
+          uom,
           quantity,
           unitPrice,
           taxRate,
@@ -149,6 +161,7 @@ class SalesController {
                 // Usar relación article con connect cuando haya id
                 ...(i.articleId ? { article: { connect: { id: i.articleId } } } : {}),
                 description: i.description,
+                uom: i.uom || 'UN',
                 quantity: i.quantity,
                 unitPrice: i.unitPrice,
                 discount: i.discountType === 'PERCENT' ? i.discountValue : 0, // compat
@@ -238,6 +251,17 @@ class SalesController {
       let preparedItems = [];
       if (items && items.length) {
         for (const item of items) {
+          // UoM y cantidad: normalizar/validar
+          let uom
+          try {
+            uom = UomService.parseUom(item.uom || 'UN')
+            const normQty = UomService.normalizeQtyInput(uom, item.quantity)
+            item.quantity = normQty.toNumber()
+          } catch (e) {
+            const code = e?.httpCode || 400
+            return res.status(code).json({ success: false, message: e?.message || 'Cantidad/UoM inválida' })
+          }
+
           const quantity = Number(item.quantity);
           const unitPrice = Number(item.unitPrice);
           const taxRate = Number(item.taxRate ?? 21);
@@ -257,7 +281,7 @@ class SalesController {
             return res.status(400).json({ success: false, message: 'discount_value ($) no puede superar el bruto de línea' });
           }
 
-          preparedItems.push({ articleId: item.articleId ?? item.productId ?? null, description: item.description, quantity, unitPrice, taxRate, discountType, discountValue, isDiscountable });
+          preparedItems.push({ articleId: item.articleId ?? item.productId ?? null, description: item.description, uom, quantity, unitPrice, taxRate, discountType, discountValue, isDiscountable });
         }
       }
 
@@ -316,6 +340,7 @@ class SalesController {
                 salesOrderId: id,
                 ...(i.articleId ? { article: { connect: { id: i.articleId } } } : {}),
                 description: i.description,
+                uom: i.uom || 'UN',
                 quantity: i.quantity,
                 unitPrice: i.unitPrice,
                 discount: i.discountType === 'PERCENT' ? i.discountValue : 0,

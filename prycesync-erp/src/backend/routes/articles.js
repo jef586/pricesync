@@ -44,6 +44,13 @@ router.delete('/:id', requireWrite, writeLimit, ArticleController.deleteArticle)
 // Stock
 router.patch('/:id/stock', requireWrite, writeLimit, ArticleController.updateStock)
 
+// Subrecursos: UoM
+router.get('/:id/uoms', requireRead, readLimit, ArticleController.getUoms)
+router.post('/:id/uoms', requireWrite, writeLimit, ArticleController.upsertUom)
+router.delete('/:id/uoms/:uom', requireWrite, writeLimit, ArticleController.deleteUom)
+router.post('/:id/convert', requireRead, readLimit, ArticleController.convertUom)
+router.post('/:id/price', requireRead, readLimit, ArticleController.priceForUom)
+
 // Subrecursos: códigos de barras
 router.get('/:id/barcodes', requireRead, readLimit, ArticleController.getBarcodes)
 router.post('/:id/barcodes', requireWrite, writeLimit, ArticleController.addBarcode)
