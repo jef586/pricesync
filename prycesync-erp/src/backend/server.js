@@ -20,6 +20,7 @@ import pricingRoutes from './routes/pricing.js';
 
 import salesRoutes from './routes/sales.js';
 import stockRoutes from './routes/stock.js';
+import stockEstimatorRoutes from './routes/stock-estimator.js';
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -74,6 +75,7 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/suppliers', supplierRoutes);
 app.use('/api/sales', salesRoutes);
 app.use('/api/stock', stockRoutes);
+app.use('/api/stock', stockEstimatorRoutes);
 app.use('/api/afip', afipRoutes);
 app.use('/api/imports', importsRoutes)
 app.use('/api/ai', aiRoutes);

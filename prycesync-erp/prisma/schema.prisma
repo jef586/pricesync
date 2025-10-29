@@ -833,6 +833,54 @@ enum StockDirection {
   OUT
 }
 
+// ============================================================================
+// STOCK ESTIMATOR (Demand & Settings)
+// ============================================================================
+
+// Ámbito de configuración del estimador (global o por proveedor)
+enum StockEstimatorScope {
+  GLOBAL
+  SUPPLIER
+}
+
+// Cache de demanda por artículo (promedios diarios y métricas)
+model ArticleDemandStats {
+  /// FK/PK al artículo
+  articleId       String   @id @map("article_id")
+  article         Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  avg7            Decimal  @default(0) @db.Decimal(12, 4)
+  avg30           Decimal  @default(0) @db.Decimal(12, 4)
+  avg90           Decimal  @default(0) @db.Decimal(12, 4)
+  lastSaleAt      DateTime? @map("last_sale_at")
+  volatilityIndex Decimal  @default(0) @map("volatility_index") @db.Decimal(8, 4)
+
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("article_demand_stats")
+}
+
+// Configuración del estimador (lead/safety/coverage) por empresa
+model StockEstimatorSettings {
+  id              String               @id @default(cuid())
+
+  companyId       String               @map("company_id")
+  company         Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  scope           StockEstimatorScope
+  scopeId         String?              @map("scope_id")
+
+  leadTimeDays    Int                  @default(5)  @map("lead_time_days")
+  safetyStockDays Int                  @default(3)  @map("safety_stock_days")
+  coverageDays    Int                  @default(14) @map("coverage_days")
+
+  createdAt       DateTime             @default(now()) @map("created_at")
+  updatedAt       DateTime             @updatedAt @map("updated_at")
+
+  @@unique([companyId, scope, scopeId], map: "uniq_stock_estimator_settings_scope")
+  @@map("stock_estimator_settings")
+}
+
 enum StockReason {
   PURCHASE_IN
   SALE_OUT
