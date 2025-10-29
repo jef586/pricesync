@@ -1,5 +1,6 @@
 import prisma from '../config/database.js';
 import { Decimal } from '@prisma/client/runtime/library.js';
+import TaxService from '../services/TaxService.js';
 
 class InvoiceController {
   // Crear nueva factura
@@ -212,6 +213,15 @@ class InvoiceController {
           });
         }
 
+        // Aplicar tributos (retenciones/percepciones) según reglas
+        const provinceCode = customer?.state || req.user?.company?.state || 'BA'
+        await TaxService.applyTaxesForInvoice(tx, {
+          companyId,
+          invoice: newInvoice,
+          items: processedItems,
+          provinceCode
+        })
+
         return newInvoice;
       });
 
@@ -233,7 +243,8 @@ class InvoiceController {
               article: { select: { id: true, name: true, sku: true, description: true, category: { select: { id: true, name: true } } } }
             }
           },
-          company: { select: { id: true, name: true, taxId: true } }
+          company: { select: { id: true, name: true, taxId: true } },
+          taxLines: true
         }
       });
 
@@ -447,7 +458,8 @@ class InvoiceController {
               phone: true,
               email: true
             }
-          }
+          },
+          taxLines: true
         }
       });
 
@@ -632,6 +644,20 @@ class InvoiceController {
           }
         }
 
+        // Recalcular tributos si se actualizaron ítems
+        if (processedItems.length > 0) {
+          await tx.documentTaxLine.deleteMany({ where: { invoiceId: id } })
+          const provinceCode = existingInvoice?.customerId
+            ? (await tx.customer.findUnique({ where: { id: existingInvoice.customerId } }))?.state || req.user?.company?.state || 'BA'
+            : req.user?.company?.state || 'BA'
+          await TaxService.applyTaxesForInvoice(tx, {
+            companyId,
+            invoice: { id, issueDate: existingInvoice.issueDate, subtotal: new Decimal(subtotal) },
+            items: processedItems,
+            provinceCode
+          })
+        }
+
         return invoice;
       });
 
@@ -654,7 +680,8 @@ class InvoiceController {
             },
             orderBy: { createdAt: 'asc' }
           },
-          company: { select: { id: true, name: true, taxId: true, address: true, city: true, state: true, country: true, zipCode: true, phone: true, email: true } }
+          company: { select: { id: true, name: true, taxId: true, address: true, city: true, state: true, country: true, zipCode: true, phone: true, email: true } },
+          taxLines: true
         }
       });
 
@@ -704,14 +731,22 @@ class InvoiceController {
         });
       }
 
-      // Soft delete
-      await prisma.invoice.update({
-        where: { id },
-        data: {
-          deletedAt: new Date(),
-          status: 'cancelled'
-        }
-      });
+      // Soft delete + reversión de tributos en transacción
+      await prisma.$transaction(async (tx) => {
+        await tx.invoice.update({
+          where: { id },
+          data: {
+            deletedAt: new Date(),
+            status: 'cancelled'
+          }
+        })
+
+        await TaxService.revertTaxesForDocument(tx, {
+          companyId,
+          docId: id,
+          docType: 'INVOICE'
+        })
+      })
 
       res.json({
         success: true,

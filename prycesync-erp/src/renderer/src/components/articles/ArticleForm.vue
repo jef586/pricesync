@@ -180,6 +180,7 @@
           <div class="flex gap-2">
             <BaseSelect v-model="internalTaxType" :options="internalTaxOptions" />
             <input v-model.number="internalTaxValue" type="number" step="0.01" min="0" class="border rounded px-3 py-2 w-full" />
+            <BaseButton type="button" variant="secondary" @click="aplicarImpuesto">Aplicar</BaseButton>
           </div>
         </div>
         <div class="flex items-end gap-4">
@@ -678,6 +679,15 @@ function recalcFromPublic() {
   const margen = sinIva / costBase - 1
   form.gainPct = round2(margen * 100)
   emits('price-change', getPriceBreakdown())
+}
+
+function aplicarImpuesto() {
+  // Recalcula precio considerando impuesto interno, según último campo editado
+  if (lastEdited === 'pricePublic') {
+    recalcFromPublic()
+  } else {
+    recalcFromCost()
+  }
 }
 
 function getPriceBreakdown() {

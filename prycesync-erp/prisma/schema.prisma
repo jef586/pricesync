@@ -145,6 +145,10 @@ model Company {
   StockMovement  StockMovement[]
   StockBalance   StockBalance[]
   SupplierPreset SupplierPreset[]
+  // Taxes relations
+  taxRules         TaxRule[]
+  taxPeriodTotals  TaxPeriodTotal[]
+  documentTaxLines DocumentTaxLine[]
 
   @@map("companies")
 }
@@ -490,6 +494,7 @@ model Invoice {
 
   // Relaciones
   items InvoiceItem[]
+  taxLines DocumentTaxLine[]
 
   @@unique([companyId, number])
   @@map("invoices")
@@ -700,6 +705,7 @@ model SalesOrder {
   // Relaciones
   items    SalesOrderItem[]
   payments SalesPayment[]
+  taxLines DocumentTaxLine[]
 
   @@unique([companyId, number])
   @@unique([parkToken], map: "uniq_sales_orders_park_token")
@@ -927,4 +933,117 @@ model ImportJob {
 
   @@index([companyId, status], map: "idx_import_jobs_company_status")
   @@map("import_jobs")
+}
+
+// ============================================================================
+// TAXES SCHEMA (Retenciones/Percepciones)
+// ============================================================================
+
+// Tipos de tributo admitidos
+enum TaxType {
+  IIBB_RET
+  IIBB_PERC
+  GAN_RET
+  VAT_PERC
+}
+
+// Rol de contraparte para la aplicación de reglas
+enum CounterpartyRole {
+  SUPPLIER
+  CUSTOMER
+}
+
+// Método de base imponible
+enum BaseMethod {
+  NET
+  NET_PLUS_II
+}
+
+// Método de redondeo
+enum RoundingMethod {
+  HALF_UP
+  DOWN
+  UP
+}
+
+// Reglas configurables por provincia/actividad/rol
+model TaxRule {
+  id              String          @id @default(cuid())
+
+  companyId       String          @map("company_id")
+  company         Company         @relation(fields: [companyId], references: [id])
+
+  provinceCode    String          @map("province_code")
+  taxType         TaxType         @map("tax_type")
+  activityCode    String?         @map("activity_code")
+  counterpartyRole CounterpartyRole @map("counterparty_role")
+
+  rate            Decimal         @db.Decimal(6, 4)
+  baseMethod      BaseMethod      @map("base_method")
+  minAmount       Decimal?        @map("min_amount") @db.Decimal(12, 2)
+  rounding        RoundingMethod  @default(HALF_UP)
+
+  validFrom       DateTime        @map("valid_from")
+  validTo         DateTime?       @map("valid_to")
+
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  // Back-relations
+  documentTaxLines DocumentTaxLine[]
+
+  @@index([companyId, provinceCode, taxType], map: "idx_tax_rules_company_province_type")
+  @@map("tax_rules")
+}
+
+// Totales agregados por período (YYYY-MM), provincia y tipo de tributo
+model TaxPeriodTotal {
+  id           String   @id @default(cuid())
+  companyId    String   @map("company_id")
+  company      Company  @relation(fields: [companyId], references: [id])
+
+  period       String   // YYYY-MM
+  provinceCode String   @map("province_code")
+  taxType      TaxType  @map("tax_type")
+  amountTotal  Decimal  @map("amount_total") @default(0) @db.Decimal(14, 2)
+
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@unique([companyId, period, provinceCode, taxType], map: "uniq_tax_period_totals")
+  @@map("tax_period_totals")
+}
+
+// Líneas de tributo aplicadas a documentos (facturas/ventas)
+model DocumentTaxLine {
+  id            String         @id @default(cuid())
+
+  companyId     String         @map("company_id")
+  company       Company        @relation(fields: [companyId], references: [id])
+
+  // Referencia al documento
+  invoiceId     String?        @map("invoice_id")
+  invoice       Invoice?       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  salesOrderId  String?        @map("sales_order_id")
+  salesOrder    SalesOrder?    @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+  itemId        String?        @map("item_id")
+
+  taxType       TaxType        @map("tax_type")
+  provinceCode  String         @map("province_code")
+  activityCode  String?        @map("activity_code")
+  counterpartyRole CounterpartyRole @map("counterparty_role")
+
+  rate          Decimal        @db.Decimal(6, 4)
+  baseMethod    BaseMethod     @map("base_method")
+  baseAmount    Decimal        @map("base_amount") @db.Decimal(12, 2)
+  amount        Decimal        @db.Decimal(12, 2)
+  rounding      RoundingMethod @default(HALF_UP)
+  ruleId        String?        @map("rule_id")
+  rule          TaxRule?       @relation(fields: [ruleId], references: [id])
+
+  createdAt     DateTime       @default(now()) @map("created_at")
+
+  @@index([invoiceId], map: "idx_doc_tax_lines_invoice")
+  @@index([salesOrderId], map: "idx_doc_tax_lines_sales")
+  @@map("document_tax_lines")
 }

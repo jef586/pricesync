@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 import StockService from "../services/StockService.js";
 import UomService from "../services/UomService.js";
 import { mapErrorToHttp } from "../utils/httpError.js";
+import TaxService from "../services/TaxService.js";
 
 class SalesController {
   static async create(req, res) {
@@ -188,9 +189,20 @@ class SalesController {
           include: {
             items: true,
             payments: true,
-            customer: { select: { id: true, name: true, email: true } }
+            customer: { select: { id: true, name: true, email: true } },
+            taxLines: true
           }
         });
+
+        // Aplicar tributos (retenciones/percepciones) para la venta
+        const provinceCode = customer?.state || req.user?.company?.state || 'BA'
+        await TaxService.applyTaxesForSale(tx, {
+          companyId,
+          sale,
+          items: computedItems,
+          provinceCode
+        })
+
         return sale;
       });
 
@@ -213,7 +225,8 @@ class SalesController {
         include: {
           items: true,
           payments: true,
-          customer: { select: { id: true, name: true, email: true } }
+          customer: { select: { id: true, name: true, email: true } },
+          taxLines: true
         }
       });
 
@@ -355,6 +368,16 @@ class SalesController {
               }
             });
           }
+          // Recalcular tributos de la venta
+          await tx.documentTaxLine.deleteMany({ where: { salesOrderId: id } })
+          const cust = await tx.customer.findUnique({ where: { id: existing.customerId } })
+          const provinceCode = cust?.state || req.user?.company?.state || 'BA'
+          await TaxService.applyTaxesForSale(tx, {
+            companyId,
+            sale: { id, createdAt: existing.createdAt, subtotal: totals?.subtotal?.toNumber ? totals.subtotal.toNumber() : (totals?.subtotal || existing.subtotal) },
+            items: preparedItems,
+            provinceCode
+          })
         }
 
         // If sale transitioned to cancelled from paid, revert stock
@@ -368,6 +391,15 @@ class SalesController {
           } catch (err) {
             throw Object.assign(err, { httpCode: err?.httpCode || 500 })
           }
+        }
+
+        // Reversión de tributos cuando pasa a cancelada
+        if ((data.status === 'cancelled') && (existing.status !== 'cancelled')) {
+          await TaxService.revertTaxesForDocument(tx, {
+            companyId,
+            docId: id,
+            docType: 'SALE'
+          })
         }
         return sale;
       });

@@ -1,4 +1,4 @@
-// UH-ART-3: Tipos estrictos para Artículos
+﻿// UH-ART-3: Tipos estrictos para ArtÃ­culos
 
 export type BarcodeType = 'EAN13' | 'EAN8' | 'CODE128' | 'PLU' | null
 export type ArticleType = 'PRODUCT' | 'SERVICE'
@@ -22,7 +22,7 @@ export interface ArticleDTO {
   stockMax?: number
   controlStock?: boolean
   description?: string | null
-  internalTaxType?: 'FIX' | 'PCT' | null
+  internalTaxType?: 'NONE' | 'FIXED' | 'PERCENT' | null
   internalTaxValue?: number | null
   subjectIIBB: boolean
   subjectGanancias: boolean
