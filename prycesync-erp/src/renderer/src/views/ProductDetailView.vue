@@ -123,17 +123,107 @@
               </div>
             </div>
 
-            <!-- Stock History (Placeholder) -->
+            <!-- Kardex -->
             <div class="bg-white rounded-lg shadow p-6">
-              <h3 class="text-lg font-medium text-gray-900 mb-4">Historial de Stock</h3>
-              <div class="text-center py-8">
-                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-                <h4 class="mt-2 text-sm font-medium text-gray-900">Historial no disponible</h4>
-                <p class="mt-1 text-sm text-gray-500">
-                  El historial de movimientos de stock estará disponible próximamente.
-                </p>
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-medium text-gray-900">Kardex</h3>
+                <div class="flex items-center gap-2">
+                  <BaseButton variant="ghost" size="sm" :disabled="kardexLoading || !currentProduct" @click="exportKardexFile('csv')">Exportar CSV</BaseButton>
+                  <BaseButton variant="ghost" size="sm" :disabled="kardexLoading || !currentProduct" @click="exportKardexFile('json')">Exportar JSON</BaseButton>
+                </div>
+              </div>
+
+              <!-- Filtros -->
+              <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                <div>
+                  <label class="block text-xs text-gray-500 mb-1">Desde</label>
+                  <input type="date" v-model="filters.from" class="w-full border rounded px-3 py-2 text-sm" />
+                </div>
+                <div>
+                  <label class="block text-xs text-gray-500 mb-1">Hasta</label>
+                  <input type="date" v-model="filters.to" class="w-full border rounded px-3 py-2 text-sm" />
+                </div>
+                <div>
+                  <label class="block text-xs text-gray-500 mb-1">Límite</label>
+                  <select v-model.number="filters.limit" class="w-full border rounded px-3 py-2 text-sm">
+                    <option :value="20">20</option>
+                    <option :value="50">50</option>
+                    <option :value="100">100</option>
+                  </select>
+                </div>
+                <div class="flex items-end">
+                  <BaseButton variant="primary" class="w-full" :disabled="kardexLoading || !currentProduct" @click="reloadKardex">Aplicar</BaseButton>
+                </div>
+              </div>
+
+              <!-- Tabla -->
+              <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
+                      <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">TipoDoc</th>
+                      <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">NroDoc</th>
+                      <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Motivo</th>
+                      <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">UoM</th>
+                      <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Cantidad</th>
+                      <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Cantidad (UN)</th>
+                      <th class="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Dirección</th>
+                      <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Saldo (UN)</th>
+                    </tr>
+                  </thead>
+                  <tbody class="bg-white divide-y divide-gray-200">
+                    <tr v-if="kardexLoading">
+                      <td colspan="9" class="px-4 py-6 text-center text-sm text-gray-500">Cargando kardex...</td>
+                    </tr>
+                    <tr v-else-if="kardexError">
+                      <td colspan="9" class="px-4 py-6 text-center text-sm text-red-600">{{ kardexError }}</td>
+                    </tr>
+                    <tr v-else-if="kardex?.items?.length === 0">
+                      <td colspan="9" class="px-4 py-6 text-center text-sm text-gray-500">Sin movimientos para los filtros seleccionados</td>
+                    </tr>
+                    <tr v-for="row in kardex?.items || []" :key="row.id">
+                      <td class="px-4 py-2 text-sm text-gray-900">{{ formatDateTime(row.createdAt) }}</td>
+                      <td class="px-4 py-2 text-sm text-gray-900">{{ row.documentType || '—' }}</td>
+                      <td class="px-4 py-2 text-sm text-gray-900">{{ row.documentId || '—' }}</td>
+                      <td class="px-4 py-2 text-sm text-gray-900">{{ row.reason }}</td>
+                      <td class="px-4 py-2 text-sm text-gray-900">{{ row.uom }}</td>
+                      <td class="px-4 py-2 text-sm text-right text-gray-900">{{ row.qty.toLocaleString('es-AR') }}</td>
+                      <td class="px-4 py-2 text-sm text-right text-gray-900">{{ row.qtyUn.toLocaleString('es-AR') }}</td>
+                      <td class="px-4 py-2 text-sm text-center">
+                        <span :class="row.direction === 'IN' ? 'text-emerald-700' : 'text-red-700'">{{ row.direction }}</span>
+                      </td>
+                      <td class="px-4 py-2 text-sm text-right text-gray-900">{{ row.balanceUn.toLocaleString('es-AR') }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Paginación -->
+              <div class="mt-4" v-if="kardex && kardex.pagination && kardex.pagination.pages > 1">
+                <Pagination
+                  :current-page="kardex.pagination.page"
+                  :total-pages="kardex.pagination.pages"
+                  :total-items="kardex.pagination.total"
+                  :items-per-page="kardex.pagination.limit"
+                  @pageChange="onKardexPageChange"
+                />
+              </div>
+
+              <!-- Totales -->
+              <div v-if="kardex" class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-gray-50 rounded-lg p-4">
+                  <div class="text-xs text-gray-500">Saldo Inicial (UN)</div>
+                  <div class="text-lg font-semibold">{{ kardex.startingOnHandUn.toLocaleString('es-AR') }}</div>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-4">
+                  <div class="text-xs text-gray-500">Saldo Actual (UN)</div>
+                  <div class="text-lg font-semibold">{{ kardex.currentOnHandUn.toLocaleString('es-AR') }}</div>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-4">
+                  <div class="text-xs text-gray-500">Total Movimientos</div>
+                  <div class="text-lg font-semibold">{{ kardex.pagination.total }}</div>
+                </div>
               </div>
             </div>
           </div>
@@ -246,9 +336,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useProducts } from '@/composables/useProducts'
+import Pagination from '@/components/atoms/Pagination.vue'
+import { getKardex, exportKardex as exportKardexSvc } from '@/services/stockService'
+import type { KardexResponse, KardexExportFormat } from '@/types/stock'
 
 // Components
 import DashboardLayout from '@/components/organisms/DashboardLayout.vue'
@@ -270,6 +363,17 @@ const {
 
 // State
 const showStockModal = ref(false)
+
+// Kardex state
+const kardex = ref<KardexResponse | null>(null)
+const kardexLoading = ref(false)
+const kardexError = ref<string | null>(null)
+const filters = ref<{ from?: string; to?: string; limit: number; page: number }>({
+  from: undefined,
+  to: undefined,
+  limit: 50,
+  page: 1
+})
 
 // Computed
 const isLowStock = computed(() => {
@@ -304,6 +408,54 @@ const loadProduct = async () => {
     } catch (error) {
       console.error('Error loading product:', error)
     }
+  }
+}
+
+const reloadKardex = async () => {
+  if (!currentProduct.value) return
+  kardexLoading.value = true
+  kardexError.value = null
+  try {
+    const res = await getKardex({
+      articleId: currentProduct.value.id,
+      from: filters.value.from,
+      to: filters.value.to,
+      page: filters.value.page,
+      limit: filters.value.limit
+    })
+    kardex.value = res
+  } catch (e: any) {
+    console.error('Error cargando kardex:', e)
+    kardexError.value = e?.response?.data?.message || e?.message || 'Error al cargar el kardex'
+    kardex.value = null
+  } finally {
+    kardexLoading.value = false
+  }
+}
+
+const onKardexPageChange = (page: number) => {
+  filters.value.page = page
+  reloadKardex()
+}
+
+const exportKardexFile = async (format: KardexExportFormat) => {
+  if (!currentProduct.value) return
+  try {
+    const { blob, filename } = await exportKardexSvc({
+      articleId: currentProduct.value.id,
+      from: filters.value.from,
+      to: filters.value.to
+    }, format)
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+  } catch (e) {
+    console.error('Error exportando kardex:', e)
   }
 }
 
@@ -347,8 +499,20 @@ const formatDate = (dateString: string) => {
   }).format(new Date(dateString))
 }
 
+const formatDateTime = (dateString: string) => {
+  const d = new Date(dateString)
+  return d.toLocaleString('es-AR')
+}
+
 // Lifecycle
 onMounted(() => {
   loadProduct()
+})
+
+watch(() => currentProduct.value?.id, (id) => {
+  if (id) {
+    filters.value.page = 1
+    reloadKardex()
+  }
 })
 </script>

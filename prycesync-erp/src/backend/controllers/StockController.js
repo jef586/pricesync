@@ -1,6 +1,7 @@
 import prisma from '../config/database.js'
 import StockService from '../services/StockService.js'
 import UomService from '../services/UomService.js'
+import KardexService from '../services/KardexService.js'
 
 class StockController {
   static async listBalances(req, res) {
@@ -172,6 +173,59 @@ class StockController {
     } catch (error) {
       console.error('Error canFulfill:', error)
       res.status(500).json({ error: 'SERVER_ERROR', message: 'No se pudo verificar disponibilidad de stock' })
+    }
+  }
+
+  static async getKardex(req, res) {
+    try {
+      const companyId = req.user.company.id
+      const { articleId, from, to, warehouseId = null, page = 1, limit = 100 } = req.query
+
+      if (!articleId) {
+        return res.status(400).json({ success: false, message: 'articleId es requerido' })
+      }
+
+      const data = await KardexService.getArticleKardex({
+        companyId,
+        articleId,
+        from: from || undefined,
+        to: to || undefined,
+        warehouseId: warehouseId || null,
+        page: Number(page) || 1,
+        limit: Number(limit) || 100
+      })
+
+      return res.json({ success: true, data })
+    } catch (error) {
+      console.error('Error getKardex:', error)
+      res.status(500).json({ error: 'SERVER_ERROR', message: 'No se pudo obtener el Kardex' })
+    }
+  }
+
+  static async exportKardex(req, res) {
+    try {
+      const companyId = req.user.company.id
+      const { articleId, from, to, warehouseId = null, format = 'csv' } = req.query
+
+      if (!articleId) {
+        return res.status(400).json({ success: false, message: 'articleId es requerido' })
+      }
+
+      const result = await KardexService.exportKardex({
+        companyId,
+        articleId,
+        from: from || undefined,
+        to: to || undefined,
+        warehouseId: warehouseId || null,
+        format: String(format || 'csv').toLowerCase()
+      })
+
+      res.setHeader('Content-Type', result.mime)
+      res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`)
+      return res.send(result.content)
+    } catch (error) {
+      console.error('Error exportKardex:', error)
+      res.status(500).json({ error: 'SERVER_ERROR', message: 'No se pudo exportar el Kardex' })
     }
   }
 }

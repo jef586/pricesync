@@ -24,6 +24,9 @@ function requireOverrideIfNeeded(req, res, next) {
 // Balances and movements listing
 router.get('/balances', requireScopes('stock:read'), readLimit, StockController.listBalances)
 router.get('/movements', requireScopes('stock:read'), readLimit, StockController.listMovements)
+// Kardex listing and export
+router.get('/kardex', requireScopes('stock:kardex'), readLimit, StockController.getKardex)
+router.get('/kardex/export', requireScopes('stock:export'), readLimit, StockController.exportKardex)
 
 // Manual movement creation
 router.post('/movements', requireScopes('stock:write'), requireOverrideIfNeeded, writeLimit, StockController.createMovement)
