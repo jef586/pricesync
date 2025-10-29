@@ -771,7 +771,8 @@ async function onSubmit() {
       if (photoFile.value) {
         try {
           const result = await uploadArticleImage(created.id, photoFile.value)
-          photoPreview.value = result?.imageUrl ? `${apiBase}${result.imageUrl}` : photoPreview.value
+          const previewPath = result?.thumbnailUrl || result?.imageUrl
+          photoPreview.value = previewPath ? `${apiBase}${previewPath}` : photoPreview.value
         } catch (err: any) {
           console.error('Upload image failed:', err)
         }
@@ -783,7 +784,8 @@ async function onSubmit() {
       if (photoFile.value) {
         try {
           const result = await uploadArticleImage(props.initial!.id, photoFile.value)
-          photoPreview.value = result?.imageUrl ? `${apiBase}${result.imageUrl}` : photoPreview.value
+          const previewPath = result?.thumbnailUrl || result?.imageUrl
+          photoPreview.value = previewPath ? `${apiBase}${previewPath}` : photoPreview.value
         } catch (err: any) {
           console.error('Upload image failed:', err)
         }
@@ -909,7 +911,7 @@ function computeStockDays(): number | null {
 onMounted(() => {
   if (props.mode === 'edit' && props.initial?.id) {
     loadSecondaryBarcodes()
-    const url = props.initial?.imageUrl
+    const url = props.initial?.image?.thumbnailUrl || props.initial?.imageUrl
     if (url) photoPreview.value = `${apiBase}${url}`
   }
 })

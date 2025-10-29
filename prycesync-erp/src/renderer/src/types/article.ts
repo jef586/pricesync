@@ -36,6 +36,18 @@ export interface ArticleDTO {
   categoryName?: string
   subcategoryName?: string
   supplierName?: string
+  // Optional image fields (backend may include these)
+  imageUrl?: string | null
+  imageId?: string | null
+  image?: {
+    id?: string
+    imageUrl?: string
+    thumbnailUrl?: string
+    width?: number
+    height?: number
+    mimeType?: string
+    sizeBytes?: number
+  } | null
 }
 
 export interface ArticleFilters {

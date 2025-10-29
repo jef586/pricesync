@@ -158,7 +158,9 @@ class ArticleController {
           suppliers: { include: { supplier: { select: { id: true, code: true, name: true } } } },
           uoms: true,
           wholesaleTiers: true,
-          bundleComponents: true
+          bundleComponents: true,
+          // Include primary image relation for preview
+          image: true
         }
       });
 
