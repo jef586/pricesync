@@ -2,7 +2,7 @@ import prisma from '../config/database.js'
 import EventEmitter from 'events'
 import { MercadoPagoMockProvider } from './providers/MercadoPagoMockProvider.js'
 import StockService from './StockService.js'
-
+import LoyaltyService from './LoyaltyService.js'
 // Simple event bus for emitting cashbox movements
 export const eventBus = new EventEmitter()
 
@@ -92,7 +92,7 @@ export class PaymentService {
 
     for (const p of normalizedPayments) {
       if (!['CASH', 'CARD', 'TRANSFER', 'MERCADO_PAGO'].includes(p.method)) {
-        return { error: { code: 400, message: `Método inválido: ${p.method}` } }
+        return { error: { code: 400, message: `MÃ©todo invÃ¡lido: ${p.method}` } }
       }
       if (!(p.amount > 0)) {
         return { error: { code: 400, message: 'El monto debe ser mayor a 0' } }
@@ -115,7 +115,7 @@ export class PaymentService {
         select: { id: true, status: true, totalRounded: true, paidTotal: true }
       })
       if (!fresh || !['open', 'partially_paid'].includes(fresh.status)) {
-        throw Object.assign(new Error('Estado inválido'), { httpCode: 409 })
+        throw Object.assign(new Error('Estado invÃ¡lido'), { httpCode: 409 })
       }
 
       // Create payments records
@@ -127,7 +127,7 @@ export class PaymentService {
           const mpProvider = new MercadoPagoMockProvider()
           const vd = mpProvider.validateDetails(p.methodDetails)
           if (!vd.valid) {
-            throw Object.assign(new Error(vd.message || 'Detalles de MP inválidos'), { httpCode: 400 })
+            throw Object.assign(new Error(vd.message || 'Detalles de MP invÃ¡lidos'), { httpCode: 400 })
           }
           providerMeta = mpProvider.authorize({ methodDetails: p.methodDetails, amount: p.amount, currency: p.currency })
           p.methodDetails = { ...(p.methodDetails || {}), mp_provider: providerMeta }
@@ -178,6 +178,13 @@ export class PaymentService {
             saleId,
             createdBy: createdBy || 'system'
           })
+          
+          // Award loyalty points for this sale (idempotent)
+          try {
+            await LoyaltyService.awardForSale(tx, { companyId, saleId, createdBy: createdBy || 'system' })
+          } catch (loyErr) {
+            console.warn('Loyalty award failed:', loyErr?.message || loyErr)
+          }
         } catch (err) {
           // If stock fails, abort transaction
           throw Object.assign(err, { httpCode: err?.httpCode || 500 })
@@ -201,3 +208,8 @@ export class PaymentService {
 }
 
 export default PaymentService
+
+
+
+
+

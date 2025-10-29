@@ -34,6 +34,7 @@ class ArticleController {
           sku: true,
           name: true,
           description: true,
+          pointsPerUnit: true,
           pricePublic: true,
           stock: true,
           active: true,
@@ -108,6 +109,7 @@ class ArticleController {
             active: true,
             cost: true,
             pricePublic: true,
+            pointsPerUnit: true,
             stock: true,
             stockMin: true,
             stockMax: true,
@@ -326,7 +328,7 @@ class ArticleController {
             subjectIIBB: !!subjectIIBB,
             subjectGanancias: !!subjectGanancias,
             subjectPercIVA: !!subjectPercIVA,
-            pointsPerUnit: pointsPerUnit != null ? parseInt(pointsPerUnit) : null,
+            pointsPerUnit: pointsPerUnit != null ? Number(pointsPerUnit).toFixed(3) : null,
             imageUrl: imageUrl || null
           },
           include: { category: { select: { id: true, name: true } } }
@@ -435,7 +437,7 @@ class ArticleController {
       if (subjectIIBB !== undefined) updateData.subjectIIBB = !!subjectIIBB;
       if (subjectGanancias !== undefined) updateData.subjectGanancias = !!subjectGanancias;
       if (subjectPercIVA !== undefined) updateData.subjectPercIVA = !!subjectPercIVA;
-      if (pointsPerUnit !== undefined) updateData.pointsPerUnit = pointsPerUnit != null ? parseInt(pointsPerUnit) : null;
+      if (pointsPerUnit !== undefined) updateData.pointsPerUnit = pointsPerUnit != null ? Number(pointsPerUnit).toFixed(3) : null;
       if (imageUrl !== undefined) updateData.imageUrl = imageUrl || null;
 
       // Resolver componentes entrantes
@@ -1002,6 +1004,7 @@ class ArticleController {
         active: true,
         cost: true,
         pricePublic: true,
+        pointsPerUnit: true,
         stock: true,
         taxRate: true,
         category: { select: { id: true, name: true } }

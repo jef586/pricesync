@@ -5,6 +5,7 @@ import StockService from "../services/StockService.js";
 import UomService from "../services/UomService.js";
 import { mapErrorToHttp } from "../utils/httpError.js";
 import TaxService from "../services/TaxService.js";
+import LoyaltyService from "../services/LoyaltyService.js";
 
 class SalesController {
   static async create(req, res) {
@@ -380,7 +381,7 @@ class SalesController {
           })
         }
 
-        // If sale transitioned to cancelled from paid, revert stock
+        // If sale transitioned to cancelled from paid, revert stock and loyalty
         if ((data.status === 'cancelled') && (existing.status === 'paid')) {
           try {
             await StockService.createRevertForOrder(tx, {
@@ -388,6 +389,12 @@ class SalesController {
               saleId: id,
               createdBy: req.user?.id || 'system'
             })
+            // Reverse loyalty points for this sale (idempotent)
+            try {
+              await LoyaltyService.reverseForSale(tx, { companyId, saleId: id, createdBy: req.user?.id || 'system' })
+            } catch (loyErr) {
+              console.warn('Loyalty reverse failed:', loyErr?.message || loyErr)
+            }
           } catch (err) {
             throw Object.assign(err, { httpCode: err?.httpCode || 500 })
           }
