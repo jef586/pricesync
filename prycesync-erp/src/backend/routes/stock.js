@@ -28,4 +28,7 @@ router.get('/movements', requireScopes('stock:read'), readLimit, StockController
 // Manual movement creation
 router.post('/movements', requireScopes('stock:write'), requireOverrideIfNeeded, writeLimit, StockController.createMovement)
 
+// Stock availability check
+router.post('/can-fulfill', requireScopes('stock:read'), readLimit, StockController.canFulfill)
+
 export default router

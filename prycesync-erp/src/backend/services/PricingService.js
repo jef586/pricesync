@@ -74,6 +74,32 @@ export function directPricing({ cost, gainPct = 0, taxRate = 21, internalTaxType
   return { pricePublic }
 }
 
+// Deriva costo y precio para un combo/kit en base a sus componentes
+// components: [{ articleId, qty }]
+export async function forCombo({ companyId, components = [], taxRate = 21, gainPct = null, internalTaxType = null, internalTaxValue = null }) {
+  const compList = Array.isArray(components) ? components.filter(c => c && c.articleId && (c.qty || c.quantity)) : []
+  if (compList.length === 0) {
+    return { cost: 0, pricePublic: 0 }
+  }
+
+  const ids = [...new Set(compList.map(c => String(c.articleId)))]
+  const articles = await prisma.article.findMany({
+    where: { companyId, id: { in: ids } },
+    select: { id: true, cost: true }
+  })
+  const costById = new Map(articles.map(a => [a.id, Number(a.cost || 0)]))
+  const totalCost = compList.reduce((acc, c) => acc + (costById.get(String(c.articleId)) || 0) * Number(c.qty || c.quantity || 0), 0)
+
+  let finalGainPct = gainPct
+  if (finalGainPct == null) {
+    const pricing = await getCompanyPricing(companyId)
+    finalGainPct = pricing.defaultMarginPercent
+  }
+
+  const { pricePublic } = directPricing({ cost: totalCost, gainPct: finalGainPct, taxRate, internalTaxType, internalTaxValue })
+  return { cost: Number(totalCost.toFixed(2)), pricePublic }
+}
+
 // Calcula margen (gainPct) inverso dado un precio público final
 export function inversePricing({ pricePublic, cost, taxRate = 21, internalTaxType = null, internalTaxValue = null }) {
   const p = Number(pricePublic || 0)

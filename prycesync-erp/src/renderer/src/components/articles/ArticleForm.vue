@@ -694,9 +694,10 @@ function validateRequired() {
   errors.name = form.name ? '' : 'Nombre es requerido'
   errors.categoryId = form.categoryId ? '' : 'Rubro es requerido'
   errors.taxRate = form.taxRate != null ? '' : 'IVA es requerido'
+  const isComboDerived = !form.comboOwnPrice && Array.isArray(form.comboComponents) && form.comboComponents.some((r: any) => r && r.code && Number(r.qty) > 0)
   const hasDirect = form.cost != null && form.gainPct != null
   const hasInverse = form.pricePublic != null
-  errors.price = hasDirect || hasInverse ? '' : 'Precio: completar costo+% o precio público'
+  errors.price = (hasDirect || hasInverse || isComboDerived) ? '' : 'Precio: completar costo+% o precio público'
   errors.stockMax = form.stockMax != null && form.stockMin != null && Number(form.stockMax) < Number(form.stockMin)
     ? 'Stock máx. debe ser ≥ stock mín.'
     : ''
@@ -731,13 +732,19 @@ function normalizePayload() {
   payload.internalTaxType = internalTaxValue.value != null ? internalTaxType.value : null
   payload.internalTaxValue = internalTaxValue.value != null ? Number(internalTaxValue.value) : null
 
+  // Combos/Kits payload
+  payload.comboOwnPrice = !!form.comboOwnPrice
+  payload.comboComponents = Array.isArray(form.comboComponents)
+    ? form.comboComponents
+        .filter((row: any) => row && row.code && Number(row.qty) > 0)
+        .map((row: any) => ({ code: String(row.code).trim(), qty: Number(row.qty) }))
+    : []
+
   // Remove client-only / unsupported fields
   delete payload.photo
   delete payload.uomBase
   delete payload.uomFactor
   delete payload.uomPriceOverride
-  delete payload.comboOwnPrice
-  delete payload.comboComponents
   delete payload.wholesaleTiers
   delete payload.leadTimeDays
   delete payload.supplierId

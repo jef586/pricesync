@@ -331,6 +331,19 @@ class SalesController {
             });
           }
         }
+
+        // If sale transitioned to cancelled from paid, revert stock
+        if ((data.status === 'cancelled') && (existing.status === 'paid')) {
+          try {
+            await StockService.createRevertForOrder(tx, {
+              companyId,
+              saleId: id,
+              createdBy: req.user?.id || 'system'
+            })
+          } catch (err) {
+            throw Object.assign(err, { httpCode: err?.httpCode || 500 })
+          }
+        }
         return sale;
       });
 

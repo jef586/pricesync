@@ -146,6 +146,23 @@ class StockController {
       res.status(500).json({ error: 'SERVER_ERROR', message: 'No se pudo crear el movimiento' })
     }
   }
+
+  static async canFulfill(req, res) {
+    try {
+      const companyId = req.user.company.id
+      const { items = [], warehouseId = null } = req.body || {}
+
+      if (!Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ success: false, message: 'items es requerido y no puede estar vacío' })
+      }
+
+      const result = await StockService.canFulfill({ companyId, items, warehouseId })
+      return res.json({ success: true, data: result })
+    } catch (error) {
+      console.error('Error canFulfill:', error)
+      res.status(500).json({ error: 'SERVER_ERROR', message: 'No se pudo verificar disponibilidad de stock' })
+    }
+  }
 }
 
 export default StockController

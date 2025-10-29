@@ -2,7 +2,7 @@ import prisma from '../config/database.js';
 import fs from 'fs';
 import path from 'path';
 import sharp from 'sharp';
-import { getCompanyPricing, computeSalePrice, directPricing, inversePricing } from '../services/PricingService.js'
+import { getCompanyPricing, computeSalePrice, directPricing, inversePricing, forCombo } from '../services/PricingService.js'
 import StockService from '../services/StockService.js'
 
 class ArticleController {
@@ -202,7 +202,10 @@ class ArticleController {
         subjectGanancias,
         subjectPercIVA,
         pointsPerUnit,
-        imageUrl
+        imageUrl,
+        comboOwnPrice,
+        bundleComponents: bundleComponentsRaw,
+        comboComponents
       } = req.body;
 
       const companyId = req.user.company.id;
@@ -232,16 +235,63 @@ class ArticleController {
         }
       }
 
-      // Pricing: directo o inverso
-      let finalGainPct = gainPct != null ? parseFloat(gainPct) : 0
+      // Resolver componentes de combo si se envían
+      const componentsProvided = Array.isArray(bundleComponentsRaw) || Array.isArray(comboComponents)
+      const incomingComponents = Array.isArray(bundleComponentsRaw ?? comboComponents) ? (bundleComponentsRaw ?? comboComponents) : []
+      const normalizedComponents = []
+      for (const c of incomingComponents) {
+        if (!c) continue
+        const qtyNum = Number(c.qty ?? c.quantity ?? 0)
+        if (!(qtyNum > 0)) continue
+        const code = c.componentArticleId || c.articleId || c.componentSku || c.sku || c.componentBarcode || c.barcode || c.code
+        if (!code) continue
+        // Buscar por id exacto, SKU o barcode
+        const found = await prisma.article.findFirst({
+          where: {
+            companyId,
+            deletedAt: null,
+            OR: [
+              { id: String(code) },
+              { sku: String(code) },
+              { barcode: String(code) }
+            ]
+          },
+          select: { id: true }
+        })
+        if (!found) {
+          return res.status(404).json({ error: 'NOT_FOUND', message: `Componente de combo no encontrado: ${code}` })
+        }
+        normalizedComponents.push({ articleId: found.id, qty: qtyNum })
+      }
+
+      // Pricing: directo/inverso o derivado por combo
+      let finalGainPct = gainPct != null ? parseFloat(gainPct) : null
+      let finalCost = cost != null ? parseFloat(cost) : null
       let finalPricePublic
-      if (pricePublic != null) {
-        const inv = inversePricing({ pricePublic, cost, taxRate, internalTaxType, internalTaxValue })
+      const tax = taxRate
+      const intType = internalTaxType || null
+      const intValue = internalTaxValue != null ? parseFloat(internalTaxValue) : null
+
+      if (normalizedComponents.length > 0 && !comboOwnPrice) {
+        const combo = await forCombo({ companyId, components: normalizedComponents, taxRate: tax, gainPct: finalGainPct, internalTaxType: intType, internalTaxValue: intValue })
+        // Si no se especificó gainPct, usar el que efectivamente aplicó
+        if (finalGainPct == null) {
+          const companyPricing = await getCompanyPricing(companyId)
+          finalGainPct = companyPricing.defaultMarginPercent
+        }
+        finalCost = combo.cost
+        finalPricePublic = combo.pricePublic
+      } else if (pricePublic != null) {
+        const inv = inversePricing({ pricePublic, cost, taxRate: tax, internalTaxType: intType, internalTaxValue: intValue })
         finalGainPct = inv.gainPct
         finalPricePublic = inv.pricePublic
+        finalCost = finalCost != null ? finalCost : parseFloat(cost)
       } else {
-        const dir = directPricing({ cost, gainPct: finalGainPct, taxRate, internalTaxType, internalTaxValue })
+        const g = finalGainPct != null ? finalGainPct : 0
+        const dir = directPricing({ cost: finalCost != null ? finalCost : parseFloat(cost), gainPct: g, taxRate: tax, internalTaxType: intType, internalTaxValue: intValue })
+        finalGainPct = g
         finalPricePublic = dir.pricePublic
+        finalCost = finalCost != null ? finalCost : parseFloat(cost)
       }
 
       // Generar SKU si no se envía o está vacío
@@ -250,34 +300,46 @@ class ArticleController {
         ? rawSku
         : `SKU-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,6)}`
 
-      const article = await prisma.article.create({
-        data: {
-          name: name.trim(),
-          description: description?.trim() || null,
-          type,
-          active: !!active,
-          sku: finalSku,
-          barcode: barcode?.trim() || null,
-          barcodeType: barcodeType || null,
-          taxRate: parseFloat(taxRate) || 21,
-          cost: parseFloat(cost),
-          gainPct: finalGainPct,
+      const article = await prisma.$transaction(async (tx) => {
+        const created = await tx.article.create({
+          data: {
+            name: name.trim(),
+            description: description?.trim() || null,
+            type,
+            active: !!active,
+            sku: finalSku,
+            barcode: barcode?.trim() || null,
+            barcodeType: barcodeType || null,
+          taxRate: parseFloat(tax) || 21,
+          cost: finalCost != null ? finalCost : parseFloat(cost),
+          gainPct: finalGainPct != null ? finalGainPct : 0,
           pricePublic: finalPricePublic,
-          stock: parseInt(stock) || 0,
-          stockMin: stockMin != null ? parseInt(stockMin) : null,
-          stockMax: stockMax != null ? parseInt(stockMax) : null,
-          controlStock: !!controlStock,
-          categoryId: categoryId || null,
-          companyId,
-          internalTaxType: internalTaxType || null,
-          internalTaxValue: internalTaxValue != null ? parseFloat(internalTaxValue) : null,
-          subjectIIBB: !!subjectIIBB,
-          subjectGanancias: !!subjectGanancias,
-          subjectPercIVA: !!subjectPercIVA,
-          pointsPerUnit: pointsPerUnit != null ? parseInt(pointsPerUnit) : null,
-          imageUrl: imageUrl || null
-        },
-        include: { category: { select: { id: true, name: true } } }
+            stock: parseInt(stock) || 0,
+            stockMin: stockMin != null ? parseInt(stockMin) : null,
+            stockMax: stockMax != null ? parseInt(stockMax) : null,
+            controlStock: !!controlStock,
+            categoryId: categoryId || null,
+            companyId,
+            internalTaxType: internalTaxType || null,
+            internalTaxValue: internalTaxValue != null ? parseFloat(internalTaxValue) : null,
+            subjectIIBB: !!subjectIIBB,
+            subjectGanancias: !!subjectGanancias,
+            subjectPercIVA: !!subjectPercIVA,
+            pointsPerUnit: pointsPerUnit != null ? parseInt(pointsPerUnit) : null,
+            imageUrl: imageUrl || null
+          },
+          include: { category: { select: { id: true, name: true } } }
+        })
+
+        if (normalizedComponents.length > 0) {
+          for (const nc of normalizedComponents) {
+            await tx.articleBundleComponent.create({
+              data: { articleId: created.id, componentArticleId: nc.articleId, qty: nc.qty }
+            })
+          }
+        }
+
+        return created
       })
 
       res.status(201).json(article)
@@ -318,7 +380,10 @@ class ArticleController {
         subjectGanancias,
         subjectPercIVA,
         pointsPerUnit,
-        imageUrl
+        imageUrl,
+        comboOwnPrice,
+        bundleComponents: bundleComponentsRaw,
+        comboComponents
       } = req.body;
 
       const companyId = req.user.company.id;
@@ -369,23 +434,91 @@ class ArticleController {
       if (pointsPerUnit !== undefined) updateData.pointsPerUnit = pointsPerUnit != null ? parseInt(pointsPerUnit) : null;
       if (imageUrl !== undefined) updateData.imageUrl = imageUrl || null;
 
-      // Pricing directo/inverso en update
-      if (pricePublic !== undefined) {
-        // Inverso si viene pricePublic
-        const inv = inversePricing({ pricePublic, cost: updateData.cost ?? existing.cost ?? 0, taxRate: updateData.taxRate ?? existing.taxRate, internalTaxType: updateData.internalTaxType ?? existing.internalTaxType, internalTaxValue: updateData.internalTaxValue ?? existing.internalTaxValue })
+      // Resolver componentes entrantes
+      const incomingComponents = Array.isArray(bundleComponentsRaw ?? comboComponents) ? (bundleComponentsRaw ?? comboComponents) : []
+      const normalizedComponents = []
+      for (const c of incomingComponents) {
+        if (!c) continue
+        const qtyNum = Number(c.qty ?? c.quantity ?? 0)
+        if (!(qtyNum > 0)) continue
+        const code = c.componentArticleId || c.articleId || c.componentSku || c.sku || c.componentBarcode || c.barcode || c.code
+        if (!code) continue
+        const found = await prisma.article.findFirst({
+          where: {
+            companyId,
+            deletedAt: null,
+            OR: [
+              { id: String(code) },
+              { sku: String(code) },
+              { barcode: String(code) }
+            ]
+          },
+          select: { id: true }
+        })
+        if (!found) {
+          return res.status(404).json({ error: 'NOT_FOUND', message: `Componente de combo no encontrado: ${code}` })
+        }
+        normalizedComponents.push({ articleId: found.id, qty: qtyNum })
+      }
+
+      // Pricing en update: inverso/directo o derivado por combo si corresponde
+      const baseCost = updateData.cost ?? existing.cost ?? 0
+      const baseGain = updateData.gainPct ?? existing.gainPct ?? 0
+      const baseTax = updateData.taxRate ?? existing.taxRate
+      const baseInternalType = updateData.internalTaxType ?? existing.internalTaxType
+      const baseInternalValue = updateData.internalTaxValue ?? existing.internalTaxValue
+
+      if (normalizedComponents.length > 0 && !comboOwnPrice) {
+        const result = await forCombo({ companyId, components: normalizedComponents, taxRate: baseTax, gainPct: baseGain, internalTaxType: baseInternalType, internalTaxValue: baseInternalValue })
+        updateData.cost = result.cost
+        updateData.pricePublic = result.pricePublic
+        // Si gainPct venía vacío y el artículo lo tenía vacío, usar default de la empresa
+        if (updateData.gainPct == null && existing.gainPct == null) {
+          const companyPricing = await getCompanyPricing(companyId)
+          updateData.gainPct = companyPricing.defaultMarginPercent
+        }
+      } else if (pricePublic !== undefined) {
+        const inv = inversePricing({ pricePublic, cost: baseCost, taxRate: baseTax, internalTaxType: baseInternalType, internalTaxValue: baseInternalValue })
         updateData.gainPct = inv.gainPct
         updateData.pricePublic = inv.pricePublic
       } else if (updateData.cost !== undefined || updateData.gainPct !== undefined || updateData.taxRate !== undefined || updateData.internalTaxType !== undefined || updateData.internalTaxValue !== undefined) {
-        // Directo si cambian parámetros relevantes
-        const dir = directPricing({ cost: updateData.cost ?? existing.cost ?? 0, gainPct: updateData.gainPct ?? existing.gainPct ?? 0, taxRate: updateData.taxRate ?? existing.taxRate, internalTaxType: updateData.internalTaxType ?? existing.internalTaxType, internalTaxValue: updateData.internalTaxValue ?? existing.internalTaxValue })
+        const dir = directPricing({ cost: updateData.cost ?? baseCost, gainPct: updateData.gainPct ?? baseGain, taxRate: baseTax, internalTaxType: baseInternalType, internalTaxValue: baseInternalValue })
         updateData.pricePublic = dir.pricePublic
       }
 
-      const article = await prisma.article.update({
-        where: { id },
-        data: updateData,
-        include: { category: { select: { id: true, name: true } } }
-      });
+      const article = await prisma.$transaction(async (tx) => {
+        const updated = await tx.article.update({
+          where: { id },
+          data: updateData,
+          include: { category: { select: { id: true, name: true } } }
+        })
+
+        if (componentsProvided) {
+          // Sincronizar componentes: eliminar los que no estén, actualizar qty y crear nuevos
+          const existingComps = await tx.articleBundleComponent.findMany({ where: { articleId: id } })
+          const incomingMap = new Map(normalizedComponents.map(c => [c.articleId, c.qty]))
+
+          // Eliminar
+          for (const ex of existingComps) {
+            if (!incomingMap.has(ex.componentArticleId)) {
+              await tx.articleBundleComponent.delete({ where: { id: ex.id } })
+            }
+          }
+          // Actualizar o crear
+          for (const [compId, qty] of incomingMap.entries()) {
+            const found = existingComps.find(e => e.componentArticleId === compId)
+            if (found) {
+              if (Number(found.qty) !== Number(qty)) {
+                await tx.articleBundleComponent.update({ where: { id: found.id }, data: { qty } })
+              }
+            } else {
+              await tx.articleBundleComponent.create({ data: { articleId: id, componentArticleId: compId, qty } })
+            }
+          }
+        }
+
+        return updated
+      })
 
       res.json(article);
     } catch (error) {
