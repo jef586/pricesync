@@ -57,7 +57,8 @@ function computeInternalTax(cost, internalTaxType, internalTaxValue) {
   const c = Number(cost || 0)
   if (!internalTaxType || internalTaxValue == null) return 0
   const val = Number(internalTaxValue)
-  if (internalTaxType === 'ABS') return val
+  if (internalTaxType === 'NONE') return 0
+  if (internalTaxType === 'FIXED' || internalTaxType === 'ABS') return val
   if (internalTaxType === 'PERCENT') return c * (val / 100)
   return 0
 }

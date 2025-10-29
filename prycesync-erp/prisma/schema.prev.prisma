@@ -222,9 +222,8 @@ enum ArticleType {
 }
 
 enum InternalTaxType {
-  NONE
-  FIXED
-  PERCENT
+  FIX
+  PCT
 }
 
 enum BarcodeType {
@@ -299,8 +298,8 @@ model Article {
   image       ArticleImage? @relation("PrimaryArticleImage", fields: [imageId], references: [id], onDelete: SetNull)
 
   // Impuesto interno
-  internalTaxType  InternalTaxType @default(NONE) @map("internal_tax_type")
-  internalTaxValue Decimal         @default(0) @map("internal_tax_value") @db.Decimal(12, 4)
+  internalTaxType  InternalTaxType? @map("internal_tax_type")
+  internalTaxValue Decimal?         @map("internal_tax_value") @db.Decimal(12, 2)
 
   // Flags fiscales
   subjectIIBB      Boolean @default(false) @map("subject_iibb")

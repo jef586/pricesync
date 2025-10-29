@@ -493,8 +493,9 @@ const uomOptions = [
 ]
 
 const internalTaxOptions = [
-  { label: 'Fijo', value: 'FIX' },
-  { label: '%', value: 'PCT' }
+  { label: 'Ninguno', value: 'NONE' },
+  { label: 'Fijo', value: 'FIXED' },
+  { label: '%', value: 'PERCENT' }
 ]
 
 const stockWindowOptions = [
@@ -537,7 +538,7 @@ const form = reactive<any>({
 
 const errors = reactive<Record<string, string>>({})
 const autoCode = ref(false)
-const internalTaxType = ref<'FIX' | 'PCT'>('FIX')
+const internalTaxType = ref<'NONE' | 'FIXED' | 'PERCENT'>('NONE')
 const internalTaxValue = ref<number | null>(null)
 const secondaryBarcodes = ref<Array<{ id: string; code: string }>>([])
 const newBarcode = ref('')
@@ -650,8 +651,8 @@ function validateBarcode() {
 }
 
 function internalTaxAmount(baseCost: number): number {
-  if (!internalTaxValue.value) return 0
-  return internalTaxType.value === 'FIX'
+  if (!internalTaxValue.value || internalTaxType.value === 'NONE') return 0
+  return internalTaxType.value === 'FIXED'
     ? Number(internalTaxValue.value)
     : baseCost * (Number(internalTaxValue.value) / 100)
 }
@@ -728,9 +729,14 @@ function normalizePayload() {
   delete payload.withIIBB
   delete payload.withIncomeTax
   delete payload.withVatPerception
-  // Internal tax mapping
-  payload.internalTaxType = internalTaxValue.value != null ? internalTaxType.value : null
-  payload.internalTaxValue = internalTaxValue.value != null ? Number(internalTaxValue.value) : null
+  // Internal tax mapping (align with backend enum and defaults)
+  if (internalTaxValue.value != null && Number(internalTaxValue.value) > 0) {
+    payload.internalTaxType = internalTaxType.value
+    payload.internalTaxValue = Number(internalTaxValue.value)
+  } else {
+    payload.internalTaxType = 'NONE'
+    payload.internalTaxValue = 0
+  }
 
   // Combos/Kits payload
   payload.comboOwnPrice = !!form.comboOwnPrice

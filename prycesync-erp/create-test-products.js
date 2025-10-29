@@ -235,35 +235,40 @@ async function createTestProducts() {
       }
     ];
 
-    // Crear productos
+    // Crear artículos (nuevo modelo)
     const createdProducts = [];
     for (const productData of testProducts) {
-      const product = await prisma.product.upsert({
+      const article = await prisma.article.upsert({
         where: { 
-          companyId_code: {
-            companyId: company.id,
-            code: productData.code
-          }
+          sku: productData.code
         },
         update: {},
         create: {
-          ...productData,
-          status: 'active',
+          sku: productData.code,
+          name: productData.name,
+          description: productData.description,
+          categoryId: productData.categoryId || null,
+          type: 'PRODUCT',
+          taxRate: 21,
+          cost: productData.costPrice,
+          pricePublic: productData.salePrice,
+          stock: productData.stock || 0,
+          stockMin: productData.minStock || null,
           companyId: company.id
         }
       });
-      createdProducts.push(product);
+      createdProducts.push(article);
     }
 
     console.log('📦 Productos creados:', createdProducts.length);
     
     // Mostrar resumen
     const totalValue = createdProducts.reduce((sum, product) => 
-      sum + (product.salePrice * product.stock), 0
+      sum + (Number(product.pricePublic) * product.stock), 0
     );
     
     const lowStockCount = createdProducts.filter(product => 
-      product.stock <= product.minStock
+      product.stockMin && product.stock <= product.stockMin
     ).length;
 
     console.log('\n📊 RESUMEN DE PRODUCTOS CREADOS:');
