@@ -1,4 +1,4 @@
-import { apiClient } from './api'
+﻿import { apiClient } from './api'
 import type { ArticleDTO, ArticleFilters, Paginated } from '@/types/article'
 
 // UH-ART-3: Servicio HTTP para Artículos (/api/articles)
@@ -31,16 +31,30 @@ function normalizePagination<T>(
 
 export async function listArticles(filters: ArticleFilters = {}): Promise<Paginated<ArticleDTO>> {
   const params = new URLSearchParams()
-  if (filters.q) params.append('q', String(filters.q))
-  if (filters.rubroId) params.append('rubroId', String(filters.rubroId))
+  // Compat: mapear filtros del store a los esperados por el backend
+  // q -> search
+  if ((filters as any).search) params.append('search', String((filters as any).search))
+  else if (filters.q) params.append('search', String(filters.q))
+  // rubroId -> categoryId
+  if (filters.rubroId) params.append('categoryId', String(filters.rubroId))
+  // type (si existiera)
+  if ((filters as any).type) params.append('type', String((filters as any).type))
+  // active
   if (typeof filters.active === 'boolean') params.append('active', String(filters.active))
+  // controlStock (si aplica)
   if (typeof filters.controlStock === 'boolean') params.append('controlStock', String(filters.controlStock))
+  // pagination
   if (filters.page) params.append('page', String(filters.page))
   if (filters.pageSize) {
     // Enviar ambos por compatibilidad
     params.append('pageSize', String(filters.pageSize))
     params.append('limit', String(filters.pageSize))
   }
+  // sorting opcional
+  const sortBy = (filters as any).sortBy
+  const sortOrder = (filters as any).sortOrder
+  if (sortBy) params.append('sortBy', String(sortBy))
+  if (sortOrder) params.append('sortOrder', String(sortOrder))
 
   const resp = await apiClient.get(`/articles?${params.toString()}`)
   const payload = resp.data
