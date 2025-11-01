@@ -34,6 +34,14 @@
 .ps-btn--danger { background: var(--ps-error); color: white; }
 .ps-btn--danger:hover { filter: brightness(1.05); box-shadow: var(--ps-shadow-sm); }
 
+/* Compact button variant for tight layouts */
+.ps-btn--compact {
+  padding: 0.25rem 0.5rem; /* 4px x 8px */
+  font-size: var(--ps-font-sm);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
 /* Alerts */
 .ps-alert {
   display: flex;

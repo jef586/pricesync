@@ -53,7 +53,7 @@
     </div>
     <div v-else-if="items.length === 0" class="p-8 text-center text-gray-600">
       <p>{{ t('inventory.article.table.empty') }}</p>
-      <BaseButton variant="primary" @click="$router.push('/articles/new')">{{ t('inventory.article.actions.new') }}</BaseButton>
+      <BaseButton v-if="canCreate" variant="primary" @click="$router.push('/articles/new')">{{ t('inventory.article.actions.new') }}</BaseButton>
     </div>
     <div v-else class="overflow-x-auto" role="table" aria-label="Listado de artículos">
       <table class="min-w-full">
@@ -106,11 +106,11 @@
             <td class="py-2 px-3 text-left">{{ formatDate(item.updatedAt) }}</td>
             <td class="py-2 px-3">
               <div class="flex items-center gap-1">
-                <BaseButton variant="ghost" @click="$emit('edit', item.id)" aria-label="Editar">✎</BaseButton>
-                <BaseButton variant="ghost" @click="$emit('duplicate', item)" aria-label="Duplicar">⎘</BaseButton>
-                <BaseButton variant="ghost" @click="$emit('toggle-active', item)" :aria-label="item.active ? 'Desactivar' : 'Activar'">{{ item.active ? '⏻' : '⏽' }}</BaseButton>
+                <BaseButton v-if="canModify" variant="ghost" @click="$emit('edit', item.id)" aria-label="Editar">✎</BaseButton>
+                <BaseButton v-if="canModify" variant="ghost" @click="$emit('duplicate', item)" aria-label="Duplicar">⎘</BaseButton>
+                <BaseButton v-if="canModify" variant="ghost" @click="$emit('toggle-active', item)" :aria-label="item.active ? 'Desactivar' : 'Activar'">{{ item.active ? '⏻' : '⏽' }}</BaseButton>
                 <!-- Replace inline ConfirmModal trigger with explicit open -->
-                <BaseButton variant="ghost" aria-label="Eliminar" @click="openDelete(item.id)">🗑</BaseButton>
+                <BaseButton v-if="canDelete" variant="ghost" aria-label="Eliminar" @click="openDelete(item.id)">🗑</BaseButton>
               </div>
             </td>
           </tr>
@@ -142,13 +142,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import BaseButton from '@/components/atoms/BaseButton.vue'
 import BaseSelect from '@/components/atoms/BaseSelect.vue'
 import Pagination from '@/components/atoms/Pagination.vue'
 import ConfirmModal from '@/components/atoms/ConfirmModal.vue'
 import { useCategories } from '@/composables/useCategories'
 import { useSuppliers } from '@/composables/useSuppliers'
+import { useBarcodeListener } from '@/composables/useBarcodeListener'
+import { useAuthStore } from '@/stores/auth'
 
 const props = defineProps<{
   loading: boolean
@@ -209,6 +211,12 @@ const localFilters = ref({
 
 const { categories, subcategoriesByParent } = useCategories()
 const { suppliers } = useSuppliers()
+const auth = useAuthStore()
+
+// Permissions
+const canCreate = computed(() => auth.hasAnyRole(['admin']))
+const canModify = computed(() => auth.hasAnyRole(['admin']))
+const canDelete = computed(() => auth.hasAnyRole(['admin']))
 
 const categoryOptions = computed(() => [
   { label: 'Todos', value: null },
@@ -288,6 +296,33 @@ const cancelDelete = () => {
   showDeleteModal.value = false
   deleteId.value = null
 }
+
+// Barcode scanner integration: fill quick search and trigger search
+let barcodeCtrl: ReturnType<typeof useBarcodeListener> | null = null
+onMounted(() => {
+  try {
+    const settings: any = {
+      windowMsMin: 0,
+      interKeyTimeout: 300,
+      minLength: 6,
+      suffix: 'none',
+      preventInInputs: true,
+      forceFocus: false
+    }
+    barcodeCtrl = useBarcodeListener(settings)
+    barcodeCtrl.onScan((code) => {
+      localQ.value = code
+      onSearch()
+    })
+    barcodeCtrl.start()
+  } catch (err) {
+    console.error('ArticleTable barcode init failed:', err)
+  }
+})
+
+onBeforeUnmount(() => {
+  barcodeCtrl?.stop()
+})
 </script>
 
 <style scoped>

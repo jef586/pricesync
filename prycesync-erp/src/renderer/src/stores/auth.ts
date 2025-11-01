@@ -48,6 +48,11 @@ export const useAuthStore = defineStore('auth', () => {
   })
   const userRole = computed(() => user.value?.role || null)
 
+  // Basic permission helpers
+  const isAdmin = computed(() => userRole.value === 'admin')
+  const hasRole = (role: string) => userRole.value === role
+  const hasAnyRole = (roles: string[]) => roles.includes(String(userRole.value))
+
   // Actions
   const login = async (credentials: LoginCredentials) => {
     isLoading.value = true
@@ -232,6 +237,7 @@ export const useAuthStore = defineStore('auth', () => {
     // Getters
     isAuthenticated,
     userRole,
+    isAdmin,
     // Actions
     login,
     register,
@@ -239,5 +245,8 @@ export const useAuthStore = defineStore('auth', () => {
     getCurrentUser,
     initializeAuth,
     clearError,
+    // Helpers
+    hasRole,
+    hasAnyRole,
   }
 })
