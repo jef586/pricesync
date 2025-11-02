@@ -287,17 +287,36 @@ export function useProducts() {
       return []
     }
   }
+
+  // Helper: map Article payload to Product format (frontend compatibility)
+  const mapArticleToProduct = (a: any): Product => ({
+    id: a.id,
+    sku: a.sku || '',
+    name: a.name,
+    description: a.description || undefined,
+    categoryId: a.categoryId || a.category?.id,
+    category: a.category ? { id: a.category.id, name: a.category.name } : undefined,
+    costPrice: a.cost ?? 0,
+    salePrice: (a as any).salePrice ?? a.pricePublic ?? 0,
+    stockQuantity: a.stock ?? 0,
+    minStock: a.stockMin ?? undefined,
+    maxStock: a.stockMax ?? undefined,
+    unit: (a.unit || 'UN'),
+    status: (a.active === false) ? 'inactive' : 'active',
+    createdAt: a.createdAt,
+    updatedAt: a.updatedAt
+  })
   // Create product
   const createProduct = async (data: CreateProductData) => {
     try {
       setLoading(true)
-      
-      const response = await apiClient.post('/products', data)
-      
-      if (response.status === 201 || response.data.success) {
-        const newProduct = response.data.data || response.data
-        products.value.unshift(newProduct)
-        return newProduct
+      // Refactor: create via Articles API
+      const response = await apiClient.post('/articles', data)
+      const raw = response.data?.data || response.data
+      if (response.status === 201 || response.data.success || raw?.id) {
+        const mapped = mapArticleToProduct(raw)
+        products.value.unshift(mapped)
+        return mapped
       } else {
         throw new Error(response.data.message || 'Error al crear producto')
       }
@@ -313,24 +332,21 @@ export function useProducts() {
   const updateProduct = async (id: string, data: Partial<CreateProductData>) => {
     try {
       setLoading(true)
-      
-      const response = await apiClient.put(`/products/${id}`, data)
-      
-      if (response.status === 200 || response.data.success) {
-        const updatedProduct = response.data.data || response.data
-        
+      // Refactor: update via Articles API
+      const response = await apiClient.put(`/articles/${id}`, data)
+      const raw = response.data?.data || response.data
+      if (response.status === 200 || response.data.success || raw?.id) {
+        const mapped = mapArticleToProduct(raw)
         // Update in products array
         const index = products.value.findIndex(p => p.id === id)
         if (index !== -1) {
-          products.value[index] = updatedProduct
+          products.value[index] = mapped
         }
-        
         // Update current product if it's the same
         if (currentProduct.value?.id === id) {
-          currentProduct.value = updatedProduct
+          currentProduct.value = mapped
         }
-        
-        return updatedProduct
+        return mapped
       } else {
         throw new Error(response.data.message || 'Error al actualizar producto')
       }
@@ -346,8 +362,8 @@ export function useProducts() {
   const deleteProduct = async (id: string) => {
     try {
       setLoading(true)
-      
-      const response = await apiClient.delete(`/products/${id}`)
+      // Refactor: delete via Articles API
+      const response = await apiClient.delete(`/articles/${id}`)
       
       if (response.status === 200 || response.data.success) {
         // Remove from products array
@@ -374,24 +390,21 @@ export function useProducts() {
   const updateStock = async (id: string, stockData: StockUpdateData) => {
     try {
       setLoading(true)
-      
-      const response = await apiClient.patch(`/products/${id}/stock`, stockData)
-      
-      if (response.status === 200 || response.data.success) {
-        const updatedProduct = response.data.data || response.data
-        
+      // Refactor: stock update via Articles API
+      const response = await apiClient.patch(`/articles/${id}/stock`, stockData)
+      const raw = response.data?.data || response.data
+      if (response.status === 200 || response.data.success || raw?.id) {
+        const mapped = mapArticleToProduct(raw)
         // Update in products array
         const index = products.value.findIndex(p => p.id === id)
         if (index !== -1) {
-          products.value[index] = updatedProduct
+          products.value[index] = mapped
         }
-        
         // Update current product if it's the same
         if (currentProduct.value?.id === id) {
-          currentProduct.value = updatedProduct
+          currentProduct.value = mapped
         }
-        
-        return updatedProduct
+        return mapped
       } else {
         throw new Error(response.data.message || 'Error al actualizar stock')
       }

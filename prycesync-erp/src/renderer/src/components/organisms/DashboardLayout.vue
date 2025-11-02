@@ -26,6 +26,18 @@
             </router-link>
           </li>
           
+           <li class="nav-item">
+            <router-link to="/articles" class="nav-link" :class="{ active: $route.path.startsWith('/articles') }" :title="sidebarCollapsed ? 'Artículos' : ''">
+              <svg class="nav-icon" :title="sidebarCollapsed ? 'Artículos' : ''" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M4 19.5V4.5C4 3.67157 4.67157 3 5.5 3H14.5C15.3284 3 16 3.67157 16 4.5V19.5C16 20.3284 15.3284 21 14.5 21H5.5C4.67157 21 4 20.3284 4 19.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M8 7H12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M8 11H12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M8 15H12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span v-if="!sidebarCollapsed" class="nav-text">Artículos</span>
+            </router-link>
+          </li>
+
           <li class="nav-item">
             <router-link to="/invoices" class="nav-link" :class="{ active: $route.path.startsWith('/invoices') }" :title="sidebarCollapsed ? 'Facturas' : ''">
               <svg class="nav-icon" :title="sidebarCollapsed ? 'Facturas' : ''" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -83,18 +95,7 @@
             </router-link>
           </li>
 
-          <li class="nav-item">
-            <router-link to="/articles" class="nav-link" :class="{ active: $route.path.startsWith('/articles') }" :title="sidebarCollapsed ? 'Artículos' : ''">
-              <svg class="nav-icon" :title="sidebarCollapsed ? 'Artículos' : ''" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M4 19.5V4.5C4 3.67157 4.67157 3 5.5 3H14.5C15.3284 3 16 3.67157 16 4.5V19.5C16 20.3284 15.3284 21 14.5 21H5.5C4.67157 21 4 20.3284 4 19.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M8 7H12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M8 11H12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M8 15H12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span v-if="!sidebarCollapsed" class="nav-text">Artículos</span>
-            </router-link>
-          </li>
-
+         
           <li class="nav-item">
             <router-link to="/categories" class="nav-link" :class="{ active: $route.path.startsWith('/categories') }" :title="sidebarCollapsed ? 'Categorías' : ''">
               <svg class="nav-icon" :title="sidebarCollapsed ? 'Categorías' : ''" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

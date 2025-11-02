@@ -3,18 +3,18 @@
     <div class="products-view">
       <!-- Header -->
       <PageHeader
-        title="Gestión de Productos"
-        subtitle="Administra el inventario y productos de tu empresa"
+        title="Gestión de Artículos"
+        subtitle="Administra el inventario y artículos de tu empresa"
       >
         <template #actions>
           <BaseButton
             variant="primary"
-            @click="$router.push('/products/new')"
+            @click="$router.push('/articles/new')"
           >
             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
             </svg>
-            Nuevo Producto
+            Nuevo Artículo
           </BaseButton>
         </template>
       </PageHeader>
@@ -56,7 +56,7 @@
         <!-- Custom cell templates -->
         <template #cell-sku="{ item }">
           <div class="font-mono text-sm">
-            {{ item.code }}
+            {{ item.sku || item.code }}
           </div>
         </template>
 
@@ -262,11 +262,11 @@ const handleRowClick = (product: any) => {
 }
 
 const viewProduct = (id: string) => {
-  router.push(`/products/${id}`)
+  router.push(`/articles/${id}/edit`)
 }
 
 const editProduct = (id: string) => {
-  router.push(`/products/${id}/edit`)
+  router.push(`/articles/${id}/edit`)
 }
 
 const showStockModal = (product: any) => {
