@@ -10,38 +10,43 @@ const __dirname = path.dirname(__filename);
 // cerrada automáticamente cuando el objeto JavaScript sea recolectado por el garbage collector.
 let mainWindow;
 
+function getActiveWindow() {
+  return BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0] || mainWindow;
+}
+
 function createWindow() {
   // Crear la ventana del navegador.
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    frame: process.platform === 'darwin' ? true : false,
+    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : undefined,
+    minimizable: true,
+    maximizable: true,
+    closable: true,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.js')
+      sandbox: false,
+      preload: path.join(__dirname, 'preload.cjs')
     },
-    icon: path.join(__dirname, '../renderer/assets/icon.png'), // Opcional: icono de la app
-    show: false // No mostrar hasta que esté lista
+    icon: path.join(__dirname, '../renderer/assets/icon.png'),
+    show: false
   });
 
-  // Cargar la aplicación Vue desde el servidor de desarrollo
+  console.log('[Electron] Preload path:', path.join(__dirname, 'preload.cjs'));
+  console.log('[Electron] Loading URL:', 'http://localhost:5173');
   mainWindow.loadURL('http://localhost:5173');
 
-  // Mostrar la ventana cuando esté lista para prevenir el flash visual
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
   });
 
-  // Abrir las DevTools en desarrollo
   if (process.env.NODE_ENV === 'development') {
     mainWindow.webContents.openDevTools();
   }
 
-  // Emitido cuando la ventana es cerrada.
   mainWindow.on('closed', function () {
-    // Desreferenciar el objeto window, usualmente guardarías las ventanas
-    // en un array si tu app soporta multi ventanas, este es el momento
-    // cuando deberías eliminar el elemento correspondiente.
     mainWindow = null;
   });
 }
@@ -79,5 +84,29 @@ ipcMain.handle('pos:scan', async (_event, code) => {
     return { ok: true, code }
   } catch (err) {
     return { ok: false, error: (err && err.message) || 'unknown' }
+  }
+});
+
+// IPC: Controles de ventana (Minimizar / Cerrar / Toggle Maximize)
+ipcMain.on('window:minimize', () => {
+  console.log('[IPC] window:minimize')
+  const win = getActiveWindow();
+  if (win) win.minimize();
+});
+
+ipcMain.on('window:close', () => {
+  console.log('[IPC] window:close')
+  const win = getActiveWindow();
+  if (win) win.close();
+});
+
+ipcMain.on('window:toggleMaximize', () => {
+  console.log('[IPC] window:toggleMaximize')
+  const win = getActiveWindow();
+  if (!win) return;
+  if (win.isMaximized()) {
+    win.unmaximize();
+  } else {
+    win.maximize();
   }
 });

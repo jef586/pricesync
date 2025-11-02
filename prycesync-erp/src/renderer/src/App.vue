@@ -33,6 +33,7 @@ body {
 }
 
 #app {
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden; /* Evita scroll global; el contenido interno maneja su propio scroll */
 }
 </style>

@@ -157,6 +157,8 @@
 
     <!-- Main Content -->
     <main class="dashboard-main" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
+      <!-- Header de la aplicación con área draggable -->
+      <AppHeader />
       <div class="dashboard-content">
         <slot />
       </div>
@@ -169,6 +171,7 @@ import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 import ThemeSwitcher from '@/components/ThemeSwitcher.vue'
+import AppHeader from '@/components/layout/AppHeader.vue'
 import logoUrl from '@/assets/iberasoft-logo.png'
 
 const route = useRoute()
@@ -394,6 +397,10 @@ const userInitials = computed(() => {
   display: flex;
   flex-direction: column;
   transition: margin-left 0.3s ease;
+  /* Compensar el header fijo (h-10 ~ 40px) */
+  padding-top: 40px;
+  /* Permite que el contenido interno haga scroll */
+  min-height: 0;
 }
 
 .dashboard-content {
@@ -402,7 +409,32 @@ const userInitials = computed(() => {
   flex-direction: column;
   /* Reducimos padding inferior para que las columnas lleguen más abajo */
   padding: 2rem 2rem 0.75rem 2rem;
-  overflow-y: auto;
+  overflow-y: auto; /* Scroll solo cuando se necesite */
+  overscroll-behavior: contain;
+  min-height: 0;
+  /* Firefox */
+  scrollbar-width: thin;
+  scrollbar-color: var(--ps-border) transparent;
+}
+
+/* Estilo de scrollbar (WebKit) dentro del área de contenido */
+:deep(.dashboard-content::-webkit-scrollbar) {
+  width: 10px;
+  height: 10px;
+}
+
+:deep(.dashboard-content::-webkit-scrollbar-track) {
+  background: transparent;
+}
+
+:deep(.dashboard-content::-webkit-scrollbar-thumb) {
+  background-color: color-mix(in srgb, var(--ps-border) 70%, transparent);
+  border-radius: 8px;
+  border: 2px solid var(--ps-bg);
+}
+
+:deep(.dashboard-content::-webkit-scrollbar-thumb:hover) {
+  background-color: color-mix(in srgb, var(--ps-primary) 50%, var(--ps-border) 50%);
 }
 
 /* Responsive Design */

@@ -2,6 +2,7 @@
 @import '../styles/design-tokens.css';
 @import '../styles/components.css';
 @import '../styles/utilities.css';
+@import '../styles/header.css';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
