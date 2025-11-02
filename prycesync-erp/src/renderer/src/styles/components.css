@@ -42,6 +42,22 @@
   white-space: nowrap;
 }
 
+/* Form Inputs */
+input, select, textarea {
+  background: var(--ps-input-bg, var(--ps-card));
+  color: var(--ps-text-primary);
+  border: var(--ps-border-width) solid var(--ps-border);
+}
+.dark input, .dark select, .dark textarea {
+  background: var(--ps-input-bg, #2B3648); /* slightly lighter than card to stand out */
+}
+input::placeholder, textarea::placeholder { color: var(--ps-text-secondary); }
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--ps-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ps-primary) 40%, transparent);
+}
+
 /* Alerts */
 .ps-alert {
   display: flex;

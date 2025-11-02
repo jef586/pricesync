@@ -83,7 +83,10 @@ defineEmits<Emits>()
 }
 
 .base-select__field {
-  @apply w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 cursor-pointer;
+  @apply w-full px-4 py-3 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 cursor-pointer;
+  background: var(--ps-input-bg);
+  color: var(--ps-text-primary);
+  border-color: var(--ps-border);
 }
 
 .base-select__field--error {

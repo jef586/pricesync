@@ -12,6 +12,7 @@
   --ps-bg: #F9FAFB;                /* main background */
   --ps-card: #FFFFFF;               /* cards/surfaces */
   --ps-sidebar: #F3F4F6;            /* sidebar */
+  --ps-input-bg: #F3F4F6;           /* inputs background */
   --ps-text-primary: #1F2937;       /* slate-800 */
   --ps-text-secondary: #6B7280;     /* slate-500 */
   --ps-border: #E5E7EB;             /* gray-200 */
@@ -55,6 +56,7 @@
   --ps-bg: #0F172A;                 /* slate-900-ish */
   --ps-card: #1E293B;               /* slate-800 surface */
   --ps-sidebar: #1E293B;            /* sidebar */
+  --ps-input-bg: #2B3648;           /* inputs background (slightly lighter than card) */
   --ps-text-primary: #F1F5F9;       /* slate-100 */
   --ps-text-secondary: #94A3B8;     /* slate-400 */
   --ps-border: #334155;             /* slate-600 */

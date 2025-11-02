@@ -397,7 +397,10 @@ const userInitials = computed(() => {
 
 .dashboard-content {
   flex: 1;
-  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  /* Reducimos padding inferior para que las columnas lleguen más abajo */
+  padding: 2rem 2rem 0.75rem 2rem;
   overflow-y: auto;
 }
 

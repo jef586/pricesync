@@ -91,8 +91,14 @@ const handleInput = (event: Event) => {
 }
 
 .base-input__field {
-  @apply w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-gray-900;
+  @apply w-full px-4 py-3 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200;
+  background: var(--ps-input-bg);
+  color: var(--ps-text-primary);
+  border-color: var(--ps-border);
 }
+
+.base-input__field::placeholder { color: var(--ps-text-secondary); }
+.base-input__field:focus { border-color: var(--ps-primary); }
 
 .base-input__field--error {
   @apply border-red-300 focus:ring-red-500 focus:border-red-500 bg-red-50;
