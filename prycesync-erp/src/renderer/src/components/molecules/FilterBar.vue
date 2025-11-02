@@ -255,15 +255,15 @@ const activeFiltersList = computed(() => {
 
 <style scoped>
 .filter-bar {
-  @apply bg-white border border-gray-200 rounded-lg shadow-sm;
+  @apply bg-white border border-gray-200 rounded-md shadow-sm;
 }
 
 .filter-bar-header {
-  @apply flex items-center justify-between mb-4 pb-3 border-b border-gray-100;
+  @apply flex items-center justify-between mb-3 pb-2 border-b border-gray-100;
 }
 
 .filter-title {
-  @apply text-lg font-semibold text-gray-900;
+  @apply text-base font-semibold text-gray-900;
 }
 
 .clear-filters-btn {
@@ -271,7 +271,7 @@ const activeFiltersList = computed(() => {
 }
 
 .filter-grid {
-  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-4;
+  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mb-3;
 }
 
 .filter-item {
@@ -283,11 +283,11 @@ const activeFiltersList = computed(() => {
 }
 
 .filter-label {
-  @apply block text-sm font-medium text-gray-700 mb-1;
+  @apply block text-xs font-medium text-gray-700 mb-1;
 }
 
 .filter-select {
-  @apply w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-sm;
+  @apply w-full px-2.5 py-1.5 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-sm;
 }
 
 .date-range {
@@ -307,7 +307,7 @@ const activeFiltersList = computed(() => {
 }
 
 .active-filters {
-  @apply pt-4 border-t border-gray-100;
+  @apply pt-3 border-t border-gray-100;
 }
 
 .active-filters-label {
@@ -319,7 +319,7 @@ const activeFiltersList = computed(() => {
 }
 
 .filter-tag {
-  @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200;
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200;
 }
 
 .filter-tag-remove {
@@ -329,7 +329,7 @@ const activeFiltersList = computed(() => {
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .filter-grid {
-    @apply grid-cols-1 gap-3;
+    @apply grid-cols-1 gap-2;
   }
   
   .search-filter,
@@ -347,7 +347,7 @@ const activeFiltersList = computed(() => {
 }
 
 /* Design system overrides for dark/light mode using tokens */
-.filter-bar { background: var(--ps-card); border: var(--ps-border-width) solid var(--ps-border); border-radius: var(--ps-radius-lg); box-shadow: var(--ps-shadow-sm); }
+.filter-bar { background: var(--ps-card); border: var(--ps-border-width) solid var(--ps-border); border-radius: var(--ps-radius-md); box-shadow: var(--ps-shadow-sm); }
 .filter-bar-header { border-bottom: var(--ps-border-width) solid var(--ps-border); }
 .filter-title { color: var(--ps-text-primary); }
 .clear-filters-btn { color: var(--ps-text-secondary); }
@@ -360,4 +360,21 @@ const activeFiltersList = computed(() => {
 .active-filters-label { color: var(--ps-text-secondary); }
 .filter-tag { background: color-mix(in srgb, var(--ps-primary) 15%, transparent); color: var(--ps-primary); border-color: color-mix(in srgb, var(--ps-primary) 35%, transparent); }
 .filter-tag-remove:hover { background: color-mix(in srgb, var(--ps-primary) 18%, transparent); }
+
+/* Compact padding for BaseCard content inside FilterBar */
+:deep(.base-card__content) {
+  padding: 0.75rem;
+}
+
+/* Compact BaseInput inside FilterBar */
+:deep(.base-input__label) {
+  font-size: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+:deep(.base-input__field) {
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--ps-radius-md);
+  font-size: 0.875rem;
+}
 </style>

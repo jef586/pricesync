@@ -50,17 +50,26 @@
           <div class="ps-card p-4 min-h-[300px]">
             <h2 class="text-base font-bold mb-2">Básicos</h2>
             <div class="grid grid-cols-12 gap-1.5">
-              <!-- Fila 1: 50% / 25% / 25% -->
+              <!-- Fila 1: Nombre + Tipo -->
               <div class="col-span-6">
                 <label class="text-xs font-semibold">Nombre *</label>
                 <input v-model="form.name" class="w-full mt-1 px-2 py-1 text-xs rounded-md border-default" placeholder="Nombre del artículo" />
               </div>
-              <div class="col-span-3">
+              <div class="col-span-6">
+                <label class="text-xs font-semibold">Tipo</label>
+                <select v-model="form.type" class="w-full mt-1 px-2 py-1 text-xs rounded-md border-default">
+                  <option value="PRODUCT">Producto</option>
+                  <option value="SERVICE">Servicio</option>
+                </select>
+              </div>
+
+              <!-- Fila 2: EAN/PLU + Código automático -->
+              <div class="col-span-6">
                 <label class="text-xs font-semibold">EAN / PLU</label>
                 <input v-model="form.ean" class="w-full mt-1 px-2 py-1 text-xs rounded-md border-default" placeholder="Código de barras" />
                 <p v-if="validation.eanDuplicate" class="mt-1 text-[10px] text-red-600">EAN duplicado</p>
               </div>
-              <div class="col-span-3">
+              <div class="col-span-6">
                 <div class="mt-6">
                   <label class="flex items-center gap-1.5 text-xs">
                     <input type="checkbox" v-model="form.autoCode" />
@@ -373,15 +382,16 @@ import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import DashboardLayout from '@/components/organisms/DashboardLayout.vue';
 import { useRouter } from 'vue-router';
 
-const router = useRouter();
-const isDirty = ref(false);
-const isSaving = ref(false);
+  const router = useRouter();
+  const isDirty = ref(false);
+  const isSaving = ref(false);
 
 // Header state integrado al formulario
 
 // Form basics
 const form = ref({
   name: '',
+  type: 'PRODUCT',
   categoryId: '',
   subCategoryId: '',
   sku: '',

@@ -109,8 +109,9 @@
     <!-- Básicos -->
     <section v-if="showAdvanced" aria-labelledby="basic-section">
       <h2 id="basic-section" class="text-lg font-semibold">{{ t('inventory.article.sections.basic') }}</h2>
+      <!-- Primera línea: Nombre + Tipo -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
+        <div class="md:col-span-2">
           <label for="name" class="block text-sm mb-1">{{ t('inventory.article.fields.name') }}*</label>
           <input id="name" v-model.trim="form.name" type="text" class="border rounded px-3 py-2 w-full" required />
           <p v-if="errors.name" class="text-red-600 text-sm">{{ errors.name }}</p>
@@ -119,10 +120,18 @@
           <label for="type" class="block text-sm mb-1">{{ t('inventory.article.fields.type') }}</label>
           <BaseSelect id="type" v-model="form.type" :options="typeOptions" />
         </div>
+      </div>
+      <!-- Segunda línea: EAN/PLU + Código automático -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
+        <div class="md:col-span-2">
+          <label class="block text-sm mb-1">EAN/PLU</label>
+          <input v-model.trim="form.barcode" type="text" class="border rounded px-3 py-2 w-full" @blur="validateBarcode" />
+          <p v-if="errors.barcode" class="text-red-600 text-sm">{{ errors.barcode }}</p>
+        </div>
         <div class="flex items-end">
           <label class="inline-flex items-center gap-2">
-            <input type="checkbox" v-model="form.active" />
-            <span>{{ t('inventory.article.fields.active') }}</span>
+            <input type="checkbox" v-model="autoCode" @change="toggleAutoCode" />
+            <span>{{ t('inventory.article.fields.autoCode') }}</span>
           </label>
         </div>
       </div>
@@ -148,23 +157,7 @@
       </div>
     </section>
 
-    <!-- Identificadores -->
-    <section v-if="showAdvanced" aria-labelledby="ids-section">
-      <h2 id="ids-section" class="text-lg font-semibold">{{ t('inventory.article.sections.ids') }}</h2>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <label class="block text-sm mb-1">EAN/PLU</label>
-          <input v-model.trim="form.barcode" type="text" class="border rounded px-3 py-2 w-full" @blur="validateBarcode" />
-          <p v-if="errors.barcode" class="text-red-600 text-sm">{{ errors.barcode }}</p>
-        </div>
-        <div class="flex items-end">
-          <label class="inline-flex items-center gap-2">
-            <input type="checkbox" v-model="autoCode" @change="toggleAutoCode" />
-            <span>{{ t('inventory.article.fields.autoCode') }}</span>
-          </label>
-        </div>
-      </div>
-    </section>
+    <!-- Identificadores: se integró en Básicos (EAN/PLU y Código automático) -->
 
     <!-- Fiscal -->
     <section v-if="showAdvanced" aria-labelledby="tax-section">

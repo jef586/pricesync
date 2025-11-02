@@ -14,6 +14,7 @@
         "dev:api": "node src/backend/server.js",
         "dev:vue": "vite",
         "electron": "electron src/main/main.js",
+        "seed:test": "node create-test-company.js && node create-test-customer.js && node create-test-products.js && node create-test-suppliers.js && node create-test-invoices.js",
         "build": "run-p type-check \"build-only {@}\" --",
         "preview": "vite preview",
         "test:deprecation": "node test-deprecation.js",

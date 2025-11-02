@@ -33,15 +33,15 @@ defineProps<Props>()
 }
 
 .page-header__title {
-  font-size: 2rem;
-  font-weight: 700;
+  font-size: 1.5rem;
+  font-weight: 600;
   color: var(--ps-text-primary);
   margin: 0 0 0.5rem 0;
   line-height: 1.2;
 }
 
 .page-header__subtitle {
-  font-size: 1rem;
+  font-size: 0.875rem;
   color: var(--ps-text-secondary);
   margin: 0;
   line-height: 1.4;
@@ -63,7 +63,7 @@ defineProps<Props>()
   }
   
   .page-header__title {
-    font-size: 1.75rem;
+    font-size: 1.375rem;
   }
   
   .page-header__actions {
@@ -73,7 +73,7 @@ defineProps<Props>()
 
 @media (max-width: 480px) {
   .page-header__title {
-    font-size: 1.5rem;
+    font-size: 1.25rem;
   }
   
   .page-header__actions {

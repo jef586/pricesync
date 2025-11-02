@@ -1,4 +1,4 @@
-import { fileURLToPath, URL } from 'node:url'
+﻿import { fileURLToPath, URL } from 'node:url'
 
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
@@ -28,5 +28,16 @@ export default defineConfig(async ({ mode }) => {
         '@': fileURLToPath(new URL('./src/renderer/src', import.meta.url))
       },
     },
+    optimizeDeps: {
+      entries: ['src/main.ts'],
+      include: [
+        'axios',
+        'chart.js',
+        'vue-chartjs',
+        'lodash-es',
+        '@heroicons/vue/24/outline'
+      ]
+    }
   }
 })
+

@@ -30,4 +30,6 @@ export const connectDatabase = async () => {
   }
 };
 
+// Soportar importaciones tanto por default como nombradas
+export { prisma };
 export default prisma;
