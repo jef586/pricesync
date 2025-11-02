@@ -3,10 +3,6 @@
     <!-- Sidebar -->
     <aside class="dashboard-sidebar" :class="{ 'collapsed': sidebarCollapsed }">
       <div class="sidebar-header">
-        <div class="logo">
-          <img :src="logoUrl" alt="IberaSoft" class="logo-img" />
-          <span v-if="!sidebarCollapsed" class="logo-text">PryceSync</span>
-        </div>
         <button @click="toggleSidebar" class="sidebar-toggle">
           <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M3 12H21M3 6H21M3 18H21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -158,7 +154,7 @@
     <!-- Main Content -->
     <main class="dashboard-main" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
       <!-- Header de la aplicación con área draggable -->
-      <AppHeader />
+      <AppHeader :onToggleSidebar="toggleSidebar" />
       <div class="dashboard-content">
         <slot />
       </div>
@@ -212,6 +208,8 @@ const userInitials = computed(() => {
   transition: width 0.3s ease;
   position: relative;
   z-index: 10;
+  /* Empuja el sidebar por debajo del header fijo (h-10 ~ 40px) */
+  margin-top: 40px;
 }
 
 .dashboard-sidebar.collapsed {
@@ -219,30 +217,14 @@ const userInitials = computed(() => {
 }
 
 .sidebar-header {
-  padding: 1.5rem;
+  padding: 1rem;
   border-bottom: 1px solid var(--ps-border);
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
 }
 
-.logo {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.logo-img {
-  width: 70px;
-  height: 70px;
-  object-fit: contain;
-}
-
-.logo-text {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--ps-text-primary);
-}
+/* Logo eliminado: mantenemos solo el botón hamburguesa */
 
 .sidebar-toggle {
   background: none;
@@ -442,7 +424,8 @@ const userInitials = computed(() => {
   .dashboard-sidebar {
     position: fixed;
     left: 0;
-    top: 0;
+    /* En móviles, dejar espacio para el header fijo */
+    top: 40px;
     height: 100vh;
     z-index: 50;
     transform: translateX(-100%);
