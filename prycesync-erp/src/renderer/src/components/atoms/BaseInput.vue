@@ -83,7 +83,8 @@ const handleInput = (event: Event) => {
 }
 
 .base-input__label {
-  @apply block text-sm font-semibold text-gray-700 mb-2;
+  @apply block text-sm font-semibold mb-2;
+  color: var(--ps-text-secondary);
 }
 
 .base-input__required {
@@ -105,7 +106,9 @@ const handleInput = (event: Event) => {
 }
 
 .base-input__field--disabled {
-  @apply bg-gray-50 text-gray-500 cursor-not-allowed;
+  @apply cursor-not-allowed;
+  background: var(--ps-card);
+  color: var(--ps-text-secondary);
 }
 
 .base-input__error {

@@ -141,14 +141,19 @@ const cancel = () => {
 }
 
 .confirm-modal__title {
-  @apply text-lg font-semibold text-gray-900 mb-2;
+  @apply text-lg font-semibold mb-2;
+  color: var(--ps-text-primary);
 }
 
 .confirm-modal__message {
-  @apply text-gray-600 mb-3;
+  @apply mb-3;
+  color: var(--ps-text-secondary);
 }
 
 .confirm-modal__details {
-  @apply text-sm text-gray-500 bg-gray-50 p-3 rounded-md border;
+  @apply text-sm p-3 rounded-md border;
+  color: var(--ps-text-secondary);
+  background: var(--ps-card);
+  border-color: var(--ps-border);
 }
 </style>

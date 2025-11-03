@@ -52,3 +52,29 @@ export async function listUsers(filters: UserFilters = {}): Promise<UsersRespons
     pagination: data?.pagination || { page: 1, limit: 20, total: 0, pages: 0 }
   }
 }
+
+// Crear usuario (admin)
+export interface CreateUserData {
+  name: string
+  email: string
+  role?: 'admin' | 'manager' | 'user' | 'viewer' | string
+  status?: 'active' | 'inactive' | 'suspended' | string
+}
+
+export async function createUser(payload: CreateUserData): Promise<UserDTO> {
+  const { data } = await apiClient.post('/users', payload)
+  return data?.user || data
+}
+
+// Enviar invitación al usuario
+export async function sendInvite(userId: string): Promise<{ ok: boolean; message: string }>
+{
+  const { data } = await apiClient.post(`/users/${userId}/send-invite`)
+  return { ok: !!data?.ok, message: data?.message || 'Invitación enviada' }
+}
+
+// Listar roles disponibles
+export async function listRoles(): Promise<string[]> {
+  const { data } = await apiClient.get('/roles')
+  return Array.isArray(data?.roles) ? data.roles : []
+}

@@ -101,7 +101,13 @@ onUnmounted(() => {
 }
 
 .modal-container {
-  @apply bg-white rounded-lg shadow-xl max-h-[90vh] overflow-hidden flex flex-col;
+  /* Themed container using design tokens for light/dark */
+  background: var(--ps-card);
+  color: var(--ps-text-primary);
+  border: var(--ps-border-width) solid var(--ps-border);
+  border-radius: var(--ps-radius-lg);
+  box-shadow: var(--ps-shadow-lg);
+  @apply max-h-[90vh] overflow-hidden flex flex-col;
 }
 
 .modal-container--sm {
@@ -125,15 +131,22 @@ onUnmounted(() => {
 }
 
 .modal-header {
-  @apply flex items-center justify-between p-6 border-b border-gray-200;
+  @apply flex items-center justify-between p-6;
+  border-bottom: var(--ps-border-width) solid var(--ps-border);
 }
 
 .modal-title {
-  @apply text-lg font-semibold text-gray-900;
+  @apply text-lg font-semibold;
+  color: var(--ps-text-primary);
 }
 
 .modal-close {
-  @apply text-gray-400 hover:text-gray-600 transition-colors duration-200 p-1 rounded-md hover:bg-gray-100;
+  @apply transition-colors duration-200 p-1 rounded-md;
+  color: var(--ps-text-secondary);
+}
+.modal-close:hover { 
+  background: color-mix(in srgb, var(--ps-card) 92%, var(--ps-primary));
+  color: var(--ps-text-primary);
 }
 
 .modal-content {
@@ -141,7 +154,9 @@ onUnmounted(() => {
 }
 
 .modal-footer {
-  @apply flex items-center justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50;
+  @apply flex items-center justify-end gap-3 p-6;
+  border-top: var(--ps-border-width) solid var(--ps-border);
+  background: var(--ps-card);
 }
 
 /* Transitions */

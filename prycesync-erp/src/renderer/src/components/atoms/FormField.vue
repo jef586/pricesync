@@ -117,12 +117,11 @@ const labelClasses = computed(() => {
 }
 
 .form-field__label {
-  @apply block text-sm font-medium text-gray-700;
+  @apply block text-sm font-medium;
+  color: var(--ps-text-secondary);
 }
 
-.form-field__label--disabled {
-  @apply text-gray-400;
-}
+.form-field__label--disabled { color: var(--ps-text-secondary); opacity: 0.6; }
 
 .form-field__required {
   @apply text-red-500 ml-1;
@@ -133,7 +132,8 @@ const labelClasses = computed(() => {
 }
 
 .form-field__help {
-  @apply text-sm text-gray-500;
+  @apply text-sm;
+  color: var(--ps-text-secondary);
 }
 
 .form-field__help--top {
