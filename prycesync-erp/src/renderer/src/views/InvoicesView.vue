@@ -1,23 +1,24 @@
 <template>
   <DashboardLayout>
     <div class="invoices-view">
-      <!-- Header -->
-      <PageHeader
-        title="Gestión de Facturas"
-        subtitle="Administra todas las facturas de tu empresa"
-      >
-        <template #actions>
-          <BaseButton
-            variant="primary"
+      <!-- Header (alineado al estilo de Proveedores/Artículos) -->
+      <div class="flex justify-between items-center mb-6">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">Gestión de Facturas</h1>
+          <p class="text-gray-600 dark:text-gray-300">Administra todas las facturas de tu empresa</p>
+        </div>
+        <div class="flex gap-3">
+          <button
             @click="$router.push('/invoices/new')"
+            class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
           >
-            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
             </svg>
             Nueva Factura
-          </BaseButton>
-        </template>
-      </PageHeader>
+          </button>
+        </div>
+      </div>
 
       <!-- Filters -->
       <FilterBar
@@ -39,6 +40,7 @@
         :page-size="pagination.limit"
         :show-header="false"
         @row-click="handleRowClick"
+        class="mb-6"
       >
         <!-- Custom cell templates -->
         <template #cell-number="{ item }">
@@ -194,7 +196,6 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import DashboardLayout from '../components/organisms/DashboardLayout.vue'
-import PageHeader from '../components/molecules/PageHeader.vue'
 import FilterBar from '../components/molecules/FilterBar.vue'
 import BaseButton from '../components/atoms/BaseButton.vue'
 import BaseCard from '../components/atoms/BaseCard.vue'
@@ -366,7 +367,7 @@ onMounted(() => {
 
 <style scoped>
 .invoices-view {
-  @apply p-6;
+  @apply space-y-6;
 }
 
 </style>

@@ -1,21 +1,24 @@
 <template>
   <DashboardLayout>
-    <div class="categories-view">
-      <!-- Header -->
-      <PageHeader
-        title="Gestión de Categorías"
-        subtitle="Administra las categorías de productos"
-      >
-        <template #actions>
-          <BaseButton
-            variant="primary"
+    <div class="categories-view space-y-6">
+      <!-- Header (alineado al estilo de Proveedores) -->
+      <div class="flex justify-between items-center mb-6">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">Gestión de Categorías</h1>
+          <p class="text-gray-600 dark:text-gray-300">Administra las categorías de productos</p>
+        </div>
+        <div class="flex gap-3">
+          <button
             @click="$router.push('/categories/new')"
+            class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
           >
-            <PlusIcon class="w-4 h-4 mr-2" />
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
             Nueva Categoría
-          </BaseButton>
-        </template>
-      </PageHeader>
+          </button>
+        </div>
+      </div>
 
       <!-- Filters -->
       <FilterBar
@@ -240,7 +243,6 @@ import {
 
 // Components
 import DashboardLayout from '@/components/organisms/DashboardLayout.vue'
-import PageHeader from '@/components/molecules/PageHeader.vue'
 import FilterBar from '@/components/molecules/FilterBar.vue'
 import BaseInput from '@/components/atoms/BaseInput.vue'
 import BaseButton from '@/components/atoms/BaseButton.vue'

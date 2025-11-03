@@ -1,23 +1,24 @@
 <template>
   <DashboardLayout>
-    <div class="customers-view">
-      <!-- Header -->
-      <PageHeader
-        title="Gestión de Clientes"
-        subtitle="Administra todos los clientes de tu empresa"
-      >
-        <template #actions>
-          <BaseButton
-            variant="primary"
+    <div class="customers-view space-y-6">
+      <!-- Header (alineado al estilo de Proveedores) -->
+      <div class="flex justify-between items-center mb-6">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">Gestión de Clientes</h1>
+          <p class="text-gray-600 dark:text-gray-300">Administra todos los clientes de tu empresa</p>
+        </div>
+        <div class="flex gap-3">
+          <button
             @click="$router.push('/customers/new')"
+            class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
           >
-            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
             </svg>
             Nuevo Cliente
-          </BaseButton>
-        </template>
-      </PageHeader>
+          </button>
+        </div>
+      </div>
 
       <!-- Filters -->
       <FilterBar
@@ -39,6 +40,7 @@
         :page-size="pagination.limit"
         :show-header="false"
         @row-click="handleRowClick"
+        class="mb-6"
       >
         <!-- Custom cell templates -->
         <template #cell-code="{ item }">
@@ -359,9 +361,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.customers-view {
-  @apply p-6;
-}
+.customers-view {}
 </style>
 <style scoped>
 /* Mejora de visibilidad para columna Cliente usando tokens del sistema */

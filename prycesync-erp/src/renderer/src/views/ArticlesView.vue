@@ -1,16 +1,24 @@
 ﻿<template>
   <DashboardLayout>
     <div class="articles-view">
-      <PageHeader
-        :title="t('inventory.article.list.title')"
-        :subtitle="t('inventory.article.list.subtitle')"
-      >
-        <template #actions>
-          <BaseButton variant="primary" @click="$router.push('/articles/new')">
-            {{ t('inventory.article.actions.new') }}
-          </BaseButton>
-        </template>
-      </PageHeader>
+      <!-- Header (alineado al estilo de Proveedores) -->
+      <div class="flex justify-between items-center mb-6">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">Gestión de Artículos</h1>
+          <p class="text-gray-600 dark:text-gray-300">Administra los artículos de tu empresa</p>
+        </div>
+        <div class="flex gap-3">
+          <button
+            @click="$router.push('/articles/new')"
+            class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+          >
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Nuevo Artículo
+          </button>
+        </div>
+      </div>
 
       <!-- Filtros comunes -->
       <FilterBar
@@ -20,7 +28,7 @@
         search-placeholder="Buscar por nombre, SKU o EAN..."
         @filter-change="applyFilters"
         @search="debouncedSearch"
-        class="mb-4"
+        class="mb-6"
       >
         <template #custom-filters="{ updateFilter }">
           <div class="filter-item">
@@ -53,6 +61,7 @@
         :clickable-rows="true"
         @row-click="handleRowClick"
         @sort="handleSort"
+        class="mb-6"
       >
         <template #cell-sku="{ item }">
           <div>
@@ -100,10 +109,8 @@
 import { onMounted, ref, computed } from 'vue'
 import { debounce } from 'lodash-es'
 import DashboardLayout from '@/components/organisms/DashboardLayout.vue'
-import PageHeader from '@/components/molecules/PageHeader.vue'
 import FilterBar from '@/components/molecules/FilterBar.vue'
 import DataTable from '@/components/atoms/DataTable.vue'
-import BaseButton from '@/components/atoms/BaseButton.vue'
 import { useArticleStore } from '@/stores/articles'
 import { useCategories } from '@/composables/useCategories'
 import { useNotifications } from '@/composables/useNotifications'
@@ -112,8 +119,7 @@ import { useNotifications } from '@/composables/useNotifications'
 function t(key: string) {
   const dict: Record<string, string> = {
     'inventory.article.list.title': 'Artículos',
-    'inventory.article.list.subtitle': 'Listado, búsqueda y acciones',
-    'inventory.article.actions.new': 'Nuevo'
+    'inventory.article.list.subtitle': 'Listado, búsqueda y acciones'
   }
   return dict[key] || key
 }
