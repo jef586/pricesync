@@ -53,6 +53,27 @@ export async function listUsers(filters: UserFilters = {}): Promise<UsersRespons
   }
 }
 
+// Obtener usuario por ID
+export async function getUserById(id: string): Promise<UserDTO & { isLastSuperadmin?: boolean } > {
+  const { data } = await apiClient.get(`/users/${id}`)
+  const u = data?.user || data?.data || data
+  return u
+}
+
+// Actualizar nombre y rol
+export async function updateUser(id: string, payload: { name: string; role: string }): Promise<Pick<UserDTO, 'id' | 'name' | 'role'>> {
+  const { data } = await apiClient.put(`/users/${id}`, payload)
+  const u = data?.user || data?.data || data
+  return u
+}
+
+// Actualizar estado
+export async function updateStatus(id: string, payload: { status: 'active' | 'inactive' | 'suspended' }): Promise<Pick<UserDTO, 'id' | 'status'>> {
+  const { data } = await apiClient.patch(`/users/${id}/status`, payload)
+  const u = data?.user || data?.data || data
+  return u
+}
+
 // Crear usuario (admin)
 export interface CreateUserData {
   name: string

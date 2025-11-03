@@ -45,3 +45,40 @@ export const validateUserIdParam = (req, res, next) => {
   }
   next()
 }
+
+// PUT /api/users/:id body (editar nombre y rol)
+const UpdateUserSchema = z.object({
+  name: z.string().min(1, 'Nombre requerido').max(120),
+  role: RoleEnum
+})
+
+export const validateUpdateUser = (req, res, next) => {
+  const parsed = UpdateUserSchema.safeParse(req.body)
+  if (!parsed.success) {
+    return res.status(400).json({
+      success: false,
+      message: 'Errores de validación',
+      errors: parsed.error.errors.map((e) => ({ field: e.path.join('.'), message: e.message }))
+    })
+  }
+  req.body = parsed.data
+  next()
+}
+
+// PATCH /api/users/:id/status body (cambiar estado)
+const UpdateStatusSchema = z.object({
+  status: StatusEnum
+})
+
+export const validateUpdateStatus = (req, res, next) => {
+  const parsed = UpdateStatusSchema.safeParse(req.body)
+  if (!parsed.success) {
+    return res.status(400).json({
+      success: false,
+      message: 'Errores de validación',
+      errors: parsed.error.errors.map((e) => ({ field: e.path.join('.'), message: e.message }))
+    })
+  }
+  req.body = parsed.data
+  next()
+}

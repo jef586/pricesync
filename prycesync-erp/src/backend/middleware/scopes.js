@@ -1,4 +1,22 @@
-// Middleware de verificación de scopes basado en rol
+// Middleware de verificación de scopes basado en rol (compat legacy + RBAC nuevo)
+
+// Normaliza roles RBAC nuevos a roles legacy utilizados en este middleware
+function normalizeToLegacy(role) {
+  const r = String(role || '').toUpperCase()
+  switch (r) {
+    case 'SUPERADMIN':
+    case 'ADMIN':
+      return 'admin'
+    case 'SUPERVISOR':
+      return 'manager'
+    case 'SELLER':
+      return 'user'
+    case 'TECHNICIAN':
+      return 'viewer'
+    default:
+      return String(role || 'viewer')
+  }
+}
 
 const ROLE_SCOPES = {
   admin: new Set([
@@ -36,8 +54,8 @@ export function requireScopes(...required) {
       return res.status(401).json({ error: 'Usuario no autenticado', code: 'NOT_AUTHENTICATED' })
     }
 
-    const role = req.user.role || 'viewer'
-    const scopes = ROLE_SCOPES[role] || new Set()
+    const legacyRole = normalizeToLegacy(req.user.role)
+    const scopes = ROLE_SCOPES[legacyRole] || new Set()
 
     const missing = required.filter((s) => !scopes.has(s))
     if (missing.length) {
@@ -45,7 +63,8 @@ export function requireScopes(...required) {
         error: 'Permisos insuficientes',
         code: 'INSUFFICIENT_SCOPES',
         required,
-        currentRole: role
+        currentRole: req.user.role,
+        normalizedRole: legacyRole
       })
     }
 

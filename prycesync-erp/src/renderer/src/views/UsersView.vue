@@ -27,6 +27,7 @@
           :page-size="store.pageSize"
           :loading="store.loading"
           @sort="onSort"
+          @row-click="onRowClick"
         />
       </div>
 
@@ -74,6 +75,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import DashboardLayout from '@/components/organisms/DashboardLayout.vue'
 import PageHeader from '@/components/molecules/PageHeader.vue'
 import Pagination from '@/components/atoms/Pagination.vue'
@@ -89,6 +91,7 @@ import { createUser, listRoles } from '@/services/users'
 import { useNotifications } from '@/composables/useNotifications'
 
 const store = useUsersStore()
+const router = useRouter()
 const { success, error } = useNotifications()
 
 const showCreateModal = ref(false)
@@ -164,6 +167,11 @@ async function handleCreateUser() {
 function closeModal() {
   showCreateModal.value = false
   form.value = { name: '', email: '', role: 'SELLER', status: 'active' }
+}
+
+function onRowClick(item: any) {
+  if (!item?.id) return
+  router.push(`/admin/config/users/${item.id}`)
 }
 </script>
 

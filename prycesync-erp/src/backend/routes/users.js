@@ -2,14 +2,19 @@ import express from 'express'
 import prisma from '../config/database.js'
 import { authenticate } from '../middleware/auth.js'
 import { requireScopes } from '../middleware/scopes.js'
+import { requirePermission } from '../middleware/permissions.js'
 import AuthService from '../services/AuthService.js'
-import { validateCreateUser, validateUserIdParam } from '../middleware/usersValidation.js'
+import { validateCreateUser, validateUserIdParam, validateUpdateUser, validateUpdateStatus } from '../middleware/usersValidation.js'
+import fs from 'fs'
+import path from 'path'
 
 const router = express.Router()
 
 // Todas las rutas de usuarios requieren autenticación y permiso admin:users
 router.use(authenticate)
+// Mantener compatibilidad con scopes existentes y exigir permiso declarativo
 router.use(requireScopes('admin:users'))
+router.use(requirePermission('admin:users'))
 
 // GET /api/users?q=&role=&status=&page=&size=&sort=
 router.get('/', async (req, res) => {
@@ -112,7 +117,7 @@ router.post('/', validateCreateUser, async (req, res) => {
       data: {
         email,
         name,
-        role: role || 'user',
+        role: role || 'SELLER',
         status: status || 'active',
         passwordHash,
         companyId
@@ -171,3 +176,194 @@ router.post('/:id/send-invite', validateUserIdParam, async (req, res) => {
 })
 
 export default router
+// Helpers for role comparisons and audit
+const ROLE_PRIORITY = {
+  SUPERADMIN: 5,
+  ADMIN: 4,
+  SUPERVISOR: 3,
+  MANAGER: 3,
+  SELLER: 2,
+  TECHNICIAN: 2,
+  USER: 1,
+  VIEWER: 1
+}
+
+async function isLastActiveSuperadmin(companyId, targetUserId) {
+  const count = await prisma.user.count({
+    where: { companyId, role: 'SUPERADMIN', status: 'active' }
+  })
+  if (count !== 1) return false
+  const last = await prisma.user.findFirst({
+    where: { companyId, role: 'SUPERADMIN', status: 'active' },
+    select: { id: true }
+  })
+  return last?.id === targetUserId
+}
+
+function canAssignRole(editorRole, targetRole) {
+  const e = ROLE_PRIORITY[editorRole] ?? 0
+  const t = ROLE_PRIORITY[targetRole] ?? 0
+  return e >= t
+}
+
+async function hasOtherActiveAdminsWithPermission(companyId, excludeUserId) {
+  const count = await prisma.user.count({
+    where: {
+      companyId,
+      id: { not: excludeUserId },
+      status: 'active',
+      OR: [{ role: 'SUPERADMIN' }, { role: 'ADMIN' }]
+    }
+  })
+  return count > 0
+}
+
+function logUserAudit({ actorId, targetId, companyId, changes }) {
+  try {
+    const line = JSON.stringify({
+      type: 'user_change',
+      actorId,
+      targetId,
+      companyId,
+      changes,
+      at: new Date().toISOString()
+    }) + '\n'
+    const logfile = path.join(process.cwd(), 'core_reports', 'audit_users.log')
+    fs.mkdirSync(path.dirname(logfile), { recursive: true })
+    fs.appendFileSync(logfile, line)
+  } catch (e) {
+    console.warn('Audit log write failed', e)
+    console.log('AUDIT USER:', { actorId, targetId, companyId, changes })
+  }
+}
+
+// GET /api/users/:id
+router.get('/:id', validateUserIdParam, async (req, res) => {
+  try {
+    const { id } = req.params
+    const companyId = req.user.company?.id
+    if (!companyId) {
+      return res.status(401).json({ error: 'Usuario sin empresa asignada', code: 'USER_NO_COMPANY' })
+    }
+
+    const user = await prisma.user.findFirst({
+      where: { id, companyId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        status: true,
+        lastLogin: true,
+        createdAt: true,
+        companyId: true
+      }
+    })
+
+    if (!user) {
+      return res.status(404).json({ error: 'Usuario no encontrado', code: 'USER_NOT_FOUND' })
+    }
+
+    const lastSuper = await isLastActiveSuperadmin(companyId, id)
+    return res.json({ ok: true, user: { ...user, isLastSuperadmin: lastSuper } })
+  } catch (err) {
+    console.error('Error get user by id:', err)
+    return res.status(500).json({ error: 'Error obteniendo usuario', code: 'GET_USER_FAILED' })
+  }
+})
+
+// PUT /api/users/:id (editar nombre y rol)
+router.put('/:id', validateUserIdParam, validateUpdateUser, async (req, res) => {
+  try {
+    const { id } = req.params
+    const { name, role } = req.body
+    const companyId = req.user.company?.id
+    const actor = req.user
+    if (!companyId) {
+      return res.status(401).json({ error: 'Usuario sin empresa asignada', code: 'USER_NO_COMPANY' })
+    }
+
+    const target = await prisma.user.findFirst({ where: { id, companyId } })
+    if (!target) return res.status(404).json({ error: 'Usuario no encontrado', code: 'USER_NOT_FOUND' })
+
+    // Último SUPERADMIN → no cambiar a otro rol
+    const lastSuper = await isLastActiveSuperadmin(companyId, id)
+    if (lastSuper && target.role === 'SUPERADMIN' && role !== 'SUPERADMIN') {
+      return res.status(409).json({ error: 'No se puede cambiar el rol del último SUPERADMIN', code: 'LAST_SUPERADMIN_BLOCK' })
+    }
+
+    // Anti-escalación
+    if (!canAssignRole(actor.role, role)) {
+      return res.status(403).json({ error: 'No puedes asignar un rol con mayor privilegio que el tuyo', code: 'ROLE_ESCALATION_BLOCK' })
+    }
+
+    // Self-protect: perder admin:users si eres el único
+    const editorIsTarget = actor.id === target.id
+    const roleRemovesAdminScope = role !== 'SUPERADMIN' && role !== 'ADMIN'
+    if (editorIsTarget && roleRemovesAdminScope) {
+      const others = await hasOtherActiveAdminsWithPermission(companyId, actor.id)
+      if (!others) {
+        return res.status(409).json({ error: 'No puedes degradarte si dejaría al sistema sin admins operativos', code: 'SELF_PROTECT_BLOCK' })
+      }
+    }
+
+    const updated = await prisma.user.update({ where: { id }, data: { name, role } })
+
+    logUserAudit({
+      actorId: actor.id,
+      targetId: id,
+      companyId,
+      changes: { before: { name: target.name, role: target.role }, after: { name, role } }
+    })
+
+    return res.json({ ok: true, user: { id: updated.id, name: updated.name, role: updated.role } })
+  } catch (err) {
+    console.error('Error updating user:', err)
+    return res.status(500).json({ error: 'Error actualizando usuario', code: 'UPDATE_USER_FAILED' })
+  }
+})
+
+// PATCH /api/users/:id/status
+router.patch('/:id/status', validateUserIdParam, validateUpdateStatus, async (req, res) => {
+  try {
+    const { id } = req.params
+    const { status } = req.body
+    const companyId = req.user.company?.id
+    const actor = req.user
+    if (!companyId) {
+      return res.status(401).json({ error: 'Usuario sin empresa asignada', code: 'USER_NO_COMPANY' })
+    }
+
+    const target = await prisma.user.findFirst({ where: { id, companyId } })
+    if (!target) return res.status(404).json({ error: 'Usuario no encontrado', code: 'USER_NOT_FOUND' })
+
+    // Último SUPERADMIN → no cambiar estado a no-activo
+    const lastSuper = await isLastActiveSuperadmin(companyId, id)
+    if (lastSuper && target.role === 'SUPERADMIN' && status !== 'active') {
+      return res.status(409).json({ error: 'No se puede cambiar el estado del último SUPERADMIN', code: 'LAST_SUPERADMIN_STATE_BLOCK' })
+    }
+
+    // Self-protect: no suspenderse/inactivarse si dejaría sin admins operativos
+    const editorIsTarget = actor.id === target.id
+    if (editorIsTarget && status !== 'active') {
+      const others = await hasOtherActiveAdminsWithPermission(companyId, actor.id)
+      if (!others) {
+        return res.status(409).json({ error: 'No puedes cambiar tu estado si dejaría al sistema sin admins operativos', code: 'SELF_STATE_BLOCK' })
+      }
+    }
+
+    const updated = await prisma.user.update({ where: { id }, data: { status } })
+
+    logUserAudit({
+      actorId: actor.id,
+      targetId: id,
+      companyId,
+      changes: { before: { status: target.status }, after: { status } }
+    })
+
+    return res.json({ ok: true, user: { id: updated.id, status: updated.status } })
+  } catch (err) {
+    console.error('Error updating status:', err)
+    return res.status(500).json({ error: 'Error actualizando estado', code: 'UPDATE_STATUS_FAILED' })
+  }
+})

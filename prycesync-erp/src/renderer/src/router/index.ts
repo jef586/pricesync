@@ -31,6 +31,7 @@ import ArticleNewView from '../views/ArticleNewView.vue'
 import ArticleEditView from '../views/ArticleEditView.vue'
 import AIChatView from '../views/AIChatView.vue'
 import UsersView from '../views/UsersView.vue'
+import UserEditView from '../views/UserEditView.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -43,6 +44,12 @@ const router = createRouter({
       path: '/admin/config/users',
       name: 'Users',
       component: UsersView,
+      meta: { requiresAuth: true, requiresScope: 'admin:users' }
+    },
+    {
+      path: '/admin/config/users/:id',
+      name: 'UserEdit',
+      component: UserEditView,
       meta: { requiresAuth: true, requiresScope: 'admin:users' }
     },
     {
