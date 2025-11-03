@@ -30,6 +30,7 @@ import ArticlesView from '../views/ArticlesView.vue'
 import ArticleNewView from '../views/ArticleNewView.vue'
 import ArticleEditView from '../views/ArticleEditView.vue'
 import AIChatView from '../views/AIChatView.vue'
+import UsersView from '../views/UsersView.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -37,6 +38,12 @@ const router = createRouter({
     {
       path: '/',
       redirect: '/dashboard'
+    },
+    {
+      path: '/admin/config/users',
+      name: 'Users',
+      component: UsersView,
+      meta: { requiresAuth: true, requiresScope: 'admin:users' }
     },
     {
       path: '/login',
@@ -241,6 +248,7 @@ router.beforeEach((to, from, next) => {
     from: from.path,
     requiresAuth: to.meta.requiresAuth,
     requiresGuest: to.meta.requiresGuest,
+    requiresScope: (to.meta as any).requiresScope,
     isAuthenticated: authStore.isAuthenticated
   })
   
@@ -250,6 +258,9 @@ router.beforeEach((to, from, next) => {
   } else if (to.meta.requiresGuest && authStore.isAuthenticated) {
     console.log('🚫 Redirecting to / - already authenticated')
     next('/')
+  } else if ((to.meta as any).requiresScope && !authStore.hasScope(String((to.meta as any).requiresScope))) {
+    console.log('🚫 Redirecting to /dashboard - missing scope', (to.meta as any).requiresScope)
+    next('/dashboard')
   } else {
     console.log('✅ Navigation allowed')
     next()

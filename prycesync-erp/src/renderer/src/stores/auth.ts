@@ -53,6 +53,42 @@ export const useAuthStore = defineStore('auth', () => {
   const hasRole = (role: string) => userRole.value === role
   const hasAnyRole = (roles: string[]) => roles.includes(String(userRole.value))
 
+  // Scopes por rol (refleja backend middleware/scopes.js)
+  const ROLE_SCOPES: Record<string, Set<string>> = {
+    admin: new Set([
+      'article:read',
+      'article:write',
+      'stock:read',
+      'stock:write',
+      'stock:override',
+      'stock:kardex',
+      'stock:export',
+      'imports:read',
+      'imports:write',
+      'purchases:resolve',
+      'admin:users',
+    ]),
+    manager: new Set([
+      'article:read',
+      'article:write',
+      'stock:read',
+      'stock:write',
+      'stock:kardex',
+      'stock:export',
+      'imports:read',
+      'imports:write',
+      'purchases:resolve',
+    ]),
+    user: new Set(['article:read', 'stock:read', 'stock:kardex', 'imports:read', 'purchases:resolve']),
+    viewer: new Set(['article:read', 'stock:read', 'stock:kardex', 'imports:read', 'purchases:resolve']),
+  }
+
+  const hasScope = (scope: string): boolean => {
+    const role = userRole.value || 'viewer'
+    const scopes = ROLE_SCOPES[role] || new Set()
+    return scopes.has(scope)
+  }
+
   // Actions
   const login = async (credentials: LoginCredentials) => {
     isLoading.value = true
@@ -248,5 +284,6 @@ export const useAuthStore = defineStore('auth', () => {
     // Helpers
     hasRole,
     hasAnyRole,
+    hasScope,
   }
 })

@@ -11,7 +11,9 @@ const ROLE_SCOPES = {
     'stock:export',
     'imports:read',
     'imports:write',
-    'purchases:resolve'
+    'purchases:resolve',
+    // Admin users management
+    'admin:users'
   ]),
   manager: new Set([
     'article:read',

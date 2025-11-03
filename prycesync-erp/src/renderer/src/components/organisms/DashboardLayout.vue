@@ -113,6 +113,17 @@
               <span v-if="!sidebarCollapsed" class="nav-text">Ayuda</span>
             </router-link>
           </li>
+
+          <!-- Usuarios (visible sólo con permiso admin:users) -->
+          <li class="nav-item" v-if="authStore.hasScope('admin:users')">
+            <router-link to="/admin/config/users" class="nav-link" :class="{ active: $route.path.startsWith('/admin/config/users') }" :title="sidebarCollapsed ? 'Usuarios' : ''">
+              <svg class="nav-icon" :title="sidebarCollapsed ? 'Usuarios' : ''" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span v-if="!sidebarCollapsed" class="nav-text">Usuarios</span>
+            </router-link>
+          </li>
         </ul>
       </nav>
 
