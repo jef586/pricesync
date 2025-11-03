@@ -36,10 +36,11 @@ const statusOptions = [
 
 const roleOptions = [
   { value: '', label: 'Todos los roles' },
-  { value: 'admin', label: 'Administrador' },
-  { value: 'manager', label: 'Encargado' },
-  { value: 'user', label: 'Usuario' },
-  { value: 'viewer', label: 'Visor' }
+  { value: 'SUPERADMIN', label: 'Superadmin' },
+  { value: 'ADMIN', label: 'Administrador' },
+  { value: 'SUPERVISOR', label: 'Supervisor' },
+  { value: 'SELLER', label: 'Vendedor' },
+  { value: 'TECHNICIAN', label: 'Técnico' }
 ]
 
 const onFilterChange = () => {

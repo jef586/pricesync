@@ -4,7 +4,7 @@ export interface UserDTO {
   id: string
   name: string
   email: string
-  role: 'admin' | 'manager' | 'user' | 'viewer' | string
+  role: 'SUPERADMIN' | 'ADMIN' | 'SUPERVISOR' | 'SELLER' | 'TECHNICIAN' | 'admin' | 'manager' | 'user' | 'viewer' | string
   status: 'active' | 'inactive' | 'suspended' | string
   lastLogin?: string | null
   createdAt: string
@@ -57,7 +57,7 @@ export async function listUsers(filters: UserFilters = {}): Promise<UsersRespons
 export interface CreateUserData {
   name: string
   email: string
-  role?: 'admin' | 'manager' | 'user' | 'viewer' | string
+  role?: 'SUPERADMIN' | 'ADMIN' | 'SUPERVISOR' | 'SELLER' | 'TECHNICIAN' | 'admin' | 'manager' | 'user' | 'viewer' | string
   status?: 'active' | 'inactive' | 'suspended' | string
 }
 

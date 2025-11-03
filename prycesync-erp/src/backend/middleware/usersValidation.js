@@ -1,14 +1,20 @@
 import { z } from 'zod'
 
-// Roles and status enums aligned with Prisma/ROLE_SCOPES
-const RoleEnum = z.enum(['admin', 'manager', 'user', 'viewer'])
+// Roles y estados alineados con el esquema Prisma actual (RBAC nuevo)
+// Mantiene compatibilidad con roles legados para no romper flujos antiguos.
+const RoleEnum = z.enum([
+  // RBAC nuevo
+  'SUPERADMIN', 'ADMIN', 'SUPERVISOR', 'SELLER', 'TECHNICIAN',
+  // Legado
+  'admin', 'manager', 'user', 'viewer'
+])
 const StatusEnum = z.enum(['active', 'inactive', 'suspended'])
 
 // POST /api/users body
 const CreateUserSchema = z.object({
   name: z.string().min(2).max(120),
   email: z.string().email(),
-  role: RoleEnum.default('user'),
+  role: RoleEnum.default('SELLER'),
   status: StatusEnum.optional()
 })
 

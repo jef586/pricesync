@@ -124,6 +124,7 @@
               <span v-if="!sidebarCollapsed" class="nav-text">Usuarios</span>
             </router-link>
           </li>
+
         </ul>
       </nav>
 

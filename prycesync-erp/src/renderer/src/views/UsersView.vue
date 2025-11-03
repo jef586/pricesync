@@ -93,7 +93,7 @@ const { success, error } = useNotifications()
 
 const showCreateModal = ref(false)
 const isCreating = ref(false)
-const form = ref({ name: '', email: '', role: 'user', status: 'active' })
+const form = ref({ name: '', email: '', role: 'SELLER', status: 'active' })
 
 const roleOptions = ref<{ value: string; label: string }[]>([])
 const statusOptions = [
@@ -106,14 +106,22 @@ onMounted(async () => {
   await store.list()
   try {
     const roles = await listRoles()
-    roleOptions.value = roles.map(r => ({ value: r, label: r.charAt(0).toUpperCase() + r.slice(1) }))
+    const LABELS: Record<string, string> = {
+      SUPERADMIN: 'Superadmin',
+      ADMIN: 'Admin',
+      SUPERVISOR: 'Supervisor',
+      SELLER: 'Vendedor',
+      TECHNICIAN: 'Técnico'
+    }
+    roleOptions.value = roles.map(r => ({ value: r, label: LABELS[r] || r }))
   } catch (e) {
-    // fallback
+    // fallback a nuevo RBAC
     roleOptions.value = [
-      { value: 'admin', label: 'Admin' },
-      { value: 'manager', label: 'Manager' },
-      { value: 'user', label: 'Usuario' },
-      { value: 'viewer', label: 'Viewer' }
+      { value: 'SUPERADMIN', label: 'Superadmin' },
+      { value: 'ADMIN', label: 'Admin' },
+      { value: 'SUPERVISOR', label: 'Supervisor' },
+      { value: 'SELLER', label: 'Vendedor' },
+      { value: 'TECHNICIAN', label: 'Técnico' }
     ]
   }
 })
@@ -155,7 +163,7 @@ async function handleCreateUser() {
 
 function closeModal() {
   showCreateModal.value = false
-  form.value = { name: '', email: '', role: 'user', status: 'active' }
+  form.value = { name: '', email: '', role: 'SELLER', status: 'active' }
 }
 </script>
 

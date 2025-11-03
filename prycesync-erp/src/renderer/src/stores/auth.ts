@@ -49,38 +49,47 @@ export const useAuthStore = defineStore('auth', () => {
   const userRole = computed(() => user.value?.role || null)
 
   // Basic permission helpers
-  const isAdmin = computed(() => userRole.value === 'admin')
+  const isAdmin = computed(() => ['SUPERADMIN','ADMIN','admin'].includes(String(userRole.value)))
   const hasRole = (role: string) => userRole.value === role
   const hasAnyRole = (roles: string[]) => roles.includes(String(userRole.value))
 
-  // Scopes por rol (refleja backend middleware/scopes.js)
+  // Scopes por rol (alineado con backend y compatible con legado)
   const ROLE_SCOPES: Record<string, Set<string>> = {
+    // Legado
     admin: new Set([
-      'article:read',
-      'article:write',
-      'stock:read',
-      'stock:write',
-      'stock:override',
-      'stock:kardex',
-      'stock:export',
-      'imports:read',
-      'imports:write',
-      'purchases:resolve',
-      'admin:users',
+      'article:read', 'article:write', 'stock:read', 'stock:write', 'stock:override', 'stock:kardex', 'stock:export',
+      'imports:read', 'imports:write', 'purchases:resolve',
+      'admin:users', 'admin:roles'
     ]),
     manager: new Set([
-      'article:read',
-      'article:write',
-      'stock:read',
-      'stock:write',
-      'stock:kardex',
-      'stock:export',
-      'imports:read',
-      'imports:write',
-      'purchases:resolve',
+      'article:read', 'article:write', 'stock:read', 'stock:write', 'stock:kardex', 'stock:export',
+      'imports:read', 'imports:write', 'purchases:resolve'
     ]),
     user: new Set(['article:read', 'stock:read', 'stock:kardex', 'imports:read', 'purchases:resolve']),
     viewer: new Set(['article:read', 'stock:read', 'stock:kardex', 'imports:read', 'purchases:resolve']),
+
+    // Nuevo RBAC
+    SUPERADMIN: new Set([
+      'article:read', 'article:write', 'stock:read', 'stock:write', 'stock:override', 'stock:kardex', 'stock:export',
+      'imports:read', 'imports:write', 'purchases:resolve',
+      'admin:users', 'admin:roles'
+    ]),
+    ADMIN: new Set([
+      'article:read', 'article:write', 'stock:read', 'stock:write', 'stock:kardex', 'stock:export',
+      'imports:read', 'imports:write', 'purchases:resolve',
+      'admin:users', 'admin:roles'
+    ]),
+    SUPERVISOR: new Set([
+      'article:read', 'article:write', 'stock:read', 'stock:kardex', 'stock:export',
+      'imports:read', 'imports:write', 'purchases:resolve'
+    ]),
+    SELLER: new Set([
+      // Ventas básicas; las rutas actualmente no usan requiresScope, pero conservamos coherencia
+      'sales:create'
+    ]),
+    TECHNICIAN: new Set([
+      'config:view'
+    ])
   }
 
   const hasScope = (scope: string): boolean => {

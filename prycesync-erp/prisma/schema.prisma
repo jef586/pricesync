@@ -15,10 +15,11 @@ datasource db {
 // ============================================================================
 
 enum UserRole {
-  admin
-  manager
-  user
-  viewer
+  SUPERADMIN
+  ADMIN
+  SUPERVISOR
+  SELLER
+  TECHNICIAN
 }
 
 enum UserStatus {
@@ -33,7 +34,7 @@ model User {
   passwordHash String     @map("password_hash")
   name         String
   avatarUrl    String?    @map("avatar_url")
-  role         UserRole   @default(user)
+  role         UserRole   @default(SELLER)
   status       UserStatus @default(active)
 
   // Relaciones
