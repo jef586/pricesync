@@ -17,6 +17,21 @@
     <!-- Acciones por fila: Editar / Borrar -->
     <template #actions="{ item }">
       <div class="flex items-center justify-center gap-2">
+        <!-- Toggle estado: Suspender/Activar -->
+        <BaseButton
+          v-if="canSeeToggle"
+          :variant="toggleVariant(item)"
+          size="sm"
+          :aria-label="toggleAria(item)"
+          :title="toggleAria(item)"
+          :disabled="isRowLoading(item) || isToggleBlocked(item)"
+          @click.stop="onToggle(item)"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+          <span class="ml-1">{{ toggleLabel(item) }}</span>
+        </BaseButton>
         <BaseButton variant="ghost" size="sm" aria-label="Editar" title="Editar" @click.stop="onEdit(item)">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -37,18 +52,21 @@ import { computed } from 'vue'
 import DataTable from '@/components/atoms/DataTable.vue'
 import BaseButton from '@/components/atoms/BaseButton.vue'
 import type { UserDTO } from '@/services/users'
+import { useAuthStore } from '@/stores/auth'
 
 interface Props {
   items: UserDTO[]
   pageSize?: number
   loading?: boolean
   clickableRows?: boolean
+  loadingIds?: string[]
 }
 
 const props = withDefaults(defineProps<Props>(), {
   pageSize: 20,
   loading: false,
-  clickableRows: true
+  clickableRows: true,
+  loadingIds: () => []
 })
 
 interface Emits {
@@ -56,9 +74,11 @@ interface Emits {
   (e: 'row-click', payload: UserDTO): void
   (e: 'edit', payload: UserDTO): void
   (e: 'delete', payload: UserDTO): void
+  (e: 'toggle-status', payload: UserDTO): void
 }
 
 const emit = defineEmits<Emits>()
+const auth = useAuthStore()
 
 const columns = [
   { key: 'name', label: 'Nombre', sortable: true },
@@ -101,5 +121,46 @@ function onEdit(item: UserDTO) {
 
 function onDelete(item: UserDTO) {
   emit('delete', item)
+}
+
+// --- Toggle helpers ---
+const ROLE_PRIORITY: Record<string, number> = {
+  SUPERADMIN: 5,
+  ADMIN: 4,
+  SUPERVISOR: 3,
+  SELLER: 2,
+  TECHNICIAN: 2,
+  admin: 4,
+  manager: 3,
+  user: 2,
+  viewer: 1
+}
+
+const canSeeToggle = computed(() => auth.hasScope('admin:users'))
+function isRowLoading(item: UserDTO) {
+  return props.loadingIds?.includes(item.id)
+}
+function isToggleBlocked(item: UserDTO) {
+  const actorRole = auth.user?.role || 'viewer'
+  const actorPriority = ROLE_PRIORITY[String(actorRole)] ?? 0
+  const targetPriority = ROLE_PRIORITY[String(item.role)] ?? 0
+  return actorPriority < targetPriority
+}
+function nextStatus(item: UserDTO): 'active' | 'suspended' | 'inactive' {
+  return item.status === 'active' ? 'suspended' : 'active'
+}
+function toggleLabel(item: UserDTO) {
+  return item.status === 'active' ? 'Suspender' : 'Activar'
+}
+function toggleAria(item: UserDTO) {
+  const action = toggleLabel(item)
+  return `${action} usuario ${item.email}`
+}
+function toggleVariant(item: UserDTO) {
+  // Usar 'secondary' para Suspender y evitar confusión con el botón Borrar (danger)
+  return item.status === 'active' ? 'secondary' : 'primary'
+}
+function onToggle(item: UserDTO) {
+  emit('toggle-status', item)
 }
 </script>

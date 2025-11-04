@@ -36,4 +36,10 @@ body {
   height: 100vh;
   overflow: hidden; /* Evita scroll global; el contenido interno maneja su propio scroll */
 }
+
+/* Variables globales */
+:root {
+  /* Altura del header fijo usada para posicionar los toasts */
+  --ps-header-height: 40px;
+}
 </style>

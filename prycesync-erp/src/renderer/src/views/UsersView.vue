@@ -27,10 +27,12 @@
         :items="store.items"
         :page-size="store.pageSize"
         :loading="store.loading"
+        :loading-ids="store.loadingIds"
         @sort="onSort"
         @row-click="onRowClick"
         @edit="onEditUser"
         @delete="openDeleteUser"
+        @toggle-status="onToggleStatus"
       />
 
       <!-- Pagination -->
@@ -109,6 +111,19 @@
         @confirm="confirmDeleteUser"
         @cancel="cancelDeleteUser"
       />
+
+      <!-- Confirmación de cambio de estado -->
+      <ConfirmModal
+        v-model="showStatusModal"
+        :title="statusModalTitle"
+        :message="statusModalMessage"
+        variant="warning"
+        :confirm-text="statusConfirmText"
+        cancel-text="Cancelar"
+        :loading="isStatusUpdating"
+        @confirm="confirmToggleStatus"
+        @cancel="cancelToggleStatus"
+      />
     </div>
   </DashboardLayout>
 </template>
@@ -130,10 +145,13 @@ import { useUsersStore } from '@/stores/users'
 import { createUser, listRoles, deleteUser } from '@/services/users'
 import { useNotifications } from '@/composables/useNotifications'
 import ConfirmModal from '@/components/atoms/ConfirmModal.vue'
+import { useAuthStore } from '@/stores/auth'
+import { getUserById } from '@/services/users'
 
 const store = useUsersStore()
 const router = useRouter()
 const { success, error } = useNotifications()
+const auth = useAuthStore()
 
 const showCreateModal = ref(false)
 const isCreating = ref(false)
@@ -152,6 +170,19 @@ const deleteTargetId = ref<string | null>(null)
 const deleteTargetEmail = ref<string | null>(null)
 const deleteMessage = computed(() => '¿Seguro que deseas eliminar este usuario?')
 const deleteDetails = computed(() => deleteTargetEmail.value ? `Se eliminará ${deleteTargetEmail.value}. Esta acción no se puede deshacer.` : '')
+
+// Estado para toggle de estado
+const showStatusModal = ref(false)
+const isStatusUpdating = ref(false)
+const statusTarget = ref<import('@/services/users').UserDTO | null>(null)
+const statusNext = ref<'active'|'inactive'|'suspended'>('active')
+const statusModalTitle = computed(() => 'Cambiar estado de usuario')
+const statusModalMessage = computed(() => {
+  if (!statusTarget.value) return ''
+  const action = statusNext.value === 'active' ? 'Activar' : 'Suspender'
+  return `${action} usuario ${statusTarget.value.email}`
+})
+const statusConfirmText = computed(() => (statusNext.value === 'active' ? 'Activar' : 'Suspender'))
 
 const roleOptions = ref<{ value: string; label: string }[]>([])
 const statusOptions = [
@@ -183,6 +214,15 @@ onMounted(async () => {
     ]
   }
 })
+
+function statusLabel(value: string) {
+  const map: Record<string, string> = {
+    active: 'Activo',
+    inactive: 'Inactivo',
+    suspended: 'Suspendido'
+  }
+  return map[value] || value
+}
 
 async function applyFilters(filters: { q?: string; role?: string; status?: string }) {
   store.setFilters(filters)
@@ -238,6 +278,51 @@ function openDeleteUser(user: any) {
   deleteTargetId.value = user?.id || null
   deleteTargetEmail.value = user?.email || null
   showDeleteModal.value = !!deleteTargetId.value
+}
+
+async function onToggleStatus(user: any) {
+  try {
+    if (!user?.id) return
+    const target = await getUserById(String(user.id))
+    const next = user.status === 'active' ? 'suspended' : 'active'
+    // Bloquear último SUPERADMIN en UI si intenta pasar a no-activo
+    if ((target as any).isLastSuperadmin && String(target.role) === 'SUPERADMIN' && next !== 'active') {
+      error('Acción bloqueada', 'No se puede suspender al último SUPERADMIN activo')
+      return
+    }
+    // Anti-escalación UI: rol editor < rol target
+    const ROLE_PRIORITY: Record<string, number> = { SUPERADMIN:5, ADMIN:4, SUPERVISOR:3, SELLER:2, TECHNICIAN:2, admin:4, manager:3, user:2, viewer:1 }
+    const actorRole = auth.user?.role || 'viewer'
+    if ((ROLE_PRIORITY[String(actorRole)] ?? 0) < (ROLE_PRIORITY[String(target.role)] ?? 0)) {
+      error('Permiso insuficiente', 'No puedes cambiar el estado de un usuario con mayor privilegio que el tuyo')
+      return
+    }
+    statusTarget.value = user
+    statusNext.value = next as any
+    showStatusModal.value = true
+  } catch (e: any) {
+    error('No se pudo preparar la acción', e?.response?.data?.error || e?.message)
+  }
+}
+
+async function confirmToggleStatus() {
+  if (!statusTarget.value?.id) return
+  try {
+    isStatusUpdating.value = true
+    await store.updateStatus(String(statusTarget.value.id), statusNext.value as any)
+    success('Estado actualizado', `${statusTarget.value.email} → ${statusLabel(statusNext.value)}`)
+    showStatusModal.value = false
+  } catch (e: any) {
+    error('Error al cambiar estado', e?.response?.data?.error || e?.message)
+  } finally {
+    isStatusUpdating.value = false
+    statusTarget.value = null
+  }
+}
+
+function cancelToggleStatus() {
+  showStatusModal.value = false
+  statusTarget.value = null
 }
 
 async function confirmDeleteUser() {

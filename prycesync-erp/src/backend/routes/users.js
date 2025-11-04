@@ -357,6 +357,11 @@ router.patch('/:id/status', validateUserIdParam, validateUpdateStatus, async (re
     const target = await prisma.user.findFirst({ where: { id, companyId } })
     if (!target) return res.status(404).json({ error: 'Usuario no encontrado', code: 'USER_NOT_FOUND' })
 
+    // Anti-escalación: un usuario no puede cambiar el estado de otro con mayor privilegio
+    if (!canAssignRole(actor.role, target.role)) {
+      return res.status(403).json({ error: 'No puedes cambiar el estado de un usuario con mayor privilegio que el tuyo', code: 'STATUS_ESCALATION_BLOCK' })
+    }
+
     // Último SUPERADMIN → no cambiar estado a no-activo
     const lastSuper = await isLastActiveSuperadmin(companyId, id)
     if (lastSuper && target.role === 'SUPERADMIN' && status !== 'active') {

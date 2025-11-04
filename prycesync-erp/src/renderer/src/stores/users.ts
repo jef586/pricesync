@@ -10,6 +10,7 @@ export const useUsersStore = defineStore('users', {
     pageSize: 20,
     loading: false,
     error: null as string | null,
+    loadingIds: [] as string[],
     filters: {
       q: '',
       role: undefined as string | undefined,
@@ -89,8 +90,8 @@ export const useUsersStore = defineStore('users', {
 
     async updateStatus(id: string, status: 'active' | 'inactive' | 'suspended') {
       try {
-        this.loading = true
         this.error = null
+        if (!this.loadingIds.includes(id)) this.loadingIds.push(id)
         const updated = await apiUpdateStatus(id, { status })
         const index = this.items.findIndex(u => u.id === id)
         if (index !== -1) {
@@ -101,7 +102,7 @@ export const useUsersStore = defineStore('users', {
         this.error = err?.response?.data?.error || err?.message || 'Error al actualizar estado'
         throw err
       } finally {
-        this.loading = false
+        this.loadingIds = this.loadingIds.filter(x => x !== id)
       }
     },
 

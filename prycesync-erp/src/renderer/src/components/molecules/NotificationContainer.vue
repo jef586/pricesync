@@ -115,7 +115,15 @@ const InformationCircleIcon = {
 
 <style scoped>
 .notification-container {
-  @apply fixed top-4 right-4 z-50 max-w-sm w-full space-y-3;
+  position: fixed;
+  z-index: 50;
+  right: 1rem; /* right-4 */
+  top: calc(var(--ps-header-height, 40px) + 1rem); /* debajo del header */
+  max-width: 24rem; /* max-w-sm */
+  width: 100%;
+  margin-top: 0; 
+  /* espacio entre toasts */
+  display: block;
 }
 
 .notification-base {
