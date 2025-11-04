@@ -41,6 +41,7 @@
         @delete="openDeleteUser"
         @toggle-status="onToggleStatus"
         @restore="openRestoreUser"
+        @reset-password="openResetUser"
       />
 
       <!-- Pagination -->
@@ -146,6 +147,38 @@
         @confirm="confirmRestoreUser"
         @cancel="cancelRestoreUser"
       />
+
+      <!-- Reset de contraseña (modal con opción de notificar) -->
+      <BaseModal v-model="showResetModal" title="Generar link de reset de contraseña" size="md">
+        <form @submit.prevent="handleResetPassword" class="space-y-4">
+          <p>
+            Se generará un token de reseteo para
+            <strong>{{ resetTargetEmail || 'usuario' }}</strong>.
+          </p>
+          <label class="flex items-center gap-2">
+            <input type="checkbox" v-model="resetNotify" />
+            <span>Notificar al usuario por email (si está configurado)</span>
+          </label>
+          <div class="flex justify-end gap-2 mt-4">
+            <BaseButton variant="ghost" @click="cancelResetUser">Cancelar</BaseButton>
+            <BaseButton variant="primary" type="submit" :loading="isResetting">Generar link</BaseButton>
+          </div>
+        </form>
+        <template #footer></template>
+      </BaseModal>
+
+      <!-- Resultado del reset: mostrar link para copiar -->
+      <BaseModal v-model="showResetResultModal" title="Link generado" size="md">
+        <div class="space-y-3">
+          <p>Copia y comparte el siguiente enlace al usuario:</p>
+          <BaseInput :model-value="resetResultLink" readonly />
+          <div class="flex justify-end gap-2 mt-2">
+            <BaseButton variant="ghost" @click="showResetResultModal = false">Cerrar</BaseButton>
+            <BaseButton variant="secondary" @click="copyResetLink">Copiar</BaseButton>
+          </div>
+        </div>
+        <template #footer></template>
+      </BaseModal>
     </div>
   </DashboardLayout>
 </template>
@@ -164,7 +197,7 @@ import FormField from '@/components/atoms/FormField.vue'
 import BaseInput from '@/components/atoms/BaseInput.vue'
 import BaseSelect from '@/components/atoms/BaseSelect.vue'
 import { useUsersStore } from '@/stores/users'
-import { createUser, listRoles } from '@/services/users'
+import { createUser, listRoles, resetPassword as resetPasswordApi } from '@/services/users'
 import { useNotifications } from '@/composables/useNotifications'
 import ConfirmModal from '@/components/atoms/ConfirmModal.vue'
 import { useAuthStore } from '@/stores/auth'
@@ -220,6 +253,15 @@ const restoreTargetId = ref<string | null>(null)
 const restoreTargetEmail = ref<string | null>(null)
 const restoreMessage = computed(() => '¿Seguro que deseas restaurar este usuario?')
 const restoreDetails = computed(() => restoreTargetEmail.value ? `Se restaurará ${restoreTargetEmail.value}.` : '')
+
+// Reset de contraseña
+const showResetModal = ref(false)
+const resetNotify = ref(false)
+const isResetting = ref(false)
+const resetTargetId = ref<string | null>(null)
+const resetTargetEmail = ref<string | null>(null)
+const showResetResultModal = ref(false)
+const resetResultLink = ref<string>('')
 
 // Vista: ¿mostrar usuarios eliminados?
 const viewDeleted = computed(() => router.currentRoute.value.query.view === 'deleted')
@@ -415,6 +457,51 @@ function cancelRestoreUser() {
   showRestoreModal.value = false
   restoreTargetId.value = null
   restoreTargetEmail.value = null
+}
+
+// --- Reset de contraseña ---
+function openResetUser(user: any) {
+  resetTargetId.value = user?.id || null
+  resetTargetEmail.value = user?.email || null
+  showResetModal.value = !!resetTargetId.value
+}
+
+async function handleResetPassword() {
+  if (!resetTargetId.value) return
+  try {
+    isResetting.value = true
+    const res = await resetPasswordApi(resetTargetId.value, { notify: resetNotify.value })
+    if (res?.ok) {
+      success('Token generado', 'Se creó el token de reset de contraseña')
+      resetResultLink.value = res?.link || ''
+      showResetResultModal.value = !!resetResultLink.value
+      showResetModal.value = false
+    } else {
+      error('No se pudo generar el token', res?.message || 'Error desconocido')
+    }
+  } catch (e: any) {
+    error('Error al generar token', e?.response?.data?.error || e?.message)
+  } finally {
+    isResetting.value = false
+    resetNotify.value = false
+    resetTargetId.value = null
+  }
+}
+
+function cancelResetUser() {
+  showResetModal.value = false
+  resetNotify.value = false
+  resetTargetId.value = null
+  resetTargetEmail.value = null
+}
+
+async function copyResetLink() {
+  try {
+    await navigator.clipboard.writeText(resetResultLink.value)
+    success('Copiado', 'El enlace se copió al portapapeles')
+  } catch {
+    error('No se pudo copiar el enlace')
+  }
 }
 
 function toggleDeletedView() {

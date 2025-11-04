@@ -32,6 +32,14 @@
           </svg>
           <span class="ml-1">{{ toggleLabel(item) }}</span>
         </BaseButton>
+        <!-- Reset contraseña: colocar junto a Suspender/Activar -->
+        <BaseButton v-if="!deletedMode && canSeeToggle" variant="secondary" size="sm" aria-label="Reset contraseña" title="Reset contraseña" @click.stop="onReset(item)">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <!-- icono de candado -->
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11V7a4 4 0 118 0v4M6 11h12v10H6V11z" />
+          </svg>
+          <span class="ml-1">Reset contraseña</span>
+        </BaseButton>
         <BaseButton v-if="!deletedMode" variant="ghost" size="sm" aria-label="Editar" title="Editar" @click.stop="onEdit(item)">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -85,6 +93,7 @@ interface Emits {
   (e: 'delete', payload: UserDTO): void
   (e: 'toggle-status', payload: UserDTO): void
   (e: 'restore', payload: UserDTO): void
+  (e: 'reset-password', payload: UserDTO): void
 }
 
 const emit = defineEmits<Emits>()
@@ -144,6 +153,9 @@ function onDelete(item: UserDTO) {
 
 function onRestore(item: UserDTO) {
   emit('restore', item)
+}
+function onReset(item: UserDTO) {
+  emit('reset-password', item)
 }
 
 // --- Toggle helpers ---

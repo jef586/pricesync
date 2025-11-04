@@ -8,6 +8,7 @@ import { validateCreateUser, validateUserIdParam, validateUpdateUser, validateUp
 import fs from 'fs'
 import path from 'path'
 import { Prisma } from '@prisma/client'
+import crypto from 'crypto'
 
 const router = express.Router()
 
@@ -115,6 +116,72 @@ router.get('/', async (req, res) => {
   } catch (err) {
     console.error('Error listing users:', err)
     return res.status(500).json({ error: 'Error obteniendo usuarios', code: 'GET_USERS_FAILED' })
+  }
+})
+
+// POST /api/users/:id/reset-password - generar token de reset de contraseña (admin)
+router.post('/:id/reset-password', validateUserIdParam, async (req, res) => {
+  try {
+    const { id } = req.params
+    const { notify } = req.body || {}
+    const companyId = req.user.company?.id
+    const actor = req.user
+    if (!companyId) {
+      return res.status(401).json({ error: 'Usuario sin empresa asignada', code: 'USER_NO_COMPANY' })
+    }
+
+    const target = await prisma.user.findFirst({
+      where: { id, companyId },
+      select: { id: true, email: true, status: true }
+    })
+    if (!target) {
+      return res.status(404).json({ error: 'Usuario no encontrado', code: 'USER_NOT_FOUND' })
+    }
+    if (target.status !== 'active') {
+      return res.status(409).json({ error: 'El usuario no está activo', code: 'USER_NOT_ACTIVE' })
+    }
+
+    const ttlHours = parseInt(process.env.RESET_TOKEN_TTL_HOURS || '24', 10)
+    const expiresAt = new Date(Date.now() + ttlHours * 60 * 60 * 1000)
+
+    const recentCount = await prisma.passwordReset.count({
+      where: { userId: id, usedAt: null, expiresAt: { gt: new Date() } }
+    })
+    if (recentCount >= 5) {
+      return res.status(429).json({ error: 'Demasiadas solicitudes recientes', code: 'RESET_RATE_LIMIT' })
+    }
+
+    const rawToken = crypto.randomBytes(32).toString('hex')
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex')
+    const created = await prisma.passwordReset.create({ data: { userId: id, tokenHash, expiresAt } })
+
+    // Usar APP_URL si está definido; sino fallback a FRONTEND_URL (docker) y por último localhost
+    const appUrl = process.env.APP_URL || process.env.FRONTEND_URL || 'http://localhost:5173'
+    const resetLink = `${appUrl}/auth/set-password?token=${rawToken}`
+
+    // Auditoría
+    logUserAudit({
+      actorId: actor.id,
+      targetId: id,
+      companyId,
+      changes: { action: 'RESET_REQUEST', before: null, after: { resetId: created.id, expiresAt } }
+    })
+
+    if (notify) {
+      console.log(`[RESET] Enviar email a ${target.email} con enlace: ${resetLink}`)
+    }
+
+    return res.status(201).json({ ok: true, message: 'Token de reseteo generado', link: resetLink })
+  } catch (err) {
+    console.error('Error creando reset de contraseña:', err)
+    // Si la tabla password_resets no existe o el esquema está desincronizado, informar claramente
+    if (err?.code === 'P2021' || String(err?.message || '').toLowerCase().includes('password_resets')) {
+      return res.status(500).json({
+        error: 'Base de datos desactualizada: falta tabla password_resets. Ejecuta prisma db push dentro del contenedor.',
+        code: 'SCHEMA_OUT_OF_SYNC'
+      })
+    }
+    return res.status(500).json({ error: 'Error creando reset de contraseña', code: 'CREATE_RESET_FAILED' })
   }
 })
 

@@ -116,3 +116,8 @@ export async function listRoles(): Promise<string[]> {
 }
 
 // Eliminar usuario por ID
+// Reset de contraseña (admin)
+export async function resetPassword(userId: string, payload: { notify?: boolean } = {}): Promise<{ ok: boolean; link?: string; message: string }>{
+  const { data } = await apiClient.post(`/users/${userId}/reset-password`, payload)
+  return { ok: !!data?.ok, link: data?.link, message: data?.message || 'Token generado' }
+}

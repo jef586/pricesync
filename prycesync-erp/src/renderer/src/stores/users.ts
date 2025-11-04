@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import type { UserDTO, UserFilters } from '@/services/users'
-import { listUsers, getUserById, updateUser as apiUpdateUser, updateStatus as apiUpdateStatus, deleteUser as apiDeleteUser, restoreUser as apiRestoreUser } from '@/services/users'
+import { listUsers, getUserById, updateUser as apiUpdateUser, updateStatus as apiUpdateStatus, deleteUser as apiDeleteUser, restoreUser as apiRestoreUser, resetPassword as apiResetPassword } from '@/services/users'
 
 export const useUsersStore = defineStore('users', {
   state: () => ({
@@ -161,6 +161,19 @@ export const useUsersStore = defineStore('users', {
       } catch (err: any) {
         this.error = err?.response?.data?.error || err?.message || 'Error al restaurar usuario'
         return false
+      } finally {
+        this.loadingIds = this.loadingIds.filter(x => x !== id)
+      }
+    },
+
+    async resetPassword(id: string, opts?: { notify?: boolean }) {
+      try {
+        if (!this.loadingIds.includes(id)) this.loadingIds.push(id)
+        const result = await apiResetPassword(id, opts || {})
+        return result
+      } catch (err: any) {
+        this.error = err?.response?.data?.error || err?.message || 'Error creando reset de contraseña'
+        throw err
       } finally {
         this.loadingIds = this.loadingIds.filter(x => x !== id)
       }

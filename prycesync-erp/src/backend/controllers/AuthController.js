@@ -258,6 +258,65 @@ class AuthController {
       });
     }
   }
+
+  // POST /auth/set-password (público)
+  async setPassword(req, res) {
+    try {
+      const { token, password } = req.body
+      if (!token || !password) {
+        return res.status(400).json({ error: 'Token y contraseña son requeridos', code: 'MISSING_FIELDS' })
+      }
+      if (password.length < 8) {
+        return res.status(400).json({ error: 'La contraseña debe tener al menos 8 caracteres', code: 'PASSWORD_TOO_SHORT' })
+      }
+
+      const tokenHash = (await import('crypto')).default.createHash('sha256').update(token).digest('hex')
+
+      const reset = await prisma.passwordReset.findUnique({
+        where: { tokenHash },
+        include: { user: { select: { id: true, companyId: true } } }
+      })
+
+      if (!reset) {
+        return res.status(400).json({ error: 'Token inválido o no encontrado', code: 'INVALID_TOKEN' })
+      }
+
+      if (reset.usedAt) {
+        return res.status(410).json({ error: 'El token ya fue usado', code: 'TOKEN_USED' })
+      }
+
+      if (reset.expiresAt <= new Date()) {
+        return res.status(410).json({ error: 'El token expiró', code: 'TOKEN_EXPIRED' })
+      }
+
+      const newHash = await AuthService.hashPassword(password)
+      await prisma.user.update({ where: { id: reset.userId }, data: { passwordHash: newHash } })
+
+      // Marcar este token como usado y cerrar el resto activo del usuario
+      await prisma.passwordReset.update({ where: { id: reset.id }, data: { usedAt: new Date() } })
+      await prisma.passwordReset.updateMany({ where: { userId: reset.userId, usedAt: null }, data: { usedAt: new Date() } })
+
+      // Revocar sesiones activas
+      await prisma.userSession.deleteMany({ where: { userId: reset.userId } })
+
+      // Auditoría
+      try {
+        const fs = (await import('fs')).default
+        const path = (await import('path')).default
+        const line = JSON.stringify({ type: 'user_change', actorId: reset.userId, targetId: reset.userId, companyId: reset.user.companyId, changes: { action: 'PASSWORD_SET' }, at: new Date().toISOString() }) + '\n'
+        const logfile = path.join(process.cwd(), 'core_reports', 'audit_users.log')
+        fs.mkdirSync(path.dirname(logfile), { recursive: true })
+        fs.appendFileSync(logfile, line)
+      } catch (e) {
+        console.warn('Audit log write failed', e)
+      }
+
+      return res.json({ ok: true, message: 'Contraseña actualizada. Inicia sesión nuevamente.' })
+    } catch (error) {
+      console.error('Error estableciendo contraseña:', error)
+      return res.status(500).json({ error: 'Error estableciendo contraseña', code: 'SET_PASSWORD_FAILED' })
+    }
+  }
 }
 
 export default new AuthController();

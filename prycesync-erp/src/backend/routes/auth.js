@@ -10,6 +10,7 @@ router.post('/register', AuthController.register);
 router.post('/login', AuthController.login);
 router.post('/refresh', AuthController.refreshToken);
 router.post('/logout', AuthController.logout); // Logout debe ser público para usar solo refreshToken
+router.post('/set-password', AuthController.setPassword); // Público: cambiar contraseña mediante token de reset
 
 // Rutas protegidas (requieren autenticación)
 router.use(authenticate); // Aplicar middleware de autenticación a todas las rutas siguientes
