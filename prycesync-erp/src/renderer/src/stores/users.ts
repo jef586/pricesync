@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import type { UserDTO, UserFilters } from '@/services/users'
-import { listUsers, getUserById, updateUser as apiUpdateUser, updateStatus as apiUpdateStatus } from '@/services/users'
+import { listUsers, getUserById, updateUser as apiUpdateUser, updateStatus as apiUpdateStatus, deleteUser as apiDeleteUser, restoreUser as apiRestoreUser } from '@/services/users'
 
 export const useUsersStore = defineStore('users', {
   state: () => ({
@@ -16,7 +16,8 @@ export const useUsersStore = defineStore('users', {
       role: undefined as string | undefined,
       status: undefined as string | undefined,
       sortBy: 'createdAt' as UserFilters['sortBy'],
-      sortOrder: 'desc' as UserFilters['sortOrder']
+      sortOrder: 'desc' as UserFilters['sortOrder'],
+      deleted: false
     } as UserFilters
   }),
 
@@ -25,19 +26,21 @@ export const useUsersStore = defineStore('users', {
   },
 
   actions: {
-    async list() {
+    async list(filters?: Partial<UserFilters>) {
       try {
         this.loading = true
         this.error = null
-        const { users, pagination } = await listUsers({
-          q: this.filters.q,
-          role: this.filters.role,
-          status: this.filters.status,
-          page: this.page,
-          size: this.pageSize,
-          sortBy: this.filters.sortBy,
-          sortOrder: this.filters.sortOrder,
-        })
+        const merged: UserFilters = {
+          q: filters?.q ?? this.filters.q,
+          role: filters?.role ?? this.filters.role,
+          status: filters?.status ?? this.filters.status,
+          page: filters?.page ?? this.page,
+          size: filters?.size ?? this.pageSize,
+          sortBy: filters?.sortBy ?? this.filters.sortBy,
+          sortOrder: filters?.sortOrder ?? this.filters.sortOrder,
+          deleted: typeof filters?.deleted === 'boolean' ? filters!.deleted! : this.filters.deleted
+        }
+        const { users, pagination } = await listUsers(merged)
         this.items = users
         this.total = pagination.total
         this.page = pagination.page
@@ -121,13 +124,55 @@ export const useUsersStore = defineStore('users', {
       this.page = Math.max(1, page)
     },
 
+    async removeUser(id: string, reason?: string) {
+      try {
+        if (!this.loadingIds.includes(id)) this.loadingIds.push(id)
+        const ok = await apiDeleteUser(id, reason)
+        if (ok) {
+          if (!this.filters.deleted) {
+            this.items = this.items.filter(u => u.id !== id)
+            this.total = Math.max(0, this.total - 1)
+          } else {
+            await this.list()
+          }
+        }
+        return ok
+      } catch (err: any) {
+        this.error = err?.response?.data?.error || err?.message || 'Error al eliminar usuario'
+        return false
+      } finally {
+        this.loadingIds = this.loadingIds.filter(x => x !== id)
+      }
+    },
+
+    async restoreUser(id: string, reason?: string) {
+      try {
+        if (!this.loadingIds.includes(id)) this.loadingIds.push(id)
+        const ok = await apiRestoreUser(id, reason)
+        if (ok) {
+          if (this.filters.deleted) {
+            this.items = this.items.filter(u => u.id !== id)
+            this.total = Math.max(0, this.total - 1)
+          } else {
+            await this.list()
+          }
+        }
+        return ok
+      } catch (err: any) {
+        this.error = err?.response?.data?.error || err?.message || 'Error al restaurar usuario'
+        return false
+      } finally {
+        this.loadingIds = this.loadingIds.filter(x => x !== id)
+      }
+    },
+
     reset() {
       this.items = []
       this.total = 0
       this.page = 1
       this.pageSize = 20
       this.error = null
-      this.filters = { q: '', role: undefined, status: undefined, sortBy: 'createdAt', sortOrder: 'desc' }
+      this.filters = { q: '', role: undefined, status: undefined, sortBy: 'createdAt', sortOrder: 'desc', deleted: false }
     }
   }
 })

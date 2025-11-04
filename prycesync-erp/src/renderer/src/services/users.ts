@@ -8,6 +8,7 @@ export interface UserDTO {
   status: 'active' | 'inactive' | 'suspended' | string
   lastLogin?: string | null
   createdAt: string
+  deletedAt?: string | null
 }
 
 export interface UserFilters {
@@ -18,6 +19,7 @@ export interface UserFilters {
   size?: number
   sortBy?: 'name' | 'email' | 'role' | 'status' | 'lastLogin' | 'createdAt'
   sortOrder?: 'asc' | 'desc'
+  deleted?: boolean
 }
 
 export interface Pagination {
@@ -44,6 +46,7 @@ export async function listUsers(filters: UserFilters = {}): Promise<UsersRespons
     const sort = `${filters.sortBy || 'createdAt'}:${filters.sortOrder || 'desc'}`
     params.append('sort', sort)
   }
+  if (typeof filters.deleted === 'boolean') params.append('deleted', String(filters.deleted))
 
   const { data } = await apiClient.get(`/users?${params.toString()}`)
   // La API devuelve { users, pagination }
@@ -51,6 +54,18 @@ export async function listUsers(filters: UserFilters = {}): Promise<UsersRespons
     users: Array.isArray(data?.users) ? data.users : [],
     pagination: data?.pagination || { page: 1, limit: 20, total: 0, pages: 0 }
   }
+}
+
+// Eliminar (soft delete)
+export async function deleteUser(id: string, reason?: string): Promise<boolean> {
+  const { data } = await apiClient.delete(`/users/${id}`, { data: reason ? { reason } : undefined })
+  return !!data?.ok
+}
+
+// Restaurar usuario
+export async function restoreUser(id: string, reason?: string): Promise<boolean> {
+  const { data } = await apiClient.patch(`/users/${id}/restore`, reason ? { reason } : undefined)
+  return !!data?.ok
 }
 
 // Obtener usuario por ID
@@ -101,8 +116,3 @@ export async function listRoles(): Promise<string[]> {
 }
 
 // Eliminar usuario por ID
-export async function deleteUser(id: string): Promise<boolean> {
-  const resp = await apiClient.delete(`/users/${id}`)
-  // La API puede devolver { success: true } o 200 OK
-  return !!(resp?.data?.success ?? (resp.status >= 200 && resp.status < 300))
-}

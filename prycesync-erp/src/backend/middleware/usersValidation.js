@@ -27,8 +27,9 @@ export const validateCreateUser = (req, res, next) => {
   next()
 }
 
-// POST /api/users/:id/send-invite params validation
-const IdParamSchema = z.object({ id: z.string().cuid() })
+// POST/DELETE/PATCH /api/users/:id params validation
+// Acepta tanto CUID clásico como CUID2 para compatibilidad
+const IdParamSchema = z.object({ id: z.union([z.string().cuid(), z.string().cuid2()]) })
 
 export const validateUserIdParam = (req, res, next) => {
   const parsed = IdParamSchema.safeParse(req.params)

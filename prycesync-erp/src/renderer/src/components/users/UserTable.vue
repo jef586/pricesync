@@ -14,12 +14,12 @@
     <template #cell-status="{ value }">
       <span :class="statusClass(value)">{{ statusLabel(value) }}</span>
     </template>
-    <!-- Acciones por fila: Editar / Borrar -->
+    <!-- Acciones por fila: Editar / Borrar / Restaurar -->
     <template #actions="{ item }">
       <div class="flex items-center justify-center gap-2">
-        <!-- Toggle estado: Suspender/Activar -->
+        <!-- Toggle estado: Suspender/Activar (solo en modo activos) -->
         <BaseButton
-          v-if="canSeeToggle"
+          v-if="canSeeToggle && !deletedMode"
           :variant="toggleVariant(item)"
           size="sm"
           :aria-label="toggleAria(item)"
@@ -32,15 +32,22 @@
           </svg>
           <span class="ml-1">{{ toggleLabel(item) }}</span>
         </BaseButton>
-        <BaseButton variant="ghost" size="sm" aria-label="Editar" title="Editar" @click.stop="onEdit(item)">
+        <BaseButton v-if="!deletedMode" variant="ghost" size="sm" aria-label="Editar" title="Editar" @click.stop="onEdit(item)">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
           </svg>
         </BaseButton>
-        <BaseButton variant="danger" size="sm" aria-label="Borrar" title="Borrar" @click.stop="onDelete(item)">
+        <BaseButton v-if="!deletedMode" variant="danger" size="sm" aria-label="Borrar" title="Borrar" @click.stop="onDelete(item)">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3m-9 0h10" />
           </svg>
+        </BaseButton>
+        <!-- Restaurar (solo en modo eliminados) -->
+        <BaseButton v-if="deletedMode" variant="primary" size="sm" aria-label="Restaurar" title="Restaurar" @click.stop="onRestore(item)">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v6h6M20 20v-6h-6M5 13a7 7 0 0012 0" />
+          </svg>
+          <span class="ml-1">Restaurar</span>
         </BaseButton>
       </div>
     </template>
@@ -60,13 +67,15 @@ interface Props {
   loading?: boolean
   clickableRows?: boolean
   loadingIds?: string[]
+  deletedMode?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   pageSize: 20,
   loading: false,
   clickableRows: true,
-  loadingIds: () => []
+  loadingIds: () => [],
+  deletedMode: false
 })
 
 interface Emits {
@@ -75,19 +84,29 @@ interface Emits {
   (e: 'edit', payload: UserDTO): void
   (e: 'delete', payload: UserDTO): void
   (e: 'toggle-status', payload: UserDTO): void
+  (e: 'restore', payload: UserDTO): void
 }
 
 const emit = defineEmits<Emits>()
 const auth = useAuthStore()
 
-const columns = [
-  { key: 'name', label: 'Nombre', sortable: true },
-  { key: 'email', label: 'Email', sortable: true },
-  { key: 'role', label: 'Rol', sortable: true },
-  { key: 'status', label: 'Estado', sortable: true },
-  { key: 'lastLogin', label: 'Último acceso', sortable: true },
-  { key: 'createdAt', label: 'Creado', sortable: true },
-]
+const columns = computed(() =>
+  props.deletedMode
+    ? [
+        { key: 'name', label: 'Nombre', sortable: true },
+        { key: 'email', label: 'Email', sortable: true },
+        { key: 'role', label: 'Rol', sortable: true },
+        { key: 'deletedAt', label: 'Eliminado el', sortable: true },
+      ]
+    : [
+        { key: 'name', label: 'Nombre', sortable: true },
+        { key: 'email', label: 'Email', sortable: true },
+        { key: 'role', label: 'Rol', sortable: true },
+        { key: 'status', label: 'Estado', sortable: true },
+        { key: 'lastLogin', label: 'Último acceso', sortable: true },
+        { key: 'createdAt', label: 'Creado', sortable: true },
+      ]
+)
 
 function statusLabel(value: string) {
   const map: Record<string, string> = {
@@ -121,6 +140,10 @@ function onEdit(item: UserDTO) {
 
 function onDelete(item: UserDTO) {
   emit('delete', item)
+}
+
+function onRestore(item: UserDTO) {
+  emit('restore', item)
 }
 
 // --- Toggle helpers ---

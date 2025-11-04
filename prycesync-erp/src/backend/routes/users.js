@@ -40,7 +40,7 @@ router.use(authenticate)
 router.use(requireScopes('admin:users'))
 router.use(requirePermission('admin:users'))
 
-// GET /api/users?q=&role=&status=&page=&size=&sort=
+// GET /api/users?q=&role=&status=&page=&size=&sort=&deleted=
 router.get('/', async (req, res) => {
   try {
     const companyId = req.user.company?.id
@@ -54,6 +54,7 @@ router.get('/', async (req, res) => {
     const size = Math.max(1, Math.min(100, parseInt(req.query.size || '20', 10)))
     const sortParam = String(req.query.sort || '').trim()
     const requestedRole = String(req.query.role || '').trim().toUpperCase()
+    const deletedFlag = String(req.query.deleted || '').trim().toLowerCase() === 'true'
 
     const skip = (page - 1) * size
 
@@ -76,7 +77,9 @@ router.get('/', async (req, res) => {
         ],
       }),
       ...(status && { status }),
-      ...(requestedRole && { role: requestedRole })
+      ...(requestedRole && { role: requestedRole }),
+      // Por defecto excluir eliminados; si deleted=true, incluir sólo eliminados
+      ...(deletedFlag ? { deletedAt: { not: null } } : { deletedAt: null })
     }
 
     const [users, total] = await Promise.all([
@@ -90,6 +93,8 @@ router.get('/', async (req, res) => {
           status: true,
           lastLogin: true,
           createdAt: true,
+          // Solo útil en vista de eliminados
+          deletedAt: true
         },
         skip,
         take: size,
@@ -192,6 +197,131 @@ router.post('/:id/send-invite', validateUserIdParam, async (req, res) => {
   } catch (err) {
     console.error('Error sending invite:', err)
     return res.status(500).json({ error: 'Error enviando invitación', code: 'SEND_INVITE_FAILED' })
+  }
+})
+
+// DELETE /api/users/:id - soft delete user (deletedAt) with guards and session revocation
+router.delete('/:id', validateUserIdParam, async (req, res) => {
+  try {
+    const { id } = req.params
+    const { reason } = req.body || {}
+    const companyId = req.user.company?.id
+    const actor = req.user
+    if (!companyId) {
+      return res.status(401).json({ error: 'Usuario sin empresa asignada', code: 'USER_NO_COMPANY' })
+    }
+
+    const target = await prisma.user.findFirst({
+      where: { id, companyId },
+      select: { id: true, role: true, status: true, deletedAt: true }
+    })
+
+    if (!target) {
+      return res.status(404).json({ error: 'Usuario no encontrado', code: 'USER_NOT_FOUND' })
+    }
+
+    if (target.deletedAt) {
+      return res.status(409).json({ error: 'El usuario ya está eliminado', code: 'USER_ALREADY_DELETED' })
+    }
+
+    // Anti-escalación: no actuar sobre roles superiores
+    const rolePriority = { SUPERADMIN: 100, ADMIN: 80, SUPERVISOR: 70, SELLER: 60, TECHNICIAN: 50 }
+    const actorPriority = rolePriority[String(actor.role).toUpperCase()] ?? 0
+    const targetPriority = rolePriority[String(target.role).toUpperCase()] ?? 0
+    if (actor.id !== target.id && actorPriority < targetPriority) {
+      return res.status(403).json({ error: 'No puedes borrar un usuario con rol superior al tuyo', code: 'ROLE_ESCALATION_BLOCK' })
+    }
+
+    // Último SUPERADMIN activo
+    if (String(target.role).toUpperCase() === 'SUPERADMIN') {
+      const lastSuper = await isLastActiveSuperadmin(companyId, id)
+      if (lastSuper) {
+        return res.status(409).json({ error: 'No se puede borrar al último SUPERADMIN activo', code: 'LAST_SUPERADMIN_BLOCK' })
+      }
+    }
+
+    // Self-protect: no auto-borrarse si dejaría sin admins operativos
+    if (actor.id === target.id) {
+      const others = await hasOtherActiveAdminsWithPermission(companyId, actor.id)
+      if (!others) {
+        return res.status(409).json({ error: 'No puedes borrarte si dejaría al sistema sin admins operativos', code: 'SELF_DELETE_BLOCK' })
+      }
+    }
+
+    const updated = await prisma.user.update({
+      where: { id },
+      data: { deletedAt: new Date(), status: 'inactive' },
+      select: { id: true, deletedAt: true }
+    })
+
+    // Revocar sesiones activas del usuario
+    await prisma.userSession.deleteMany({ where: { userId: id } })
+
+    // Auditoría
+    logUserAudit({
+      actorId: actor.id,
+      targetId: id,
+      companyId,
+      changes: { action: 'USER_DELETE', reason: reason || null, before: { deletedAt: target.deletedAt }, after: { deletedAt: updated.deletedAt } }
+    })
+
+    return res.json({ ok: true, message: 'Usuario eliminado', user: { id: updated.id } })
+  } catch (err) {
+    console.error('Error soft deleting user:', err)
+    return res.status(500).json({ error: 'Error eliminando usuario', code: 'DELETE_USER_FAILED' })
+  }
+})
+
+// PATCH /api/users/:id/restore - restore soft-deleted user
+router.patch('/:id/restore', validateUserIdParam, async (req, res) => {
+  try {
+    const { id } = req.params
+    const { reason } = req.body || {}
+    const companyId = req.user.company?.id
+    const actor = req.user
+    if (!companyId) {
+      return res.status(401).json({ error: 'Usuario sin empresa asignada', code: 'USER_NO_COMPANY' })
+    }
+
+    const target = await prisma.user.findFirst({
+      where: { id, companyId },
+      select: { id: true, role: true, status: true, deletedAt: true }
+    })
+
+    if (!target) {
+      return res.status(404).json({ error: 'Usuario no encontrado', code: 'USER_NOT_FOUND' })
+    }
+
+    if (!target.deletedAt) {
+      return res.status(409).json({ error: 'El usuario no está eliminado', code: 'USER_NOT_DELETED' })
+    }
+
+    // Anti-escalación: no restaurar usuarios con rol superior al tuyo
+    const rolePriority = { SUPERADMIN: 100, ADMIN: 80, SUPERVISOR: 70, SELLER: 60, TECHNICIAN: 50 }
+    const actorPriority = rolePriority[String(actor.role).toUpperCase()] ?? 0
+    const targetPriority = rolePriority[String(target.role).toUpperCase()] ?? 0
+    if (actor.id !== target.id && actorPriority < targetPriority) {
+      return res.status(403).json({ error: 'No puedes restaurar un usuario con rol superior al tuyo', code: 'ROLE_ESCALATION_BLOCK' })
+    }
+
+    const restored = await prisma.user.update({
+      where: { id },
+      data: { deletedAt: null },
+      select: { id: true, deletedAt: true, status: true }
+    })
+
+    // Auditoría
+    logUserAudit({
+      actorId: actor.id,
+      targetId: id,
+      companyId,
+      changes: { action: 'USER_RESTORE', reason: reason || null, before: { deletedAt: target.deletedAt }, after: { deletedAt: restored.deletedAt } }
+    })
+
+    return res.json({ ok: true, message: 'Usuario restaurado', user: { id: restored.id } })
+  } catch (err) {
+    console.error('Error restoring user:', err)
+    return res.status(500).json({ error: 'Error restaurando usuario', code: 'RESTORE_USER_FAILED' })
   }
 })
 

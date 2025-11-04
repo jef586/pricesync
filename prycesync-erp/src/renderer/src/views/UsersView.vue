@@ -13,6 +13,12 @@
             </svg>
             Nuevo usuario
           </BaseButton>
+          <BaseButton class="ml-2" :variant="viewDeleted ? 'secondary' : 'ghost'" @click="toggleDeletedView">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5h16M4 12h10M4 19h16" />
+            </svg>
+            {{ viewDeleted ? 'Ver activos' : 'Ver eliminados' }}
+          </BaseButton>
         </template>
       </PageHeader>
 
@@ -28,11 +34,13 @@
         :page-size="store.pageSize"
         :loading="store.loading"
         :loading-ids="store.loadingIds"
+        :deleted-mode="viewDeleted"
         @sort="onSort"
         @row-click="onRowClick"
         @edit="onEditUser"
         @delete="openDeleteUser"
         @toggle-status="onToggleStatus"
+        @restore="openRestoreUser"
       />
 
       <!-- Pagination -->
@@ -124,6 +132,20 @@
         @confirm="confirmToggleStatus"
         @cancel="cancelToggleStatus"
       />
+
+      <!-- Confirmación de restauración -->
+      <ConfirmModal
+        v-model="showRestoreModal"
+        title="Restaurar usuario"
+        :message="restoreMessage"
+        :details="restoreDetails"
+        variant="warning"
+        confirm-text="Restaurar"
+        cancel-text="Cancelar"
+        :loading="isRestoring"
+        @confirm="confirmRestoreUser"
+        @cancel="cancelRestoreUser"
+      />
     </div>
   </DashboardLayout>
 </template>
@@ -142,7 +164,7 @@ import FormField from '@/components/atoms/FormField.vue'
 import BaseInput from '@/components/atoms/BaseInput.vue'
 import BaseSelect from '@/components/atoms/BaseSelect.vue'
 import { useUsersStore } from '@/stores/users'
-import { createUser, listRoles, deleteUser } from '@/services/users'
+import { createUser, listRoles } from '@/services/users'
 import { useNotifications } from '@/composables/useNotifications'
 import ConfirmModal from '@/components/atoms/ConfirmModal.vue'
 import { useAuthStore } from '@/stores/auth'
@@ -191,8 +213,21 @@ const statusOptions = [
   { value: 'suspended', label: 'Suspendido' }
 ]
 
+// Estado de restauración y vista de eliminados
+const showRestoreModal = ref(false)
+const isRestoring = ref(false)
+const restoreTargetId = ref<string | null>(null)
+const restoreTargetEmail = ref<string | null>(null)
+const restoreMessage = computed(() => '¿Seguro que deseas restaurar este usuario?')
+const restoreDetails = computed(() => restoreTargetEmail.value ? `Se restaurará ${restoreTargetEmail.value}.` : '')
+
+// Vista: ¿mostrar usuarios eliminados?
+const viewDeleted = computed(() => router.currentRoute.value.query.view === 'deleted')
+
 onMounted(async () => {
-  await store.list()
+  // Inicializar listado respetando query ?view=deleted
+  store.setFilters({ deleted: viewDeleted.value })
+  await store.list({ deleted: viewDeleted.value })
   try {
     const roles = await listRoles()
     const LABELS: Record<string, string> = {
@@ -225,18 +260,18 @@ function statusLabel(value: string) {
 }
 
 async function applyFilters(filters: { q?: string; role?: string; status?: string }) {
-  store.setFilters(filters)
-  await store.list()
+  store.setFilters({ ...filters, deleted: viewDeleted.value })
+  await store.list({ ...filters, deleted: viewDeleted.value })
 }
 
 async function onSort({ sortBy, sortOrder }: { sortBy: string; sortOrder: 'asc' | 'desc' }) {
   store.setSort(sortBy as any, sortOrder)
-  await store.list()
+  await store.list({ deleted: viewDeleted.value })
 }
 
 async function onPageChange(page: number) {
   store.setPage(page)
-  await store.list()
+  await store.list({ deleted: viewDeleted.value })
 }
 
 async function handleCreateUser() {
@@ -329,10 +364,10 @@ async function confirmDeleteUser() {
   if (!deleteTargetId.value) return
   try {
     isDeleting.value = true
-    const ok = await deleteUser(deleteTargetId.value)
+    const ok = await store.removeUser(deleteTargetId.value)
     if (ok) {
       success('Usuario eliminado', deleteTargetEmail.value ? `Se eliminó ${deleteTargetEmail.value}` : 'Eliminado')
-      await store.list()
+      await store.list({ deleted: viewDeleted.value })
     } else {
       error('No se pudo eliminar el usuario')
     }
@@ -348,6 +383,47 @@ function cancelDeleteUser() {
   showDeleteModal.value = false
   deleteTargetId.value = null
   deleteTargetEmail.value = null
+}
+
+// --- Restauración de usuarios ---
+function openRestoreUser(user: any) {
+  restoreTargetId.value = user?.id || null
+  restoreTargetEmail.value = user?.email || null
+  showRestoreModal.value = !!restoreTargetId.value
+}
+
+async function confirmRestoreUser() {
+  if (!restoreTargetId.value) return
+  try {
+    isRestoring.value = true
+    const ok = await store.restoreUser(restoreTargetId.value)
+    if (ok) {
+      success('Usuario restaurado', restoreTargetEmail.value ? `Se restauró ${restoreTargetEmail.value}` : 'Restaurado')
+      await store.list({ deleted: viewDeleted.value })
+    } else {
+      error('No se pudo restaurar el usuario')
+    }
+  } catch (e: any) {
+    error('Error al restaurar usuario', e?.response?.data?.error || e?.message)
+  } finally {
+    isRestoring.value = false
+    cancelRestoreUser()
+  }
+}
+
+function cancelRestoreUser() {
+  showRestoreModal.value = false
+  restoreTargetId.value = null
+  restoreTargetEmail.value = null
+}
+
+function toggleDeletedView() {
+  const next = !viewDeleted.value
+  const q = { ...router.currentRoute.value.query, view: next ? 'deleted' : undefined }
+  if (!next) delete (q as any).view
+  router.push({ path: router.currentRoute.value.path, query: q })
+  store.setFilters({ deleted: next })
+  store.list({ deleted: next })
 }
 
 // ---- Edición de usuario (modal) ----
