@@ -1,6 +1,9 @@
 import express from 'express'
 import { authenticate } from '../middleware/auth.js'
 import { requirePermission } from '../middleware/permissions.js'
+import { prisma } from '../config/database.js'
+import fs from 'fs'
+import path from 'path'
 
 const router = express.Router()
 
@@ -35,7 +38,7 @@ router.get('/matrix', requirePermission('admin:roles'), async (req, res) => {
 })
 
 // PUT /api/roles/:role/permissions - update permissions for a role (SUPERADMIN only)
-router.put('/:role/permissions', requirePermission('admin:roles'), async (req, res) => {
+router.put('/:role/permissions', requirePermission('admin:roles:write'), async (req, res) => {
   const { ROLE_PERMISSIONS, PERMISSIONS, updateRolePermissions } = await import('../middleware/permissions.js')
   const role = req.params.role
   const perms = req.body?.permissions
@@ -49,7 +52,7 @@ router.put('/:role/permissions', requirePermission('admin:roles'), async (req, r
     return res.status(404).json({ error: 'Rol no válido' })
   }
 
-  // Only SUPERADMIN may update global matrix
+  // Only SUPERADMIN may update global matrix (ADMIN con write podría habilitarse por flag futura)
   if (req.user.role !== 'SUPERADMIN') {
     return res.status(403).json({ error: 'Permiso denegado' })
   }
@@ -70,8 +73,60 @@ router.put('/:role/permissions', requirePermission('admin:roles'), async (req, r
     }
   }
 
+  // Anti-escalación: el editor no puede asignar permisos que no posee (SUPERADMIN posee todos del catálogo)
+  const editorRole = String(req.user.role).toUpperCase()
+  const editorEffective = new Set(editorRole === 'SUPERADMIN' ? Object.keys(PERMISSIONS) : (ROLE_PERMISSIONS[editorRole] || []))
+  const notOwned = perms.filter(p => !editorEffective.has(p))
+  if (notOwned.length) {
+    return res.status(403).json({ error: 'No puedes asignar permisos que no posees', missing: notOwned })
+  }
+
+  // Diff para auditoría
+  const current = new Set(ROLE_PERMISSIONS[role] || [])
+  const next = new Set(perms)
+  const added = [...next].filter(p => !current.has(p))
+  const removed = [...current].filter(p => !next.has(p))
+
+  // Persistencia: actualiza in-memory para visualización existente
   updateRolePermissions(role, perms)
-  return res.json({ message: 'Matriz actualizada', matrix: ROLE_PERMISSIONS })
+
+  // Persistencia atómica en BD (si catálogo existe) y auditoría
+  try {
+    // Mapear permisos a IDs existentes
+    const permissionRows = await prisma.permission.findMany({
+      where: { name: { in: perms } },
+      select: { id: true, name: true }
+    })
+    const foundNames = new Set(permissionRows.map(p => p.name))
+    const missingDb = perms.filter(p => !foundNames.has(p))
+    if (missingDb.length) {
+      return res.status(400).json({ error: 'Permisos no registrados en BD', missing: missingDb })
+    }
+
+    await prisma.$transaction([
+      prisma.rolePermission.deleteMany({ where: { role } }),
+      prisma.rolePermission.createMany({
+        data: permissionRows.map(p => ({ role, permissionId: p.id }))
+      })
+    ])
+
+    // Auditoría a archivo
+    const auditRecord = {
+      actorId: req.user?.id || null,
+      action: 'ROLE_PERMISSIONS_UPDATE',
+      role,
+      added,
+      removed,
+      companyId: req.user?.companyId || null,
+      ts: new Date().toISOString()
+    }
+    const auditPath = path.join(process.cwd(), 'audit_roles.log')
+    fs.appendFileSync(auditPath, JSON.stringify(auditRecord) + '\n')
+  } catch (err) {
+    return res.status(500).json({ error: 'Fallo al persistir cambios en BD', message: err.message })
+  }
+
+  return res.json({ message: 'Matriz actualizada', matrix: ROLE_PERMISSIONS, diff: { added, removed } })
 })
 
 export default router

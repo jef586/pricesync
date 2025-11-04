@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import type { UserDTO, UserFilters } from '@/services/users'
 import { listUsers, getUserById, updateUser as apiUpdateUser, updateStatus as apiUpdateStatus, deleteUser as apiDeleteUser, restoreUser as apiRestoreUser, resetPassword as apiResetPassword } from '@/services/users'
-import { getRolesCatalog, getRolesMatrix, type RolesResponse, type RolesMatrixResponse } from '@/services/roles'
+import { getRolesCatalog, getRolesMatrix, updateRolePermissions, type RolesResponse, type RolesMatrixResponse } from '@/services/roles'
 
 export const useUsersStore = defineStore('users', {
   state: () => ({
@@ -198,8 +198,11 @@ export const useRolesStore = defineStore('roles', {
     catalog: [] as { code: string; label: string; description?: string }[],
     permissions: [] as { code: string; label: string; group?: string }[],
     matrix: [] as Array<{ role: string; permissions: string[] }>,
+    draftMatrix: [] as Array<{ role: string; permissions: string[] }>,
     loading: false,
     error: null as string | null,
+    editing: false,
+    saving: false,
     selectedRole: '' as string,
     selectedGroup: '' as string,
     search: '' as string,
@@ -232,6 +235,9 @@ export const useRolesStore = defineStore('roles', {
   },
 
   actions: {
+    async fetchAll() {
+      await Promise.all([this.fetchRoles(), this.fetchMatrix()])
+    },
     async fetchRoles() {
       try {
         this.loading = true
@@ -269,6 +275,84 @@ export const useRolesStore = defineStore('roles', {
         this.loading = false
       }
     },
+    startEdit() {
+      this.editing = true
+      // Clonar matriz actual a draft
+      this.draftMatrix = this.matrix.map(r => ({ role: r.role, permissions: [...r.permissions] }))
+    },
+    cancelEdit() {
+      this.editing = false
+      this.draftMatrix = []
+    },
+    applyDraft(draft: Array<{ role: string; permissions: string[] }>) {
+      // Reemplaza el draft con el parámetro
+      const map = new Map(draft.map(r => [r.role, new Set(r.permissions)]))
+      this.draftMatrix = this.roles.map(role => ({ role, permissions: Array.from(map.get(role) || new Set()) }))
+    },
+    computeDiff(original: Array<{ role: string; permissions: string[] }>, draft: Array<{ role: string; permissions: string[] }>) {
+      const byRole = (arr: Array<{ role: string; permissions: string[] }>) => {
+        const m = new Map<string, Set<string>>()
+        for (const r of arr) m.set(r.role, new Set(r.permissions))
+        return m
+      }
+      const o = byRole(original)
+      const d = byRole(draft)
+      const result: Record<string, { added: string[]; removed: string[] }> = {}
+      for (const role of this.roles) {
+        const oSet = o.get(role) || new Set<string>()
+        const dSet = d.get(role) || new Set<string>()
+        const added = Array.from(dSet).filter(p => !oSet.has(p))
+        const removed = Array.from(oSet).filter(p => !dSet.has(p))
+        result[role] = { added, removed }
+      }
+      return result
+    },
+    async saveRole(role: string, permissions: string[]) {
+      try {
+        this.saving = true
+        this.error = null
+        const res = await updateRolePermissions(role, permissions)
+        // Optimistic update: aplicar a matriz base si éxito
+        const idx = this.matrix.findIndex(r => r.role === role)
+        if (idx !== -1) {
+          this.matrix[idx] = { role, permissions: [...permissions] }
+        } else {
+          this.matrix.push({ role, permissions: [...permissions] })
+        }
+        return res
+      } catch (err: any) {
+        this.error = err?.response?.data?.error || err?.message || 'Error al guardar permisos del rol'
+        throw err
+      } finally {
+        this.saving = false
+      }
+    },
+    async saveAllChanges() {
+      // Guarda por rol en secuencia para mantener respuesta clara; mantenerlo simple
+      const original = this.matrix
+      const draft = this.draftMatrix
+      const diffByRole = this.computeDiff(original, draft)
+      try {
+        this.saving = true
+        this.error = null
+        for (const role of this.roles) {
+          const target = draft.find(r => r.role === role)
+          if (!target) continue
+          const changes = diffByRole[role]
+          // Si no hay cambios, saltar
+          if (!changes || (changes.added.length === 0 && changes.removed.length === 0)) continue
+          await this.saveRole(role, target.permissions)
+        }
+        // Terminar edición
+        this.editing = false
+        this.draftMatrix = []
+        return diffByRole
+      } catch (err) {
+        throw err
+      } finally {
+        this.saving = false
+      }
+    },
     setSearch(q: string) {
       this.search = q
     },
@@ -283,8 +367,11 @@ export const useRolesStore = defineStore('roles', {
       this.catalog = []
       this.permissions = []
       this.matrix = []
+      this.draftMatrix = []
       this.loading = false
       this.error = null
+      this.editing = false
+      this.saving = false
       this.selectedRole = ''
       this.selectedGroup = ''
       this.search = ''

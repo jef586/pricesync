@@ -33,6 +33,7 @@ import AIChatView from '../views/AIChatView.vue'
 import UsersView from '../views/UsersView.vue'
 import UserEditView from '../views/UserEditView.vue'
 import RolesMatrixView from '../views/RolesMatrixView.vue'
+import RolesMatrixEditor from '../views/RolesMatrixEditor.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -52,6 +53,12 @@ const router = createRouter({
       name: 'RolesMatrix',
       component: RolesMatrixView,
       meta: { requiresAuth: true, requiresScope: 'admin:users', backTo: '/admin/config/users' }
+    },
+    {
+      path: '/admin/config/roles',
+      name: 'RolesMatrixEditor',
+      component: RolesMatrixEditor,
+      meta: { requiresAuth: true, requiresScope: 'admin:roles' }
     },
     {
       path: '/admin/config/users/:id',

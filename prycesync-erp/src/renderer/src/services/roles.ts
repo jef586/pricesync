@@ -28,6 +28,16 @@ export interface RolesMatrixResponse {
   matrix: RolesMatrixRow[]
 }
 
+export interface UpdateRolePermissionsPayload {
+  permissions: string[]
+}
+
+export interface UpdateRolePermissionsResponse {
+  message?: string
+  matrix?: Record<string, string[]>
+  diff?: { added: string[]; removed: string[] }
+}
+
 export async function getRolesCatalog(): Promise<RolesResponse> {
   const { data } = await apiClient.get('/roles')
   const payload = data?.data || data || {}
@@ -44,5 +54,20 @@ export async function getRolesMatrix(): Promise<RolesMatrixResponse> {
     permissions: Array.isArray(payload.permissions) ? payload.permissions : [],
     roles: Array.isArray(payload.roles) ? payload.roles : [],
     matrix: Array.isArray(payload.matrix) ? payload.matrix : []
+  }
+}
+
+export async function updateRolePermissions(
+  role: string,
+  permissions: string[]
+): Promise<UpdateRolePermissionsResponse> {
+  const { data } = await apiClient.put(`/roles/${encodeURIComponent(role)}/permissions`, {
+    permissions
+  } as UpdateRolePermissionsPayload)
+  const payload = data?.data || data || {}
+  return {
+    message: payload.message,
+    matrix: payload.matrix,
+    diff: payload.diff
   }
 }

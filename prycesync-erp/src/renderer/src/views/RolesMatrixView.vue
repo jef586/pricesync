@@ -12,6 +12,15 @@
               </svg>
               Volver
             </BaseButton>
+            <BaseButton
+              variant="primary"
+              :disabled="!canViewEditor"
+              title="Ir al editor de matriz de permisos"
+              class="whitespace-nowrap"
+              @click="goToEditor"
+            >
+              Editar matriz
+            </BaseButton>
             <BaseInput v-model="search" placeholder="Buscar permisos…" />
             <BaseSelect v-model="selectedGroup" :options="groupOptions" placeholder="Grupo" />
           </div>
@@ -75,9 +84,11 @@ import PermissionChip from '@/components/users/PermissionChip.vue'
 import ErrorState from '@/components/users/ErrorState.vue'
 import EmptyState from '@/components/users/EmptyState.vue'
 import { useRolesStore } from '@/stores/users'
+import { useAuthStore } from '@/stores/auth'
 
 const store = useRolesStore()
 const router = useRouter()
+const auth = useAuthStore()
 
 const search = ref('')
 const selectedGroup = ref('')
@@ -98,6 +109,8 @@ const roleItems = computed(() => {
 
 const filtered = computed(() => store.filteredPermissions)
 
+const canViewEditor = computed(() => auth.hasScope('admin:roles'))
+
 function onSelectRole(code: string) {
   store.setSelectedRole(code)
 }
@@ -115,6 +128,10 @@ watch(selectedGroup, (g) => store.setSelectedGroup(g))
 
 function goBack() {
   router.push({ name: 'Users' })
+}
+
+function goToEditor() {
+  router.push({ name: 'RolesMatrixEditor' })
 }
 </script>
 

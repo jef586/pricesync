@@ -3,6 +3,7 @@
 export const PERMISSIONS = {
   'admin:users': { label: 'Gestionar usuarios', group: 'Administración' },
   'admin:roles': { label: 'Ver/editar matriz de permisos', group: 'Administración' },
+  'admin:roles:write': { label: 'Editar roles y permisos', group: 'Administración' },
   'sales:create': { label: 'Crear ventas', group: 'Ventas' },
   'sales:update': { label: 'Editar ventas', group: 'Ventas' },
   'sales:refund': { label: 'Anular/Devolver', group: 'Ventas' },
@@ -25,7 +26,7 @@ function normalizeRole(role) {
 }
 
 export const ROLE_PERMISSIONS = {
-  SUPERADMIN: ['admin:users','admin:roles','reports:view','stock:view','config:view','config:write','sales:create','sales:update','sales:refund'],
+  SUPERADMIN: ['admin:users','admin:roles','admin:roles:write','reports:view','stock:view','config:view','config:write','sales:create','sales:update','sales:refund'],
   ADMIN:      ['admin:users','admin:roles','reports:view','stock:view','config:view','config:write','sales:create','sales:update','sales:refund'],
   SUPERVISOR: ['reports:view','stock:view','sales:create','sales:update','sales:refund'],
   SELLER:     ['sales:create'],

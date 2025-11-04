@@ -14,6 +14,15 @@
     <template #cell-status="{ value }">
       <span :class="statusClass(value)">{{ statusLabel(value) }}</span>
     </template>
+    <template #cell-lastLogin="{ value }">
+      {{ formatDateTimeAR(value) }}
+    </template>
+    <template #cell-createdAt="{ value }">
+      {{ formatDateTimeAR(value) }}
+    </template>
+    <template #cell-deletedAt="{ value }">
+      {{ formatDateTimeAR(value) }}
+    </template>
     <!-- Acciones por fila: Editar / Borrar / Restaurar -->
     <template #actions="{ item }">
       <div class="flex items-center justify-center gap-2">
@@ -68,6 +77,7 @@ import DataTable from '@/components/atoms/DataTable.vue'
 import BaseButton from '@/components/atoms/BaseButton.vue'
 import type { UserDTO } from '@/services/users'
 import { useAuthStore } from '@/stores/auth'
+import { formatDateTimeAR } from '@/utils/date'
 
 interface Props {
   items: UserDTO[]
