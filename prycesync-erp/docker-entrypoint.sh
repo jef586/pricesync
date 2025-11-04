@@ -12,6 +12,13 @@ npx prisma migrate deploy
 echo "Generando cliente de Prisma..."
 npx prisma generate
 
+echo "Ejecutando seed inicial (idempotente)..."
+if npx prisma db seed; then
+  echo "[entrypoint] ✅ Seed ejecutado (o saltado si tablas con datos)."
+else
+  echo "[entrypoint] ⚠️  Seed no ejecutado: verificar configuración de Prisma."
+fi
+
 echo "Verificando dependencias npm..."
 # Cuando se monta el volumen .:/app, el directorio node_modules suele quedar vacío.
 # Primero instalamos si falta, y si existe verificamos paquetes críticos y reparamos si faltan.
