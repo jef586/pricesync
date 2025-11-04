@@ -14,6 +14,7 @@
       :step="step"
       :min="min"
       :max="max"
+      :aria-invalid="hasError ? 'true' : undefined"
       :class="[
         'base-input__field',
         {
@@ -21,6 +22,7 @@
           'base-input__field--disabled': disabled
         }
       ]"
+      v-bind="$attrs"
       @input="handleInput"
       @blur="$emit('blur')"
       @focus="$emit('focus')"

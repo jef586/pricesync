@@ -54,6 +54,8 @@
         @toggle-status="onToggleStatus"
         @restore="openRestoreUser"
         @reset-password="openResetUser"
+        @clear-filters="onClearFilters"
+        @create-new="() => showCreateModal = true"
       />
 
       <!-- Pagination -->
@@ -67,18 +69,18 @@
       <!-- Create User Modal -->
       <BaseModal v-model="showCreateModal" title="Crear nuevo usuario" size="md">
         <form @submit.prevent="handleCreateUser" class="space-y-4">
-          <FormField label="Nombre" :required="true">
-            <BaseInput v-model="form.name" placeholder="Nombre completo" required />
+          <FormField label="Nombre" :required="true" v-slot="{ fieldId, describedBy }">
+            <BaseInput v-model="form.name" :id="fieldId" :aria-describedby="describedBy" placeholder="Nombre completo" required />
           </FormField>
-          <FormField label="Email" :required="true">
-            <BaseInput v-model="form.email" type="email" placeholder="usuario@empresa.com" required />
+          <FormField label="Email" :required="true" v-slot="{ fieldId, describedBy }">
+            <BaseInput v-model="form.email" :id="fieldId" :aria-describedby="describedBy" type="email" placeholder="usuario@empresa.com" required />
           </FormField>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField label="Rol" :required="true">
-              <BaseSelect v-model="form.role" :options="roleOptions" placeholder="Seleccionar rol" required />
+            <FormField label="Rol" :required="true" v-slot="{ fieldId, describedBy }">
+              <BaseSelect v-model="form.role" :id="fieldId" :aria-describedby="describedBy" :options="roleOptions" placeholder="Seleccionar rol" required />
             </FormField>
-            <FormField label="Estado">
-              <BaseSelect v-model="form.status" :options="statusOptions" />
+            <FormField label="Estado" v-slot="{ fieldId, describedBy }">
+              <BaseSelect v-model="form.status" :id="fieldId" :aria-describedby="describedBy" :options="statusOptions" />
             </FormField>
           </div>
 
@@ -96,18 +98,18 @@
       <!-- Edit User Modal -->
       <BaseModal v-model="showEditModal" :title="editTitle" size="md">
         <form v-if="editForm.id" @submit.prevent="handleUpdateUser" class="space-y-4">
-          <FormField label="Nombre" :required="true">
-            <BaseInput v-model="editForm.name" placeholder="Nombre completo" required />
+          <FormField label="Nombre" :required="true" v-slot="{ fieldId, describedBy }">
+            <BaseInput v-model="editForm.name" :id="fieldId" :aria-describedby="describedBy" placeholder="Nombre completo" required />
           </FormField>
-          <FormField label="Email">
-            <BaseInput :model-value="editForm.email" readonly />
+          <FormField label="Email" v-slot="{ fieldId, describedBy }">
+            <BaseInput :model-value="editForm.email" :id="fieldId" :aria-describedby="describedBy" readonly />
           </FormField>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField label="Rol" :required="true">
-              <BaseSelect v-model="editForm.role" :options="roleOptions" required />
+            <FormField label="Rol" :required="true" v-slot="{ fieldId, describedBy }">
+              <BaseSelect v-model="editForm.role" :id="fieldId" :aria-describedby="describedBy" :options="roleOptions" required />
             </FormField>
-            <FormField label="Estado" :required="true">
-              <BaseSelect v-model="editForm.status" :options="statusOptions" required />
+            <FormField label="Estado" :required="true" v-slot="{ fieldId, describedBy }">
+              <BaseSelect v-model="editForm.status" :id="fieldId" :aria-describedby="describedBy" :options="statusOptions" required />
             </FormField>
           </div>
 

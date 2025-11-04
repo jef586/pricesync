@@ -7,15 +7,21 @@
         @click="handleOverlayClick"
       >
         <div
+          ref="containerRef"
           :class="[
             'modal-container',
             `modal-container--${size}`
           ]"
+          role="dialog"
+          aria-modal="true"
+          :aria-labelledby="titleId"
+          tabindex="-1"
+          @keydown.tab.prevent.stop="handleKeydown"
           @click.stop
         >
           <!-- Header -->
           <div class="modal-header">
-            <h3 class="modal-title">
+            <h3 :id="titleId" class="modal-title">
               <slot name="title">{{ title }}</slot>
             </h3>
             <button
@@ -46,7 +52,8 @@
 </template>
 
 <script setup lang="ts">
-import { watch, onUnmounted } from 'vue'
+import { watch, onUnmounted, ref, nextTick } from 'vue'
+import { useId } from 'vue'
 
 interface Props {
   modelValue: boolean
@@ -69,9 +76,18 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<Emits>()
 
+const containerRef = ref<HTMLElement | null>(null)
+const previouslyFocusedEl = ref<HTMLElement | null>(null)
+const titleId = `modal-${useId()}-title`
+
 const close = () => {
   emit('update:modelValue', false)
   emit('close')
+  // Restaurar el foco al elemento previo si es posible
+  const el = previouslyFocusedEl.value
+  if (el && typeof el.focus === 'function') {
+    el.focus()
+  }
 }
 
 const handleOverlayClick = () => {
@@ -81,18 +97,58 @@ const handleOverlayClick = () => {
 }
 
 // Prevent body scroll when modal is open
-watch(() => props.modelValue, (isOpen) => {
+watch(() => props.modelValue, async (isOpen) => {
   if (isOpen) {
     document.body.style.overflow = 'hidden'
+    // Guardar foco actual y mover foco dentro del diálogo
+    previouslyFocusedEl.value = (document.activeElement as HTMLElement) || null
+    await nextTick()
+    focusFirstElement()
+    // Escuchar Escape mientras está abierto
+    document.addEventListener('keydown', onEscapeGlobal)
   } else {
     document.body.style.overflow = ''
+    document.removeEventListener('keydown', onEscapeGlobal)
   }
 })
 
 // Cleanup on unmount
 onUnmounted(() => {
   document.body.style.overflow = ''
+  document.removeEventListener('keydown', onEscapeGlobal)
 })
+
+function onEscapeGlobal(e: KeyboardEvent) {
+  if (e.key === 'Escape' && props.closable) {
+    e.preventDefault()
+    close()
+  }
+}
+
+function getFocusableElements(root: HTMLElement | null): HTMLElement[] {
+  if (!root) return []
+  const selectors = [
+    'a[href]',
+    'button:not([disabled])',
+    'textarea:not([disabled])',
+    'input:not([disabled])',
+    'select:not([disabled])',
+    '[tabindex]:not([tabindex="-1"])'
+  ]
+  const nodes = Array.from(root.querySelectorAll<HTMLElement>(selectors.join(',')))
+  // Solo elementos visibles
+  return nodes.filter(el => !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length))
+}
+
+function focusFirstElement() {
+  const root = containerRef.value
+  const focusables = getFocusableElements(root)
+  if (focusables.length) {
+    focusables[0].focus()
+  } else if (root) {
+    root.focus()
+  }
+}
 </script>
 
 <style scoped>

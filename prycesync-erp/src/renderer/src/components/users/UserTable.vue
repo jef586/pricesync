@@ -11,6 +11,53 @@
     @sort="onSort"
     @row-click="onRowClick"
   >
+    <!-- Región en vivo para anunciar cambios de sort/paginación -->
+    <template #above>
+      <div class="sr-only" aria-live="polite">{{ liveAnnouncement }}</div>
+    </template>
+    <!-- Encabezados semánticos cuando DataTable renderiza table internamente -->
+    <template #thead="{ cols }">
+      <thead>
+        <tr>
+          <th v-for="c in cols" :key="c.key" scope="col" class="text-left px-4 py-2">
+            {{ c.label }}
+          </th>
+          <th scope="col" class="text-center px-4 py-2">Acciones</th>
+        </tr>
+      </thead>
+    </template>
+
+    <!-- Filas con role=row para mejor navegación por lectores -->
+    <template #row="{ item }">
+      <tr role="row">
+        <td role="cell" class="px-4 py-2">{{ item.name }}</td>
+        <td role="cell" class="px-4 py-2">{{ item.email }}</td>
+        <td role="cell" class="px-4 py-2">{{ item.role }}</td>
+        <td v-if="!deletedMode" role="cell" class="px-4 py-2">
+          <span :class="statusClass(item.status)">{{ statusLabel(item.status) }}</span>
+        </td>
+        <td v-if="!deletedMode" role="cell" class="px-4 py-2">{{ formatDateTimeAR(item.lastLogin) }}</td>
+        <td role="cell" class="px-4 py-2">{{ formatDateTimeAR(item.createdAt) }}</td>
+        <td v-if="deletedMode" role="cell" class="px-4 py-2">{{ formatDateTimeAR(item.deletedAt) }}</td>
+        <td role="cell" class="px-4 py-2">
+          <!-- Reutilizamos el slot de acciones existente -->
+          <slot name="actions" :item="item" />
+        </td>
+      </tr>
+    </template>
+
+    <!-- Estado sin resultados -->
+    <template #empty>
+      <div class="text-center py-8" role="status" aria-live="polite">
+        <p class="text-gray-700">No hay usuarios que coincidan.</p>
+        <p class="text-sm text-gray-500">Puedes ajustar la búsqueda o limpiar filtros.</p>
+        <div class="mt-4 flex justify-center gap-2">
+          <BaseButton variant="primary" @click="$emit('clear-filters')">Limpiar filtros</BaseButton>
+          <BaseButton variant="secondary" @click="$emit('create-new')">Crear usuario</BaseButton>
+        </div>
+      </div>
+    </template>
+
     <template #cell-status="{ value }">
       <span :class="statusClass(value)">{{ statusLabel(value) }}</span>
     </template>
@@ -104,6 +151,8 @@ interface Emits {
   (e: 'toggle-status', payload: UserDTO): void
   (e: 'restore', payload: UserDTO): void
   (e: 'reset-password', payload: UserDTO): void
+  (e: 'clear-filters'): void
+  (e: 'create-new'): void
 }
 
 const emit = defineEmits<Emits>()
@@ -147,6 +196,7 @@ function statusClass(value: string) {
 
 function onSort({ key, direction }: any) {
   emit('sort', { sortBy: key, sortOrder: direction })
+  liveAnnouncement.value = `Ordenado por ${key} ${direction === 'asc' ? 'ascendente' : 'descendente'}`
 }
 
 function onRowClick(item: UserDTO) {
@@ -208,4 +258,12 @@ function toggleVariant(item: UserDTO) {
 function onToggle(item: UserDTO) {
   emit('toggle-status', item)
 }
+
+// Live announcement state
+import { ref, watch } from 'vue'
+const liveAnnouncement = ref('')
+// Anunciar cambios en carga o items
+watch(() => props.loading, (isLoading) => {
+  liveAnnouncement.value = isLoading ? 'Cargando usuarios…' : 'Lista actualizada'
+})
 </script>

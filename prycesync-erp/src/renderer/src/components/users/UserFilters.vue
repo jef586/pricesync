@@ -4,7 +4,8 @@
     :status-options="statusOptions"
     :type-options="roleOptions"
     :show-date-range="false"
-    search-placeholder="Buscar por nombre o email..."
+    search-placeholder="Buscar por nombre o email…"
+    :debounce-ms="300"
     @filter-change="onFilterChange"
     @search="onSearch"
   />

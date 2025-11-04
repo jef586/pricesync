@@ -31,9 +31,11 @@ function onGroupChange(e: Event) {
   emit('group', v)
 }
 
+let searchTimeout: number | null = null
 function onSearchChange(e: Event) {
   const v = (e.target as HTMLInputElement).value
-  emit('search', v)
+  if (searchTimeout) window.clearTimeout(searchTimeout)
+  searchTimeout = window.setTimeout(() => emit('search', v), 300)
 }
 </script>
 
@@ -43,7 +45,8 @@ function onSearchChange(e: Event) {
     <button class="px-3 py-1 border rounded bg-blue-600 text-white" :disabled="!editing || !canWrite || saving" @click="onSaveAll">Guardar cambios</button>
     <button class="px-3 py-1 border rounded" :disabled="!editing || saving" @click="onCancel">Cancelar</button>
     <div class="ml-auto flex items-center gap-2">
-      <input class="px-2 py-1 border rounded" type="text" :value="search" placeholder="Buscar permiso..." @input="onSearchChange" />
+      <input class="px-2 py-1 border rounded" type="text" :value="search" placeholder="Buscar permiso… (retardo 300ms)" @input="onSearchChange" aria-describedby="matrix-search-help" />
+      <span id="matrix-search-help" class="text-xs text-gray-500">La búsqueda se aplica tras 300ms sin teclear.</span>
       <select class="px-2 py-1 border rounded" :value="selectedGroup" @change="onGroupChange">
         <option value="">Todos los grupos</option>
         <option v-for="g in groups" :key="g" :value="g">{{ g }}</option>

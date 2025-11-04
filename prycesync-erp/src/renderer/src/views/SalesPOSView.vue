@@ -1,9 +1,9 @@
-<template>
+﻿<template>
   <DashboardLayout>
     <div class="sales-pos-view">
       <PageHeader
         title="Ventas (POS)"
-        subtitle="Registrar ventas rÃ¡pidas usando precios de lista"
+        subtitle="Registrar ventas rápidas usando precios de lista"
       >
         <template #actions>
           <BaseButton variant="primary" @click="submitSale" :disabled="isSubmitting || cartItems.length === 0 || !selectedCustomer">
@@ -19,7 +19,7 @@
         </template>
       </PageHeader>
 
-      <!-- SelecciÃ³n de cliente -->
+      <!-- SelecciÃƒÂ³n de cliente -->
       <BaseCard class="mb-6">
         <template #header>
           <h3 class="text-lg font-medium text-gray-900">Cliente</h3>
@@ -46,14 +46,14 @@
         </div>
       </BaseCard>
 
-      <!-- BÃºsqueda y agregado de productos -->
+      <!-- BÃƒÂºsqueda y agregado de productos -->
       <BaseCard class="mb-6">
         <template #header>
           <h3 class="text-lg font-medium text-gray-900">Productos</h3>
         </template>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div class="md:col-span-2">
-            <BaseInput id="pos-product-search" v-model="productQuery" placeholder="Buscar producto por cÃ³digo o nombre" @input="debouncedSearchProduct" />
+            <BaseInput id="pos-product-search" v-model="productQuery" placeholder="Buscar producto por cÃƒÂ³digo o nombre" @input="debouncedSearchProduct" />
             <div v-if="productResults.length > 0" class="mt-2 bg-white border rounded shadow max-h-64 overflow-y-auto">
               <ul>
                 <li v-for="prod in productResults" :key="prod.id" class="px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center justify-between" @click="addProductToCart(prod)">
@@ -140,7 +140,7 @@
             <p class="text-lg font-semibold text-gray-900">${{ formatCurrency(totals.subtotalGross) }}</p>
           </div>
           <div>
-            <p class="text-sm text-gray-600">Desc. por Ã­tems</p>
+            <p class="text-sm text-gray-600">Desc. por ítems</p>
             <p class="text-lg font-semibold text-red-600">${{ formatCurrency(totals.itemsDiscountTotal) }}</p>
           </div>
           <div class="col-span-1 md:col-span-2">
@@ -184,7 +184,7 @@
     <ConfirmModal
       v-if="showConfirmPark"
       title="Estacionar venta"
-      message="La venta quedarÃ¡ congelada hasta que la reanudes. Â¿Confirmas?"
+      message="La venta quedará congelada hasta que la reanudes. ¿Confirmas?"
       @confirm="doPark"
       @cancel="showConfirmPark = false"
     />
@@ -192,7 +192,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch, computed, nextTick } from 'vue'
+import { ref, onMounted, onBeforeUnmount, watch, computed, nextTick, onActivated, onDeactivated } from 'vue'
 import DashboardLayout from '@/components/organisms/DashboardLayout.vue'
 import PageHeader from '@/components/molecules/PageHeader.vue'
 import BaseButton from '@/components/atoms/BaseButton.vue'
@@ -283,6 +283,14 @@ onBeforeUnmount(() => {
   barcodeCtrl?.stop()
 })
 
+onDeactivated(() => {
+  try { barcodeCtrl?.stop() } catch (_) {}
+})
+
+onActivated(() => {
+  try { barcodeCtrl?.start() } catch (_) {}
+})
+
 // Totales (debe inicializarse antes del watcher con immediate:true)
 const totals = ref({ subtotalGross: 0, itemsDiscountTotal: 0, netSubtotal: 0, finalDiscountAmount: 0, surchargeAmount: 0, tax: 0, total: 0 })
 const finalDiscount = ref<{ type: 'NONE' | 'PERCENT' | 'ABS', value: number }>({ type: 'NONE', value: 0 })
@@ -342,7 +350,7 @@ const doPark = async () => {
   showConfirmPark.value = false
 }
 
-// MÃ©todos
+// MÃƒÂ©todos
 const debounce = (fn: Function, ms = 300) => {
   let t: any
   return (...args: any[]) => {
@@ -438,7 +446,7 @@ async function maybeResolveBulk(item: any) {
 }
 
 function onQtyChanged(item: any) {
-  // Recalcular totales y aplicar mayorista según cantidad
+  // Recalcular totales y aplicar mayorista segÃºn cantidad
   maybeResolveBulk(item).finally(() => updateItemTotals(item))
 }
 
@@ -513,6 +521,8 @@ const submitSale = async () => {
 
 
 </style>
+
+
 
 
 

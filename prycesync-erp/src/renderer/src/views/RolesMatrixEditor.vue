@@ -38,6 +38,24 @@ async function saveAll() {
   showDiff.value = false
   await rolesStore.saveAllChanges()
 }
+
+// Navegación por teclado entre checkboxes en la grilla
+function onArrow(role: string, permCode: string, dir: 'left' | 'right' | 'up' | 'down') {
+  const roleIdx = rolesStore.roles.indexOf(role)
+  const permIdx = rolesStore.filteredPermissions.findIndex(p => p.code === permCode)
+  if (roleIdx === -1 || permIdx === -1) return
+
+  let nextRoleIdx = roleIdx
+  let nextPermIdx = permIdx
+  if (dir === 'left') nextRoleIdx = Math.max(0, roleIdx - 1)
+  if (dir === 'right') nextRoleIdx = Math.min(rolesStore.roles.length - 1, roleIdx + 1)
+  if (dir === 'up') nextPermIdx = Math.max(0, permIdx - 1)
+  if (dir === 'down') nextPermIdx = Math.min(rolesStore.filteredPermissions.length - 1, permIdx + 1)
+
+  const nextId = `chk-${rolesStore.roles[nextRoleIdx]}-${rolesStore.filteredPermissions[nextPermIdx].code}`
+  const el = document.getElementById(nextId)
+  if (el && typeof (el as HTMLElement).focus === 'function') (el as HTMLElement).focus()
+}
 </script>
 
 <template>
@@ -61,25 +79,31 @@ async function saveAll() {
     <div v-if="rolesStore.loading" class="text-sm text-gray-500">Cargando matriz...</div>
     <div v-else>
       <div class="overflow-auto border rounded">
-        <table class="min-w-full text-sm">
+        <table class="min-w-full text-sm" aria-label="Matriz de roles y permisos">
           <thead>
             <tr>
-              <th class="text-left p-2 w-64">Permiso</th>
-              <th v-for="role in rolesStore.roles" :key="role" class="p-2 text-left">{{ role }}</th>
+              <th class="text-left p-2 w-64" scope="col" id="perm-col">Permiso</th>
+              <th v-for="role in rolesStore.roles" :key="role" class="p-2 text-left" scope="col" :id="`role-col-${role}`">{{ role }}</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="perm in rolesStore.filteredPermissions" :key="perm.code" class="border-t">
-              <td class="p-2">
+              <td class="p-2" :id="`perm-${perm.code}`">
                 <div class="font-medium">{{ perm.label }}</div>
                 <div class="text-xs text-gray-500">{{ perm.code }}<span v-if="perm.group"> · {{ perm.group }}</span></div>
               </td>
               <td v-for="role in rolesStore.roles" :key="role" class="p-2">
                 <input
+                  :id="`chk-${role}-${perm.code}`"
                   type="checkbox"
+                  :aria-labelledby="`perm-${perm.code} role-col-${role}`"
                   :disabled="!rolesStore.editing || !canWrite || rolesStore.saving"
                   :checked="(rolesStore.editing ? rolesStore.draftMatrix : rolesStore.matrix).find(r => r.role === role)?.permissions.includes(perm.code)"
                   @change="onToggle(role, perm.code)"
+                  @keydown.left.prevent="onArrow(role, perm.code, 'left')"
+                  @keydown.right.prevent="onArrow(role, perm.code, 'right')"
+                  @keydown.up.prevent="onArrow(role, perm.code, 'up')"
+                  @keydown.down.prevent="onArrow(role, perm.code, 'down')"
                 />
               </td>
             </tr>

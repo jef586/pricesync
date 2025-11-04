@@ -21,7 +21,11 @@
             >
               Editar matriz
             </BaseButton>
-            <BaseInput v-model="search" placeholder="Buscar permisos…" />
+            <BaseInput
+              v-model="search"
+              placeholder="Buscar permisos…"
+              :aria-keyshortcuts="'Ctrl+F'"
+            />
             <BaseSelect v-model="selectedGroup" :options="groupOptions" placeholder="Grupo" />
           </div>
         </div>
@@ -51,17 +55,27 @@
 
         <!-- Matriz (permiso vs rol seleccionado) -->
         <div class="md:col-span-3">
-          <h2 class="section-subtitle text-sm font-medium">Permisos</h2>
+          <h2 class="section-subtitle text-sm font-medium" id="permissions-heading">Permisos</h2>
           <div v-if="filtered.length === 0">
             <EmptyState message="No hay permisos que coincidan con el filtro" />
           </div>
-          <div v-else class="space-y-2">
-            <div v-for="p in filtered" :key="p.code" class="permission-item flex items-center justify-between p-2 border rounded">
+          <div v-else class="space-y-2" role="list" :aria-labelledby="permissions-heading">
+            <div
+              v-for="p in filtered"
+              :key="p.code"
+              class="permission-item flex items-center justify-between p-2 border rounded"
+              role="listitem"
+              :aria-describedby="`perm-${p.code}-desc`"
+            >
               <div>
                 <div class="permission-item__title text-sm font-medium">{{ p.label || p.code }}</div>
-                <div class="permission-item__subtitle text-xs">{{ p.group || 'Sin grupo' }}</div>
+                <div class="permission-item__subtitle text-xs" :id="`perm-${p.code}-desc`">{{ p.group || 'Sin grupo' }}</div>
               </div>
-              <PermissionChip :code="p.code" :label="p.label" :active="store.roleHas(store.selectedRole, p.code)" />
+              <PermissionChip
+                :code="p.code"
+                :label="p.label"
+                :active="store.roleHas(store.selectedRole, p.code)"
+              />
             </div>
           </div>
         </div>

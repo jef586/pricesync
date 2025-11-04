@@ -1,5 +1,10 @@
 <template>
-  <div class="form-field" :class="fieldClasses">
+  <div
+    class="form-field"
+    :class="fieldClasses"
+    :aria-invalid="hasError ? 'true' : 'false'"
+    :aria-describedby="ariaDescribedBy"
+  >
     <!-- Label -->
     <label 
       v-if="label" 
@@ -18,11 +23,11 @@
 
     <!-- Input slot -->
     <div class="form-field__input-wrapper">
-      <slot :field-id="fieldId" :has-error="hasError" />
+      <slot :field-id="fieldId" :has-error="hasError" :described-by="ariaDescribedBy" />
     </div>
 
     <!-- Error message -->
-    <div v-if="hasError" class="form-field__error">
+    <div v-if="hasError" class="form-field__error" role="alert" aria-live="assertive" :id="errorId">
       <svg class="form-field__error-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
@@ -30,14 +35,14 @@
     </div>
 
     <!-- Help text (below input) -->
-    <div v-if="helpText && helpPosition === 'bottom'" class="form-field__help form-field__help--bottom">
+    <div v-if="helpText && helpPosition === 'bottom'" class="form-field__help form-field__help--bottom" :id="helpId">
       {{ helpText }}
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, useId } from 'vue'
+import { computed, useId, watch, nextTick } from 'vue'
 
 interface Props {
   label?: string
@@ -48,16 +53,20 @@ interface Props {
   disabled?: boolean
   size?: 'sm' | 'md' | 'lg'
   variant?: 'default' | 'floating'
+  autofocusOnError?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   helpPosition: 'bottom',
   size: 'md',
-  variant: 'default'
+  variant: 'default',
+  autofocusOnError: true
 })
 
 // Generate unique ID for accessibility
 const fieldId = useId()
+const helpId = `help-${fieldId}`
+const errorId = `error-${fieldId}`
 
 // Computed properties
 const hasError = computed(() => !!props.error)
@@ -96,6 +105,25 @@ const labelClasses = computed(() => {
   }
   
   return classes
+})
+
+// Asociar correctamente aria-describedby en base a ayuda y error
+const ariaDescribedBy = computed(() => {
+  const ids: string[] = []
+  if (props.helpText && props.helpPosition === 'bottom') ids.push(helpId)
+  if (hasError.value) ids.push(errorId)
+  return ids.length ? ids.join(' ') : undefined
+})
+
+// Enfocar automáticamente el campo cuando aparece un error
+watch(hasError, async (newVal) => {
+  if (newVal && props.autofocusOnError) {
+    await nextTick()
+    const el = document.getElementById(fieldId)
+    if (el && typeof (el as HTMLElement).focus === 'function') {
+      (el as HTMLElement).focus()
+    }
+  }
 })
 </script>
 

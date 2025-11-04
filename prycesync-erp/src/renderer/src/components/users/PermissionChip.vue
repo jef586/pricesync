@@ -4,7 +4,13 @@
       'permission-chip inline-flex items-center gap-1 px-2 py-1 rounded text-xs border',
       active ? 'permission-chip--active' : 'permission-chip--inactive'
     ]"
+    role="checkbox"
+    :aria-checked="active ? 'true' : 'false'"
     :aria-label="ariaLabel"
+    tabindex="0"
+    @click="onToggle"
+    @keydown.space.prevent="onToggle"
+    @keydown.enter.prevent="onToggle"
   >
     <svg v-if="active" class="w-3 h-3" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <path d="M20 6L9 17L4 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -30,6 +36,11 @@ const props = withDefaults(defineProps<Props>(), {
 const ariaLabel = computed(() => {
   return `${props.label || props.code}: ${props.active ? 'habilitado' : 'no habilitado'}`
 })
+
+const emit = defineEmits(['toggle'])
+function onToggle() {
+  emit('toggle')
+}
 </script>
 
 <style scoped>

@@ -1,5 +1,5 @@
-<template>
-  <!-- Layout principal: diseño compacto con encabezado a ancho completo -->
+﻿<template>
+  <!-- Layout principal: diseÃ±o compacto con encabezado a ancho completo -->
   <div class="h-full grid grid-cols-1 xl:grid-cols-12 xl:grid-rows-[auto_1fr] items-stretch gap-6 font-inter">
     <!-- Encabezado (full width) -->
     <section class="xl:col-span-9 bg-white dark:bg-slate-900 rounded-xl shadow-md border border-slate-200 dark:border-slate-800 p-4" aria-label="Encabezado del comprobante">
@@ -82,7 +82,7 @@
             aria-label="Buscar producto"
             tabindex="7"
           />
-          <!-- Resultados: overlay absoluto que no empuja los demás inputs -->
+          <!-- Resultados: overlay absoluto que no empuja los demÃ¡s inputs -->
           <div
             v-if="productResults.length > 0"
             class="absolute left-0 right-0 top-full mt-1 z-20 max-h-64 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg"
@@ -112,12 +112,12 @@
         </div>
       </div>
 
-      <!-- Botón Agregar debajo de los inputs -->
+      <!-- BotÃ³n Agregar debajo de los inputs -->
       <div class="mt-2">
         <button class="px-3 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white" @click="addRowFromBarcode">Agregar</button>
       </div>
 
-      <!-- Botones por departamento: visibles sin quitar lugar al visor de imágenes -->
+      <!-- Botones por departamento: visibles sin quitar lugar al visor de imÃ¡genes -->
       <div class="mt-2">
         <div class="text-xs font-semibold text-slate-700 dark:text-slate-200 mb-2">F8 - Seleccionar Departamento</div>
         <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-28 overflow-y-auto pr-1">
@@ -132,7 +132,7 @@
         </div>
       </div>
 
-      <!-- (Eliminado) Tabla duplicada en el panel izquierdo. La tabla principal está en el centro. -->
+      <!-- (Eliminado) Tabla duplicada en el panel izquierdo. La tabla principal estÃ¡ en el centro. -->
       <!-- Visor de imagen del producto seleccionado -->
       <div v-if="selectedImageUrl" class="mt-3">
         <img :src="selectedImageUrl" alt="Imagen del producto" class="w-full h-40 object-contain rounded-lg border border-slate-200 dark:border-slate-700" />
@@ -281,12 +281,12 @@
     </div>
     <div class="mt-4 flex justify-end gap-2">
       <button class="px-3 py-2 rounded-md bg-slate-200 hover:bg-slate-300 text-slate-900 dark:bg-slate-800 dark:text-slate-100" @click="showCuitModal = false">Cerrar</button>
-      <button class="px-3 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-60" :disabled="padron.isLoading" @click="onSearchCuitModal">{{ padron.isLoading ? 'Buscando…' : 'Buscar CUIT' }}</button>
+      <button class="px-3 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-60" :disabled="padron.isLoading" @click="onSearchCuitModal">{{ padron.isLoading ? 'Buscandoâ€¦' : 'Buscar CUIT' }}</button>
     </div>
   </div>
 </div>
 
-<!-- Modal reutilizable de búsqueda de cliente -->
+<!-- Modal reutilizable de bÃºsqueda de cliente -->
 <CustomerSearchModal v-model="showCustomerModal" @select="onCustomerSelected" />
 
   <!-- Modal cambio lista -->
@@ -306,7 +306,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, defineExpose, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, watch, defineExpose, onBeforeUnmount, onActivated, onDeactivated } from 'vue'
 import { useProducts } from '@/composables/useProducts'
 import { useCustomers } from '@/composables/useCustomers'
 import { usePadronStore } from '@/stores/modules/padron'
@@ -344,16 +344,16 @@ const productResults = ref<any[]>([])
 let searchTimer: any = null
 const barcode = ref('')
 const newQty = ref(1)
-// Visor: URL de imagen del último producto seleccionado
+// Visor: URL de imagen del Ãºltimo producto seleccionado
 const selectedImageUrl = ref<string>('')
 
-// Etiquetas de departamentos para selección rápida (UI-only)
+// Etiquetas de departamentos para selecciÃ³n rÃ¡pida (UI-only)
 const departmentLabels = [
   'Verdulería', 'Carnicería', 'Limpieza', 'Almacén', 'Bebidas', 'Panadería',
   'Lácteos', 'Perfumería', 'Fiambrería', 'Congelados', 'Rotisería', 'Hogar'
 ]
 
-// (Se removió la sección de sugeridos para que la tabla ocupe todo el alto disponible)
+// (Se removiÃ³ la secciÃ³n de sugeridos para que la tabla ocupe todo el alto disponible)
 
 // Productos API
 const { searchProducts } = useProducts()
@@ -374,7 +374,7 @@ const getOrCreateOccasionalCustomer = async () => {
   }
 }
 
-// Búsqueda con debounce
+// BÃºsqueda con debounce
 const debouncedSearch = () => {
   if (searchTimer) clearTimeout(searchTimer)
   searchTimer = setTimeout(async () => {
@@ -488,7 +488,7 @@ const addRowFromProduct = (product: any) => {
   syncTotals()
 }
 
-// Agregar producto rápido desde un departamento
+// Agregar producto rÃ¡pido desde un departamento
 const addRowFromDepartment = (dept: string) => {
   const name = `articulo de ${dept}`
   const product = { name, sku: `DEPT-${dept.toUpperCase()}`, salePrice: 0 }
@@ -513,7 +513,7 @@ const computePriceForProduct = (p: any, pl?: PriceList): number => {
   return Math.round(base * mult)
 }
 
-// Totales con descuentos por ítem (%/$) y descuento final
+// Totales con descuentos por Ã­tem (%/$) y descuento final
 const lineGross = (r: Row) => r.qty * r.price
 const lineDiscount = (r: Row) => {
   const isDisc = r.isDiscountable !== false
@@ -714,21 +714,21 @@ onMounted(() => {
   window.addEventListener('keydown', handleKey)
 })
 
-// Integración del lector de códigos de barras (HID)
+// IntegraciÃ³n del lector de cÃ³digos de barras (HID)
 let barcodeCtrl: ReturnType<typeof useBarcodeListener> | null = null
 onMounted(async () => {
   try {
     const raw = await getPosBarcodeSettings()
     const settings: any = {
       enabled: raw?.enabled ?? true,
-      // Umbral inferior permisivo para escáneres rápidos
+      // Umbral inferior permisivo para escÃ¡neres rÃ¡pidos
       windowMsMin: 0,
-      // Más holgura por si el lector es lento
+      // MÃ¡s holgura por si el lector es lento
       interKeyTimeout: 300,
       minLength: raw?.minLength ?? 6,
       // Captura sin terminador y sin necesidad de foco
       suffix: 'none',
-      // Evita que el escaneo escriba en otros inputs durante la ráfaga
+      // Evita que el escaneo escriba en otros inputs durante la rÃ¡faga
       preventInInputs: true,
       // No forzar foco en el input de barras
       forceFocus: false,
@@ -738,7 +738,7 @@ onMounted(async () => {
     barcodeCtrl.onScan((code) => {
       // Completar input sin cambiar el foco actual
       barcode.value = code
-      // Agregar automáticamente si está habilitado
+      // Agregar automÃ¡ticamente si estÃ¡ habilitado
       if (settings.autoSelectSingle) {
         addRowFromBarcode()
       }
@@ -751,17 +751,31 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   barcodeCtrl?.stop()
+  window.removeEventListener('keydown', handleKey)
+})
+
+// Pausar/Reanudar listeners cuando la vista se desactiva/activa (keep-alive)
+onDeactivated(() => {
+  try { window.removeEventListener('keydown', handleKey) } catch (_) {}
+  try { barcodeCtrl?.stop() } catch (_) {}
+})
+
+onActivated(() => {
+  try { window.addEventListener('keydown', handleKey) } catch (_) {}
+  try { barcodeCtrl?.start() } catch (_) {}
 })
 
 // Utils
 const cryptoRandom = () => Math.random().toString(36).slice(2)
 
-// Exponer métodos para control desde la barra superior en SalesNewView
+// Exponer mÃ©todos para control desde la barra superior en SalesNewView
 defineExpose({ confirmAndCharge, cancelSale, saveSale })
 </script>
 
 <style scoped>
 .font-inter { font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji'; }
 </style>
+
+
 
 

@@ -89,7 +89,7 @@ export function useBarcodeListener(settings?: Partial<ListenerSettings>): {
         })()
         if (lenOk && timingOk) {
           const code = buffer.join('')
-          if (inEditable && cfg.preventInInputs) { e.preventDefault() }
+          // No bloquear escritura en inputs durante ráfaga; emitimos sin prevenir
           emitCode(code, e.target)
         }
       }
@@ -163,10 +163,7 @@ export function useBarcodeListener(settings?: Partial<ListenerSettings>): {
       if (!isBurstActive && buffer.length >= 2) {
         isBurstActive = true
       }
-      // While burst is active and typing in inputs, prevent default to avoid interfering
-      if (isBurstActive && inEditable && cfg.preventInInputs) {
-        e.preventDefault()
-      }
+      // No evitar escritura mientras la ráfaga está activa; sólo evaluamos al finalizar
       if (cfg.suffix === 'none') {
         if (inactivityTimer != null) { clearTimeout(inactivityTimer) }
         inactivityTimer = window.setTimeout(() => {
@@ -201,11 +198,11 @@ export function useBarcodeListener(settings?: Partial<ListenerSettings>): {
           }
           return true
         })()
-        if (lenOk && timingOk) {
-          const code = buffer.join('')
-          if (inEditable && cfg.preventInInputs) { e.preventDefault() }
-          emitCode(code, e.target)
-        }
+          if (lenOk && timingOk) {
+            const code = buffer.join('')
+            // No bloquear escritura en inputs durante ráfaga; emitimos sin prevenir
+            emitCode(code, e.target)
+          }
       }
       // Reset and treat this key as new start
       reset()

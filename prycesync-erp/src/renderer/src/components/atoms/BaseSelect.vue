@@ -9,6 +9,7 @@
       :value="modelValue"
       :required="required"
       :disabled="disabled"
+      :aria-invalid="hasError ? 'true' : undefined"
       :class="[
         'base-select__field',
         {
@@ -16,6 +17,7 @@
           'base-select__field--disabled': disabled
         }
       ]"
+      v-bind="$attrs"
       @change="$emit('update:modelValue', ($event.target as HTMLSelectElement).value)"
       @blur="$emit('blur')"
       @focus="$emit('focus')"
