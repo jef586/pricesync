@@ -52,19 +52,19 @@ const handleClick = (event: MouseEvent) => {
 
 <style scoped>
 .base-card {
-  @apply bg-white rounded-lg overflow-hidden;
+  @apply rounded-lg overflow-hidden;
 }
 
 .base-card--default {
-  @apply border border-gray-200;
+  @apply border;
 }
 
 .base-card--bordered {
-  @apply border-2 border-gray-300;
+  @apply border-2;
 }
 
 .base-card--elevated {
-  @apply shadow-lg border border-gray-100;
+  @apply shadow-lg border;
 }
 
 .base-card--hoverable {
@@ -76,7 +76,7 @@ const handleClick = (event: MouseEvent) => {
 }
 
 .base-card__header {
-  @apply px-6 py-4 border-b border-gray-200 bg-gray-50;
+  @apply px-6 py-4 border-b;
 }
 
 .base-card__content {
@@ -84,6 +84,17 @@ const handleClick = (event: MouseEvent) => {
 }
 
 .base-card__footer {
-  @apply px-6 py-4 border-t border-gray-200 bg-gray-50;
+  @apply px-6 py-4 border-t;
 }
+
+/* Design system overrides for dark/light mode using tokens */
+.base-card { background: var(--ps-card); border-color: var(--ps-border); border-radius: var(--ps-radius-lg); box-shadow: var(--ps-shadow-sm); }
+.base-card--default { border-color: var(--ps-border); }
+.base-card--bordered { border-color: var(--ps-border); }
+.base-card--elevated { border-color: var(--ps-border); box-shadow: var(--ps-shadow-lg); }
+.base-card__header { background: var(--ps-card); border-color: var(--ps-border); }
+.base-card__footer { background: var(--ps-card); border-color: var(--ps-border); }
+.base-card--clickable { cursor: pointer; }
+.base-card--hoverable { transition: box-shadow .2s ease; }
+.base-card--hoverable:hover { box-shadow: var(--ps-shadow-md); }
 </style>

@@ -1,5 +1,5 @@
 <template>
-  <DashboardLayout>
+  <DashboardLayout :key="$route.fullPath">
     <div class="users-view">
       <!-- Header -->
       <PageHeader
@@ -7,6 +7,12 @@
         subtitle="Administra los usuarios de tu empresa"
       >
         <template #actions>
+          <BaseButton class="mr-2" variant="secondary" @click="goToRoles">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2l8 4v6a8 8 0 11-16 0V6l8-4z" />
+            </svg>
+            Roles y Permisos
+          </BaseButton>
           <BaseButton variant="primary" @click="showCreateModal = true">
             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -291,6 +297,10 @@ onMounted(async () => {
     ]
   }
 })
+
+function goToRoles() {
+  router.push({ name: 'RolesMatrix' })
+}
 
 function statusLabel(value: string) {
   const map: Record<string, string> = {

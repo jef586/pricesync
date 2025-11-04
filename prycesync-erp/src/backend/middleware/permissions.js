@@ -1,14 +1,15 @@
-// Permissions map and role→permissions matrix
+// Permissions catalog and role→permissions matrix
+// Normalizado con etiqueta y grupo para UI de lectura
 export const PERMISSIONS = {
-  'admin:users': 'Gestionar usuarios',
-  'admin:roles': 'Ver/editar matriz de permisos',
-  'sales:create': 'Crear ventas',
-  'sales:update': 'Editar ventas',
-  'sales:refund': 'Anular/Devolver',
-  'reports:view': 'Ver reportes',
-  'stock:view': 'Ver stock',
-  'config:view': 'Ver configuración',
-  'config:write': 'Editar configuración',
+  'admin:users': { label: 'Gestionar usuarios', group: 'Administración' },
+  'admin:roles': { label: 'Ver/editar matriz de permisos', group: 'Administración' },
+  'sales:create': { label: 'Crear ventas', group: 'Ventas' },
+  'sales:update': { label: 'Editar ventas', group: 'Ventas' },
+  'sales:refund': { label: 'Anular/Devolver', group: 'Ventas' },
+  'reports:view': { label: 'Ver reportes', group: 'Reportes' },
+  'stock:view': { label: 'Ver stock', group: 'Stock' },
+  'config:view': { label: 'Ver configuración', group: 'Configuración' },
+  'config:write': { label: 'Editar configuración', group: 'Configuración' },
 }
 
 // Normalize legacy roles to new RBAC roles for backward compatibility

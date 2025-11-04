@@ -2,7 +2,7 @@
   <div id="app" class="min-h-screen">
     <!-- Contenido principal (el navbar ahora vive dentro de DashboardLayout) -->
     <main :class="authStore.isAuthenticated ? 'pt-0' : ''">
-      <RouterView />
+      <RouterView :key="$route.fullPath" />
     </main>
     
     <!-- Contenedor de notificaciones global -->

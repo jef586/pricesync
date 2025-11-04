@@ -34,13 +34,25 @@
 
 <script setup lang="ts">
 import WindowControls from './WindowControls.vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import logoUrl from '@/assets/iberasoft-logo.png'
 const props = defineProps<{ onToggleSidebar?: () => void }>()
 
 const router = useRouter()
+const route = useRoute()
 const onBack = () => {
   try {
+    const backTo = route.meta?.backTo as string | undefined
+    if (backTo) {
+      router.push(backTo)
+      return
+    }
+    // Fallback robusto: si no hay historial suficiente o estamos en RolesMatrix, ir a Usuarios
+    const historyLen = (window.history?.length ?? 0)
+    if (historyLen <= 1 || route.name === 'RolesMatrix') {
+      router.push({ name: 'Users' })
+      return
+    }
     router.back()
   } catch (e) {
     console.warn('[Header] No se pudo volver atrás:', e)

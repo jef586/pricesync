@@ -7,15 +7,31 @@ const router = express.Router()
 router.use(authenticate)
 
 // GET /api/roles - list available user roles
-router.get('/', requirePermission('admin:users'), (req, res) => {
+router.get('/', requirePermission('admin:roles'), (req, res) => {
   const roles = ['SUPERADMIN','ADMIN','SUPERVISOR','SELLER','TECHNICIAN']
-  res.json({ roles })
+  const catalog = [
+    { code: 'SUPERADMIN', label: 'Superadmin', description: 'Acceso total global' },
+    { code: 'ADMIN', label: 'Admin', description: 'Gestión completa dentro de la empresa' },
+    { code: 'SUPERVISOR', label: 'Supervisor', description: 'Supervisa ventas y reportes' },
+    { code: 'SELLER', label: 'Vendedor', description: 'Operaciones básicas de ventas' },
+    { code: 'TECHNICIAN', label: 'Técnico', description: 'Acceso a configuración técnica' },
+  ]
+  res.json({ roles, catalog })
 })
 
 // GET /api/roles/matrix - role to permissions matrix
 router.get('/matrix', requirePermission('admin:roles'), async (req, res) => {
-  const { ROLE_PERMISSIONS } = await import('../middleware/permissions.js')
-  res.json({ matrix: ROLE_PERMISSIONS })
+  const { ROLE_PERMISSIONS, PERMISSIONS } = await import('../middleware/permissions.js')
+
+  const roles = ['SUPERADMIN','ADMIN','SUPERVISOR','SELLER','TECHNICIAN']
+  const permissions = Object.entries(PERMISSIONS).map(([code, meta]) => ({
+    code,
+    label: meta.label,
+    group: meta.group,
+  }))
+  const matrix = roles.map(role => ({ role, permissions: (ROLE_PERMISSIONS[role] || []).slice() }))
+
+  res.json({ permissions, roles, matrix })
 })
 
 // PUT /api/roles/:role/permissions - update permissions for a role (SUPERADMIN only)

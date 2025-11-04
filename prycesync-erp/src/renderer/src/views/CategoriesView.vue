@@ -1,5 +1,5 @@
 <template>
-  <DashboardLayout>
+  <DashboardLayout :key="$route.fullPath">
     <div class="categories-view space-y-6">
       <!-- Header (alineado al estilo de Proveedores) -->
       <div class="flex justify-between items-center mb-6">

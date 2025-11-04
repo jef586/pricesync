@@ -1,5 +1,5 @@
 <template>
-  <DashboardLayout>
+  <DashboardLayout :key="$route.fullPath">
     <div class="dashboard space-y-6 bg-gray-50 dark:bg-[#0C1322] p-4 sm:p-6">
       <!-- Encabezado -->
       <div class="flex items-center justify-between">

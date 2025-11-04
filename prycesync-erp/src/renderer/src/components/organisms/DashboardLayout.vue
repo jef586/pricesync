@@ -125,6 +125,8 @@
             </router-link>
           </li>
 
+          
+
         </ul>
       </nav>
 
@@ -157,7 +159,7 @@
     <main class="dashboard-main" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
       <!-- Header de la aplicación con área draggable -->
       <AppHeader :onToggleSidebar="toggleSidebar" />
-      <div class="dashboard-content">
+      <div class="dashboard-content" :key="$route.fullPath">
         <slot />
       </div>
     </main>
