@@ -42,6 +42,7 @@
 
             <div class="flex justify-end gap-2">
               <BaseButton variant="secondary" @click="goBack">Volver</BaseButton>
+              <BaseButton variant="danger" @click="confirmRevokeSessions">Revocar sesiones</BaseButton>
               <BaseButton variant="primary" type="submit" :loading="isSaving">Guardar Cambios</BaseButton>
             </div>
           </form>
@@ -76,6 +77,7 @@ import ConfirmModal from '@/components/atoms/ConfirmModal.vue'
 import { useUsersStore } from '@/stores/users'
 import { useAuthStore } from '@/stores/auth'
 import { useNotifications } from '@/composables/useNotifications'
+import { revokeSessions } from '@/services/users'
 
 const route = useRoute()
 const router = useRouter()
@@ -132,7 +134,7 @@ const confirmTitle = ref('Confirmar cambios')
 const confirmMessage = ref('¿Deseas aplicar estos cambios?')
 const confirmDetails = ref('')
 const confirmVariant = ref<'info'|'warning'|'danger'>('warning')
-let pendingAction: null | 'updateUser' | 'updateStatus' = null
+let pendingAction: null | 'updateUser' | 'updateStatus' | 'revokeSessions' = null
 
 onMounted(async () => {
   try {
@@ -183,13 +185,17 @@ async function applyConfirmedChange() {
     if (pendingAction === 'updateUser' && user.value) {
       isSaving.value = true
       const updated = await users.updateUser(user.value.id, { name: form.value.name, role: form.value.role })
-      success('Usuario actualizado', `Nombre/Rol actualizados correctamente`)
-      // After user update, if status also changed separately, let user patch explicitly
+      success('Usuario actualizado', 'Nombre/Rol actualizados correctamente')
       showConfirm.value = false
     } else if (pendingAction === 'updateStatus' && user.value) {
       isSaving.value = true
       const updated = await users.updateStatus(user.value.id, statusDraft.value)
       success('Estado actualizado', `Nuevo estado: ${updated.status}`)
+      showConfirm.value = false
+    } else if (pendingAction === 'revokeSessions' && user.value) {
+      isSaving.value = true
+      const res = await revokeSessions(user.value.id)
+      success('Sesiones revocadas', res.message || 'Las sesiones activas han sido revocadas')
       showConfirm.value = false
     }
   } catch (e: any) {
@@ -198,6 +204,16 @@ async function applyConfirmedChange() {
     isSaving.value = false
     pendingAction = null
   }
+}
+
+function confirmRevokeSessions() {
+  if (!user.value) return
+  pendingAction = 'revokeSessions'
+  confirmTitle.value = 'Revocar Sesiones'
+  confirmMessage.value = `¿Estás seguro de que quieres revocar todas las sesiones activas para ${user.value.email}?`
+  confirmDetails.value = 'Esta acción cerrará la sesión del usuario en todos los dispositivos. El usuario deberá volver a iniciar sesión.'
+  confirmVariant.value = 'danger'
+  showConfirm.value = true
 }
 
 // Acciones directas de estado con confirmación
@@ -217,3 +233,10 @@ watch(statusDraft, (newStatus) => {
 <style scoped>
 .user-edit-view { @apply p-4 space-y-4; }
 </style>
+
+
+
+
+
+
+

@@ -42,6 +42,44 @@ router.use(authenticate)
 router.use(requireScopes('admin:users'))
 router.use(requirePermission('admin:users'))
 
+// POST /api/users/:id/revoke-sessions - Revocar todas las sesiones de un usuario
+router.post('/:id/revoke-sessions', validateUserIdParam, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const companyId = req.user.company?.id;
+    const actor = req.user;
+
+    if (!companyId) {
+      return res.status(401).json({ error: 'Usuario sin empresa asignada', code: 'USER_NO_COMPANY' });
+    }
+
+    const target = await prisma.user.findFirst({
+      where: { id, companyId },
+      select: { id: true, email: true, status: true },
+    });
+
+    if (!target) {
+      return res.status(404).json({ error: 'Usuario no encontrado', code: 'USER_NOT_FOUND' });
+    }
+
+    // Revocar todas las sesiones activas del usuario
+    const { count } = await prisma.userSession.deleteMany({ where: { userId: id } });
+
+    // Auditoría
+    logUserAudit({
+      actorId: actor.id,
+      targetId: id,
+      companyId,
+      changes: { action: 'USER_SESSIONS_REVOKED', before: null, after: { revokedCount: count } },
+    });
+
+    return res.json({ ok: true, message: `Se revocaron ${count} sesiones activas para el usuario ${target.email}.` });
+  } catch (err) {
+    console.error('Error revoking user sessions:', err);
+    return res.status(500).json({ error: 'Error revocando sesiones de usuario', code: 'REVOKE_SESSIONS_FAILED' });
+  }
+});
+
 // GET /api/users?q=&role=&status=&page=&size=&sort=&deleted=
 router.get('/', async (req, res) => {
   try {

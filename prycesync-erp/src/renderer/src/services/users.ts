@@ -121,3 +121,9 @@ export async function resetPassword(userId: string, payload: { notify?: boolean 
   const { data } = await apiClient.post(`/users/${userId}/reset-password`, payload)
   return { ok: !!data?.ok, link: data?.link, message: data?.message || 'Token generado' }
 }
+export async function revokeSessions(userId: string): Promise<{ ok: boolean; message: string }> {
+  const { data } = await apiClient.post(`/users/${userId}/revoke-sessions`)
+  return { ok: !!data?.ok, message: data?.message || 'Sesiones revocadas' }
+}
+
+
