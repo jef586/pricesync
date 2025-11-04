@@ -61,9 +61,10 @@
       <!-- Pagination -->
       <Pagination
         :current-page="store.page"
-        :page-size="store.pageSize"
+        :items-per-page="store.pageSize"
         :total-items="store.total"
-        @page-change="onPageChange"
+        :total-pages="Math.ceil(store.total / (store.pageSize || 1))"
+        @pageChange="onPageChange"
       />
 
       <!-- Create User Modal -->

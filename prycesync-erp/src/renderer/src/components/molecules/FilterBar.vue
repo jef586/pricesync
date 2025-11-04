@@ -19,6 +19,7 @@
     <div class="filter-grid">
       <!-- Search Filter -->
       <div v-if="showSearch" class="filter-item search-filter">
+        <label class="filter-label">Buscar</label>
         <BaseInput
           :model-value="modelValue.search || ''"
           :placeholder="searchPlaceholder"
@@ -271,7 +272,7 @@ const activeFiltersList = computed(() => {
 }
 
 .filter-grid {
-  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mb-3;
+  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mb-3 items-end;
 }
 
 .filter-item {
@@ -373,7 +374,8 @@ const activeFiltersList = computed(() => {
 }
 
 :deep(.base-input__field) {
-  padding: 0.5rem 0.75rem;
+  /* Igualar altura con .filter-select (py-1.5) */
+  padding: 0.375rem 0.75rem;
   border-radius: var(--ps-radius-md);
   font-size: 0.875rem;
 }
