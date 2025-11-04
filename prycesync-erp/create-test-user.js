@@ -42,7 +42,7 @@ async function createTestUser() {
         email: 'admin@empresatest.com',
         passwordHash: passwordHash,
         name: 'Admin Test',
-        role: 'admin',
+        role: 'ADMIN',
         status: 'active',
         companyId: company.id
       }

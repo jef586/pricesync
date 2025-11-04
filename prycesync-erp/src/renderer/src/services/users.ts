@@ -99,3 +99,10 @@ export async function listRoles(): Promise<string[]> {
   const { data } = await apiClient.get('/roles')
   return Array.isArray(data?.roles) ? data.roles : []
 }
+
+// Eliminar usuario por ID
+export async function deleteUser(id: string): Promise<boolean> {
+  const resp = await apiClient.delete(`/users/${id}`)
+  // La API puede devolver { success: true } o 200 OK
+  return !!(resp?.data?.success ?? (resp.status >= 200 && resp.status < 300))
+}

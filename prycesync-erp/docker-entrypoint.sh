@@ -14,7 +14,43 @@ npx prisma generate
 
 echo "Verificando dependencias npm..."
 # Cuando se monta el volumen .:/app, el directorio node_modules suele quedar vacío.
-# Instalamos dependencias si no existen para evitar errores de resolución en Vite/Node.
+# Primero instalamos si falta, y si existe verificamos paquetes críticos y reparamos si faltan.
+
+ensure_deps() {
+  FALTAN=0
+  for pkg in \
+    express \
+    cors \
+    jsonwebtoken \
+    bcryptjs \
+    multer \
+    sharp \
+    xml2js \
+    ioredis \
+    axios \
+    express-validator; do
+    if ! node -e "require.resolve('$pkg')" >/dev/null 2>&1; then
+      echo "[entrypoint] Falta dependencia: $pkg"
+      FALTAN=1
+    fi
+  done
+
+  if [ "$FALTAN" = "1" ]; then
+    echo "[entrypoint] Faltan dependencias. Reinstalando..."
+    if [ -f package-lock.json ]; then
+      npm ci
+    else
+      npm install
+    fi
+    # Rebuild de sharp para evitar incompatibilidades binarias
+    if node -e "require.resolve('sharp')" >/dev/null 2>&1; then
+      npm rebuild sharp || true
+    fi
+  else
+    echo "[entrypoint] Dependencias críticas presentes."
+  fi
+}
+
 if [ ! -d node_modules ] || [ -z "$(ls -A node_modules 2>/dev/null)" ]; then
   if [ -f package-lock.json ]; then
     echo "node_modules vacío: ejecutando npm ci"
@@ -24,7 +60,8 @@ if [ ! -d node_modules ] || [ -z "$(ls -A node_modules 2>/dev/null)" ]; then
     npm install
   fi
 else
-  echo "node_modules presente, no se reinstala"
+  echo "node_modules presente: verificando dependencias críticas"
+  ensure_deps
 fi
 
 echo "Iniciando aplicación en modo desarrollo dentro del contenedor..."

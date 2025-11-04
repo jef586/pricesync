@@ -7,12 +7,36 @@ import AuthService from '../services/AuthService.js'
 import { validateCreateUser, validateUserIdParam, validateUpdateUser, validateUpdateStatus } from '../middleware/usersValidation.js'
 import fs from 'fs'
 import path from 'path'
+import { Prisma } from '@prisma/client'
 
 const router = express.Router()
 
+// Helper: mapear roles nuevos -> legados (para escribir en BD)
+const toLegacyRole = (role) => {
+  switch (String(role).toUpperCase()) {
+    case 'SUPERADMIN': return 'admin'   // si existiera 'superadmin' en tu enum real, cámbialo por 'superadmin'
+    case 'ADMIN': return 'admin'
+    case 'SUPERVISOR': return 'manager'
+    case 'SELLER': return 'user'
+    case 'TECHNICIAN': return 'viewer'
+    default: return role
+  }
+}
+
+// Helper: mapear roles legados -> nuevos (para responder al frontend)
+const fromLegacyRole = (role) => {
+  switch (String(role).toLowerCase()) {
+    case 'superadmin': return 'SUPERADMIN'
+    case 'admin': return 'ADMIN'
+    case 'manager': return 'SUPERVISOR'
+    case 'user': return 'SELLER'
+    case 'viewer': return 'TECHNICIAN'
+    default: return role
+  }
+}
+
 // Todas las rutas de usuarios requieren autenticación y permiso admin:users
 router.use(authenticate)
-// Mantener compatibilidad con scopes existentes y exigir permiso declarativo
 router.use(requireScopes('admin:users'))
 router.use(requirePermission('admin:users'))
 
@@ -24,18 +48,16 @@ router.get('/', async (req, res) => {
       return res.status(401).json({ error: 'Usuario sin empresa asignada', code: 'USER_NO_COMPANY' })
     }
 
-    // Params con defaults
     const q = String(req.query.q || '').trim()
-    const role = String(req.query.role || '').trim()
     const status = String(req.query.status || '').trim()
     const page = Math.max(1, parseInt(req.query.page || '1', 10))
     const size = Math.max(1, Math.min(100, parseInt(req.query.size || '20', 10)))
-    const sortParam = String(req.query.sort || '').trim() // ej: "name:asc" o "lastLogin:desc"
+    const sortParam = String(req.query.sort || '').trim()
+    const requestedRole = String(req.query.role || '').trim().toUpperCase()
 
     const skip = (page - 1) * size
 
-    // Campos de orden permitidos
-    const allowedSortFields = new Set(['name', 'email', 'role', 'status', 'lastLogin', 'createdAt'])
+    const allowedSortFields = new Set(['name', 'email', 'status', 'lastLogin', 'createdAt'])
     let orderBy = { createdAt: 'desc' }
     if (sortParam) {
       const [field, dir] = sortParam.split(':')
@@ -45,7 +67,6 @@ router.get('/', async (req, res) => {
       }
     }
 
-    // Construcción del where con filtros + companyId
     const where = {
       companyId,
       ...(q && {
@@ -54,11 +75,10 @@ router.get('/', async (req, res) => {
           { email: { contains: q, mode: 'insensitive' } },
         ],
       }),
-      ...(role && { role }),
       ...(status && { status }),
+      ...(requestedRole && { role: requestedRole })
     }
 
-    // Consulta paralela para rendimiento
     const [users, total] = await Promise.all([
       prisma.user.findMany({
         where,
@@ -103,21 +123,21 @@ router.post('/', validateCreateUser, async (req, res) => {
 
     const { name, email, role, status } = req.body
 
-    // Check duplication by email (global uniqueness per schema)
     const existing = await prisma.user.findUnique({ where: { email } })
     if (existing) {
       return res.status(400).json({ error: 'El usuario ya existe', code: 'USER_EMAIL_EXISTS' })
     }
 
-    // Generate a temporary random password (invite flow)
     const tempPassword = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)
     const passwordHash = await AuthService.hashPassword(tempPassword)
+
+    const roleNorm = String(role || 'SELLER').toUpperCase()
 
     const created = await prisma.user.create({
       data: {
         email,
         name,
-        role: role || 'SELLER',
+        role: roleNorm,
         status: status || 'active',
         passwordHash,
         companyId

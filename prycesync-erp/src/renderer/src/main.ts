@@ -18,6 +18,13 @@ app.use(router)
 const authStore = useAuthStore()
 authStore.initializeAuth()
 
+// Refrescar el usuario para asegurar que 'role' esté presente
+if (authStore.token) {
+  authStore.getCurrentUser().catch(() => {
+    // Ignorar errores silenciosamente; el guard de router ya maneja 401
+  })
+}
+
 // Inicializar tema visual (light/dark)
 const { initTheme } = useTheme()
 initTheme()

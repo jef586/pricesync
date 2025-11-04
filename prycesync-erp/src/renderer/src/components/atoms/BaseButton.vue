@@ -67,7 +67,27 @@ defineEmits<Emits>()
 }
 
 .base-button--ghost {
-  @apply bg-transparent text-gray-700 hover:bg-gray-100 focus:ring-gray-500 active:bg-gray-200 shadow-none hover:shadow-sm;
+  /* Themed ghost button for light/dark using design tokens */
+  background: transparent;
+  color: var(--ps-text-primary);
+  /* subtle hover using card/background mix to work across themes */
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: none;
+  /* Using color-mix ensures readable hover both in light and dark */
+  /* Fallback for environments without color-mix: keep transparent */
+}
+
+.base-button--ghost:hover {
+  background: color-mix(in srgb, var(--ps-card) 90%, var(--ps-primary));
+}
+
+.base-button--ghost:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ps-card) 85%, var(--ps-primary));
+}
+
+.base-button--ghost:active {
+  background: color-mix(in srgb, var(--ps-card) 85%, var(--ps-primary));
 }
 
 /* Sizes */

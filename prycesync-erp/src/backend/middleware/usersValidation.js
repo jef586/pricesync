@@ -1,12 +1,8 @@
 import { z } from 'zod'
 
 // Roles y estados alineados con el esquema Prisma actual (RBAC nuevo)
-// Mantiene compatibilidad con roles legados para no romper flujos antiguos.
 const RoleEnum = z.enum([
-  // RBAC nuevo
-  'SUPERADMIN', 'ADMIN', 'SUPERVISOR', 'SELLER', 'TECHNICIAN',
-  // Legado
-  'admin', 'manager', 'user', 'viewer'
+  'SUPERADMIN', 'ADMIN', 'SUPERVISOR', 'SELLER', 'TECHNICIAN'
 ])
 const StatusEnum = z.enum(['active', 'inactive', 'suspended'])
 

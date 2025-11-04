@@ -10,6 +10,17 @@ class AuthService {
     this.REFRESH_EXPIRES_IN = process.env.REFRESH_EXPIRES_IN || '7d';
   }
 
+  normalizeRole(role) {
+    const map = {
+      admin: 'ADMIN',
+      manager: 'SUPERVISOR',
+      user: 'SELLER',
+      viewer: 'TECHNICIAN'
+    };
+    if (!role) return 'SELLER';
+    return map[role] || role;
+  }
+
   // Hash de password
   async hashPassword(password) {
     const saltRounds = 12;
@@ -47,7 +58,7 @@ class AuthService {
   }
 
   // Registrar usuario
-  async register({ email, password, name, companyId, role = 'user' }) {
+  async register({ email, password, name, companyId, role = 'SELLER' }) {
     try {
       // Verificar si el usuario ya existe
       const existingUser = await prisma.user.findUnique({
@@ -77,7 +88,7 @@ class AuthService {
           passwordHash,
           name,
           companyId,
-          role,
+          role: this.normalizeRole(role),
           status: 'active'
         },
         select: {
@@ -117,7 +128,12 @@ class AuthService {
       // Buscar usuario
       const user = await prisma.user.findUnique({
         where: { email },
-        include: {
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          passwordHash: true,
+          status: true,
           company: {
             select: {
               id: true,
@@ -151,11 +167,17 @@ class AuthService {
       // Actualizar último login
       await prisma.user.update({
         where: { id: user.id },
-        data: { lastLogin: new Date() }
+        data: { lastLogin: new Date() },
+        select: { id: true }
       });
 
       // Remover password hash de la respuesta
       const { passwordHash, ...userWithoutPassword } = user;
+
+      // Obtener rol en texto desde BD para evitar conflicto de enum y normalizar
+      const roleRow = await prisma.$queryRaw`SELECT role::text AS role FROM "users" WHERE id = ${user.id} LIMIT 1`;
+      const rawRole = Array.isArray(roleRow) ? roleRow[0]?.role : roleRow?.role;
+      userWithoutPassword.role = this.normalizeRole(rawRole);
 
       return {
         user: userWithoutPassword,
@@ -197,7 +219,6 @@ class AuthService {
           email: true,
           name: true,
           avatarUrl: true,
-          role: true,
           status: true,
           preferences: true,
           timezone: true,
@@ -217,7 +238,11 @@ class AuthService {
         throw new Error('Usuario no encontrado');
       }
 
-      return user;
+      // Adjuntar rol normalizado leyendo en texto desde BD
+      const roleRow = await prisma.$queryRaw`SELECT role::text AS role FROM "users" WHERE id = ${user.id} LIMIT 1`;
+      const rawRole = Array.isArray(roleRow) ? roleRow[0]?.role : roleRow?.role;
+      return { ...user, role: this.normalizeRole(rawRole) };
+
     } catch (error) {
       throw new Error(`Error obteniendo usuario: ${error.message}`);
     }

@@ -1,18 +1,18 @@
 -- UH-ART-18 Loyalty: points_per_unit DECIMAL(10,3) default 0 and loyalty tables
 
--- 1) Ensure column exists and set correct type/default
+-- [REPARACIÓN] dropear vista que bloquea el cambio de tipo
+DROP VIEW IF EXISTS "products" CASCADE;
+
 DO $$
 BEGIN
   IF EXISTS (
     SELECT 1 FROM information_schema.columns 
     WHERE table_name = 'articles' AND column_name = 'points_per_unit'
   ) THEN
-    -- Alter type to numeric(10,3) and default 0
     ALTER TABLE "articles"
       ALTER COLUMN "points_per_unit" TYPE numeric(10,3) USING ("points_per_unit"::numeric),
       ALTER COLUMN "points_per_unit" SET DEFAULT 0;
   ELSE
-    -- Create column if missing
     ALTER TABLE "articles" ADD COLUMN "points_per_unit" numeric(10,3) DEFAULT 0;
   END IF;
 END $$;
@@ -99,3 +99,6 @@ BEGIN
       ADD CONSTRAINT "fk_loyalty_movements_sale" FOREIGN KEY ("sale_id") REFERENCES "sales_orders"("id") ON DELETE SET NULL;
   END IF;
 END $$;
+
+-- [REPARACIÓN] recrear vista después del cambio de tipo
+CREATE VIEW "products" AS SELECT * FROM "articles";

@@ -5,6 +5,7 @@
     :paginated="true"
     :page-size="pageSize"
     :loading="loading"
+    :show-header="false"
     row-key="id"
     :clickable-rows="clickableRows"
     @sort="onSort"
@@ -13,12 +14,28 @@
     <template #cell-status="{ value }">
       <span :class="statusClass(value)">{{ statusLabel(value) }}</span>
     </template>
+    <!-- Acciones por fila: Editar / Borrar -->
+    <template #actions="{ item }">
+      <div class="flex items-center justify-center gap-2">
+        <BaseButton variant="ghost" size="sm" aria-label="Editar" title="Editar" @click.stop="onEdit(item)">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+        </BaseButton>
+        <BaseButton variant="danger" size="sm" aria-label="Borrar" title="Borrar" @click.stop="onDelete(item)">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3m-9 0h10" />
+          </svg>
+        </BaseButton>
+      </div>
+    </template>
   </DataTable>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
 import DataTable from '@/components/atoms/DataTable.vue'
+import BaseButton from '@/components/atoms/BaseButton.vue'
 import type { UserDTO } from '@/services/users'
 
 interface Props {
@@ -37,6 +54,8 @@ const props = withDefaults(defineProps<Props>(), {
 interface Emits {
   (e: 'sort', payload: { sortBy: string; sortOrder: 'asc' | 'desc' }): void
   (e: 'row-click', payload: UserDTO): void
+  (e: 'edit', payload: UserDTO): void
+  (e: 'delete', payload: UserDTO): void
 }
 
 const emit = defineEmits<Emits>()
@@ -74,5 +93,13 @@ function onSort({ key, direction }: any) {
 
 function onRowClick(item: UserDTO) {
   emit('row-click', item)
+}
+
+function onEdit(item: UserDTO) {
+  emit('edit', item)
+}
+
+function onDelete(item: UserDTO) {
+  emit('delete', item)
 }
 </script>
