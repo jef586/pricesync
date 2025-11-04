@@ -7,6 +7,12 @@
         subtitle="Administra los usuarios de tu empresa"
       >
         <template #actions>
+          <BaseButton v-if="auth.hasPermission('admin:audit')" class="mr-2" variant="secondary" @click="goToAudit">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-6h13M5 7h4V3H5v4zm0 14h4v-4H5v4z" />
+            </svg>
+            Auditoría
+          </BaseButton>
           <BaseButton class="mr-2" variant="secondary" @click="goToRoles">
             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2l8 4v6a8 8 0 11-16 0V6l8-4z" />
@@ -300,6 +306,11 @@ onMounted(async () => {
 
 function goToRoles() {
   router.push({ name: 'RolesMatrix' })
+}
+
+function goToAudit() {
+  // Ruta anidada dentro del módulo de usuarios
+  router.push({ name: 'AuditLogsUsers' })
 }
 
 function statusLabel(value: string) {

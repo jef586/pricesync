@@ -9,6 +9,7 @@ import fs from 'fs'
 import path from 'path'
 import { Prisma } from '@prisma/client'
 import crypto from 'crypto'
+import AuditService from '../services/AuditService.js'
 
 const router = express.Router()
 
@@ -224,6 +225,14 @@ router.post('/', validateCreateUser, async (req, res) => {
       }
     })
 
+    // Auditoría
+    logUserAudit({
+      actorId: req.user.id,
+      targetId: created.id,
+      companyId,
+      changes: { action: 'USER_CREATE', after: { id: created.id, email: created.email, role: created.role, status: created.status } }
+    })
+
     return res.status(201).json({
       message: 'Usuario creado',
       user: created
@@ -435,22 +444,17 @@ async function hasOtherActiveAdminsWithPermission(companyId, excludeUserId) {
   return count > 0
 }
 
-function logUserAudit({ actorId, targetId, companyId, changes }) {
+async function logUserAudit({ actorId, targetId, companyId, changes }) {
   try {
-    const line = JSON.stringify({
-      type: 'user_change',
+    await AuditService.log({
       actorId,
       targetId,
-      companyId,
-      changes,
-      at: new Date().toISOString()
-    }) + '\n'
-    const logfile = path.join(process.cwd(), 'core_reports', 'audit_users.log')
-    fs.mkdirSync(path.dirname(logfile), { recursive: true })
-    fs.appendFileSync(logfile, line)
+      actionType: changes?.action || 'USER_CHANGE',
+      payloadDiff: changes,
+      companyId
+    })
   } catch (e) {
-    console.warn('Audit log write failed', e)
-    console.log('AUDIT USER:', { actorId, targetId, companyId, changes })
+    console.warn('Audit DB write failed', e)
   }
 }
 

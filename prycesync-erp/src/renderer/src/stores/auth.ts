@@ -73,12 +73,12 @@ export const useAuthStore = defineStore('auth', () => {
     SUPERADMIN: new Set([
       'article:read', 'article:write', 'stock:read', 'stock:write', 'stock:override', 'stock:kardex', 'stock:export',
       'imports:read', 'imports:write', 'purchases:resolve',
-      'admin:users', 'admin:roles', 'admin:roles:write'
+      'admin:users', 'admin:roles', 'admin:roles:write', 'admin:audit'
     ]),
     ADMIN: new Set([
       'article:read', 'article:write', 'stock:read', 'stock:write', 'stock:kardex', 'stock:export',
       'imports:read', 'imports:write', 'purchases:resolve',
-      'admin:users', 'admin:roles'
+      'admin:users', 'admin:roles', 'admin:audit'
     ]),
     SUPERVISOR: new Set([
       'article:read', 'article:write', 'stock:read', 'stock:kardex', 'stock:export',

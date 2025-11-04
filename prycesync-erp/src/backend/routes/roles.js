@@ -4,6 +4,7 @@ import { requirePermission } from '../middleware/permissions.js'
 import { prisma } from '../config/database.js'
 import fs from 'fs'
 import path from 'path'
+import AuditService from '../services/AuditService.js'
 
 const router = express.Router()
 
@@ -110,18 +111,16 @@ router.put('/:role/permissions', requirePermission('admin:roles:write'), async (
       })
     ])
 
-    // Auditoría a archivo
-    const auditRecord = {
-      actorId: req.user?.id || null,
-      action: 'ROLE_PERMISSIONS_UPDATE',
+    // Auditoría persistente (DB)
+    await AuditService.logRolePermissionsUpdate({
+      actor: req.user,
       role,
       added,
       removed,
-      companyId: req.user?.companyId || null,
-      ts: new Date().toISOString()
-    }
-    const auditPath = path.join(process.cwd(), 'audit_roles.log')
-    fs.appendFileSync(auditPath, JSON.stringify(auditRecord) + '\n')
+      companyId: req.user?.company?.id || req.user?.companyId || null,
+      ip: req.ip,
+      userAgent: req.headers['user-agent']
+    })
   } catch (err) {
     return res.status(500).json({ error: 'Fallo al persistir cambios en BD', message: err.message })
   }

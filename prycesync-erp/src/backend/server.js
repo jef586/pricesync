@@ -19,6 +19,7 @@ import aiRoutes from './routes/ai.js';
 import pricingRoutes from './routes/pricing.js';
 import usersRoutes from './routes/users.js';
 import rolesRoutes from './routes/roles.js';
+import auditRoutes from './routes/audit.js';
 
 import salesRoutes from './routes/sales.js';
 import stockRoutes from './routes/stock.js';
@@ -84,6 +85,7 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/pricing', pricingRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/roles', rolesRoutes);
+app.use('/api/audit', auditRoutes);
 
 // Ops endpoints
 app.use('/ops', opsRoutes)

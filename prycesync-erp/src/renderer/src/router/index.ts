@@ -35,6 +35,7 @@ import UsersView from '../views/UsersView.vue'
 import UserEditView from '../views/UserEditView.vue'
 import RolesMatrixView from '../views/RolesMatrixView.vue'
 import RolesMatrixEditor from '../views/RolesMatrixEditor.vue'
+import AuditLogsView from '../views/AuditLogsView.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -42,6 +43,18 @@ const router = createRouter({
     {
       path: '/',
       redirect: '/dashboard'
+    },
+    {
+      path: '/admin/config/audit',
+      name: 'AuditLogs',
+      component: AuditLogsView,
+      meta: { requiresAuth: true, permissions: 'admin:audit' }
+    },
+    {
+      path: '/admin/config/users/audit',
+      name: 'AuditLogsUsers',
+      component: AuditLogsView,
+      meta: { requiresAuth: true, permissions: 'admin:audit', backTo: '/admin/config/users' }
     },
     {
       path: '/admin/config/users',

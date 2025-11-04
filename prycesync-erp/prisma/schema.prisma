@@ -121,6 +121,28 @@ model PasswordReset {
 }
 
 // ============================================================================
+// AUDIT LOGS SCHEMA
+// ============================================================================
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorId     String
+  actorName   String
+  targetId    String?
+  targetName  String?
+  actionType  String   // e.g., USER_CREATE, USER_UPDATE, ROLE_UPDATE
+  payloadDiff Json?
+  companyId   String?
+  ip          String?
+  userAgent   String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([companyId, createdAt], map: "idx_audit_company_created")
+  @@index([targetId, createdAt], map: "idx_audit_target_created")
+  @@map("audit_logs")
+}
+
+// ============================================================================
 // CORE COMPANIES SCHEMA
 // ============================================================================
 
