@@ -1,6 +1,7 @@
 import express from 'express';
 import AuthController from '../controllers/AuthController.js';
 import { authenticate, authorize } from '../middleware/auth.js';
+import { scopeByCompanyId } from '../middleware/scopeByCompanyId.js';
 import prisma from '../config/database.js';
 
 const router = express.Router();
@@ -14,6 +15,7 @@ router.post('/set-password', AuthController.setPassword); // Público: cambiar c
 
 // Rutas protegidas (requieren autenticación)
 router.use(authenticate); // Aplicar middleware de autenticación a todas las rutas siguientes
+router.use(scopeByCompanyId);
 
 router.get('/me', AuthController.getProfile);
 router.put('/me', AuthController.updateProfile); // Corregir la ruta para actualizar perfil
@@ -26,7 +28,7 @@ router.get('/users', authorize('admin'), async (req, res) => {
     const skip = (page - 1) * limit;
 
     const where = {
-      companyId: req.user.company.id,
+      companyId: req.companyId || req.user.company.id,
       ...(search && {
         OR: [
           { name: { contains: search, mode: 'insensitive' } },

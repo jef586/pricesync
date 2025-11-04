@@ -4,7 +4,7 @@ class ReportsController {
   // Métricas principales del dashboard
   static async getDashboardMetrics(req, res) {
     try {
-      const companyId = req.user?.company?.id || req.user?.companyId;
+      const companyId = req.companyId || req.user?.company?.id || req.user?.companyId;
       
       if (!companyId) {
         return res.status(400).json({
@@ -181,7 +181,7 @@ class ReportsController {
   // Gráfico de ingresos por período
   static async getRevenueChart(req, res) {
     try {
-      const companyId = req.user?.company?.id || req.user?.companyId;
+      const companyId = req.companyId || req.user?.company?.id || req.user?.companyId;
       
       if (!companyId) {
         return res.status(400).json({
@@ -258,7 +258,7 @@ class ReportsController {
   // Gráfico de facturas por estado
   static async getInvoicesChart(req, res) {
     try {
-      const companyId = req.user?.company?.id || req.user?.companyId;
+      const companyId = req.companyId || req.user?.company?.id || req.user?.companyId;
       
       if (!companyId) {
         return res.status(400).json({

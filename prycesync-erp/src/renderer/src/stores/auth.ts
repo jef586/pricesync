@@ -48,6 +48,8 @@ export const useAuthStore = defineStore('auth', () => {
     return result
   })
   const userRole = computed(() => user.value?.role || null)
+  const companyId = computed(() => user.value?.company?.id || null)
+  const companyName = computed(() => user.value?.company?.name || null)
 
   // Basic permission helpers
   const isAdmin = computed(() => ['SUPERADMIN','ADMIN','admin'].includes(String(userRole.value)))
@@ -294,6 +296,8 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     userRole,
     isAdmin,
+    companyId,
+    companyName,
     // Actions
     login,
     register,

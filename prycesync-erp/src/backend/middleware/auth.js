@@ -41,11 +41,12 @@ export const authenticate = async (req, res, next) => {
       });
     }
 
-    // Agregar usuario al request con claims del token (role, permissions)
+    // Agregar usuario al request con claims del token (role, permissions, companyId)
     req.user = {
       ...user,
       role: decoded.role || user.role,
-      permissions: Array.isArray(decoded.permissions) ? decoded.permissions : []
+      permissions: Array.isArray(decoded.permissions) ? decoded.permissions : [],
+      companyId: decoded.companyId || user.company?.id || user.companyId || null
     };
     next();
   } catch (error) {
@@ -98,7 +99,8 @@ export const optionalAuth = async (req, res, next) => {
       req.user = user && user.status === 'active' ? {
         ...user,
         role: decoded.role || user.role,
-        permissions: Array.isArray(decoded.permissions) ? decoded.permissions : []
+        permissions: Array.isArray(decoded.permissions) ? decoded.permissions : [],
+        companyId: decoded.companyId || user.company?.id || user.companyId || null
       } : null;
     } else {
       req.user = null;
@@ -120,14 +122,28 @@ export const sameCompany = (req, res, next) => {
     });
   }
 
-  // Si es admin, puede acceder a cualquier empresa
-  if (req.user.role === 'admin') {
+  const scopeEnabled = String(process.env.COMPANY_SCOPE_ENABLED || 'true').toLowerCase() === 'true';
+
+  // SUPERADMIN: puede acceder a cualquier empresa (bypass)
+  if (String(req.user.role).toUpperCase() === 'SUPERADMIN' || !scopeEnabled) {
     return next();
   }
 
-  const companyId = req.params.companyId || req.body.companyId || req.query.companyId;
+  const actorCompanyId = req.user.company?.id || req.user.companyId || null;
+  if (!actorCompanyId) {
+    return res.status(401).json({
+      error: 'Usuario sin empresa asignada',
+      code: 'USER_NO_COMPANY'
+    });
+  }
+
+  const companyId =
+    req.params.companyId ||
+    req.body?.companyId ||
+    req.query?.companyId ||
+    null;
   
-  if (companyId && companyId !== req.user.company.id) {
+  if (companyId && companyId !== actorCompanyId) {
     return res.status(403).json({
       error: 'Acceso denegado a recursos de otra empresa',
       code: 'CROSS_COMPANY_ACCESS_DENIED'

@@ -1,11 +1,13 @@
 import express from 'express';
 import { authenticate } from '../middleware/auth.js';
+import { scopeByCompanyId } from '../middleware/scopeByCompanyId.js'
 import ReportsController from '../controllers/ReportsController.js';
 
 const router = express.Router();
 
 // Aplicar middleware de autenticación a todas las rutas
 router.use(authenticate);
+router.use(scopeByCompanyId);
 
 // Métricas del dashboard
 router.get('/dashboard/metrics', ReportsController.getDashboardMetrics);

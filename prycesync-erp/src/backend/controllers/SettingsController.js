@@ -23,7 +23,7 @@ function mergePricingConfig(existing) {
 class SettingsController {
   static async getPricingSettings(req, res) {
     try {
-      const companyId = req.user?.company?.id
+      const companyId = req.companyId || req.user?.company?.id || req.user?.companyId
       if (!companyId) {
         return res.status(401).json({ error: 'Empresa no encontrada en el contexto de usuario' })
       }
@@ -45,7 +45,7 @@ class SettingsController {
 
   static async updatePricingSettings(req, res) {
     try {
-      const companyId = req.user?.company?.id
+      const companyId = req.companyId || req.user?.company?.id || req.user?.companyId
       if (!companyId) {
         return res.status(401).json({ error: 'Empresa no encontrada en el contexto de usuario' })
       }

@@ -2,10 +2,12 @@ import express from 'express'
 import { authenticate } from '../middleware/auth.js'
 import { requirePermission } from '../middleware/permissions.js'
 import { prisma } from '../config/database.js'
+import { scopeByCompanyId } from '../middleware/scopeByCompanyId.js'
 
 const router = express.Router()
 
 router.use(authenticate)
+router.use(scopeByCompanyId)
 
 // GET /api/audit - list audit logs with filters
 router.get('/', requirePermission('admin:audit'), async (req, res) => {
@@ -28,11 +30,9 @@ router.get('/', requirePermission('admin:audit'), async (req, res) => {
     const skip = (pageNum - 1) * pageSize
 
     const where = {}
-    // Company scoping: non-superadmin only sees own company
-    if (!isSuperadmin) {
-      where.companyId = actor.company?.id || null
-    } else if (qCompanyId) {
-      where.companyId = String(qCompanyId)
+    // Company scoping centralizado: usa req.companyId establecido por scopeByCompanyId
+    if (req.companyId) {
+      where.companyId = String(req.companyId)
     }
     if (actorId) where.actorId = String(actorId)
     if (targetId) where.targetId = String(targetId)

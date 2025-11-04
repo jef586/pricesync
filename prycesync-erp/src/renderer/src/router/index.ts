@@ -300,18 +300,30 @@ router.beforeEach((to, from, next) => {
   } else if (to.meta.requiresGuest && authStore.isAuthenticated) {
     console.log('🚫 Redirecting to / - already authenticated')
     next('/')
-  } else if ((to.meta as any).requiresScope && !authStore.hasScope(String((to.meta as any).requiresScope))) {
-    console.log('🚫 Redirecting to /403 - missing scope', (to.meta as any).requiresScope)
-    next('/403')
-  } else if ((to.meta as any).permissions) {
-    const required = Array.isArray((to.meta as any).permissions) ? (to.meta as any).permissions : [String((to.meta as any).permissions)]
-    const hasAll = required.every((p: string) => authStore.hasPermission(p))
-    if (!hasAll) {
-      console.log('🚫 Redirecting to /403 - missing permissions', required)
+  } else {
+    // Validación de companyId para rutas bajo /admin/config/*
+    const isAdminConfig = to.path.startsWith('/admin/config')
+    const role = String(authStore.userRole || '').toUpperCase()
+    const hasCompany = !!authStore.user?.company?.id
+    if (isAdminConfig && role !== 'SUPERADMIN' && !hasCompany) {
+      console.log('🚫 Redirecting to /403 - missing companyId for admin config')
       return next('/403')
     }
-    next()
-  } else {
+
+    if ((to.meta as any).requiresScope && !authStore.hasScope(String((to.meta as any).requiresScope))) {
+      console.log('🚫 Redirecting to /403 - missing scope', (to.meta as any).requiresScope)
+      return next('/403')
+    }
+
+    if ((to.meta as any).permissions) {
+      const required = Array.isArray((to.meta as any).permissions) ? (to.meta as any).permissions : [String((to.meta as any).permissions)]
+      const hasAll = required.every((p: string) => authStore.hasPermission(p))
+      if (!hasAll) {
+        console.log('🚫 Redirecting to /403 - missing permissions', required)
+        return next('/403')
+      }
+    }
+
     console.log('✅ Navigation allowed')
     next()
   }
