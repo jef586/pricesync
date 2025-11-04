@@ -9,7 +9,7 @@
 
     <!-- Table -->
     <div class="data-table__container">
-      <table class="data-table__table">
+      <table class="data-table__table" role="table">
         <thead class="data-table__thead">
           <tr>
             <th
@@ -22,6 +22,7 @@
                   'data-table__th--sorted': sortBy === column.key
                 }
               ]"
+              scope="col"
               @click="handleSort(column)"
             >
               <div class="data-table__th-content">
@@ -56,12 +57,12 @@
                 </div>
               </div>
             </th>
-            <th v-if="$slots.actions" class="data-table__th data-table__th--actions">
+<th v-if="$slots.actions" scope="col" class="data-table__th data-table__th--actions">
               Acciones
             </th>
           </tr>
         </thead>
-        <tbody class="data-table__tbody">
+        <tbody class="data-table__tbody" role="rowgroup">
           {{ console.log('DataTable - rendering tbody, paginatedData:', paginatedData) }}
           <tr
             v-for="(item, index) in paginatedData"
@@ -72,11 +73,11 @@
                 'data-table__tr--clickable': clickableRows
               }
             ]"
+            role="row"
             @click="handleRowClick(item, index)"
           >
             {{ console.log('DataTable - rendering row:', index, item) }}
-            <td
-              v-for="column in columns"
+            <td role="cell" v-for="column in columns"
               :key="column.key"
               :class="[
                 'data-table__td',
@@ -101,7 +102,7 @@
       </table>
 
       <!-- Loading state -->
-      <div v-if="loading" class="data-table__loading">
+<div v-if="loading" class="data-table__loading" aria-busy="true" role="status">
         <div class="data-table__loading-content">
           <div class="data-table__loading-spinner"></div>
           <p class="data-table__loading-text">Cargando datos...</p>
@@ -124,7 +125,7 @@
 
     <!-- Pagination -->
     <div v-if="paginated && totalItems > pageSize" class="data-table__pagination">
-      <div class="data-table__pagination-info">
+<div class="data-table__pagination-info" aria-live="polite">
         Mostrando {{ startItem }} - {{ endItem }} de {{ totalItems }} registros
       </div>
       <div class="data-table__pagination-controls">

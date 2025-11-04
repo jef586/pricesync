@@ -1,6 +1,6 @@
 <template>
   <div class="pagination">
-    <div class="pagination-info">
+<div class="pagination-info" aria-live="polite">
       <span class="text-sm text-gray-700">
         Mostrando {{ startItem }} a {{ endItem }} de {{ totalItems }} resultados
       </span>

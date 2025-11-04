@@ -113,6 +113,13 @@
 
           <div class="flex justify-end gap-2 mt-4">
             <BaseButton variant="ghost" @click="closeEditModal">Cancelar</BaseButton>
+            <BaseButton
+              variant="danger"
+              @click="openRevokeSessions"
+              aria-keyshortcuts="Alt+R"
+            >
+              Revocar sesiones
+            </BaseButton>
             <BaseButton variant="primary" type="submit" :loading="isUpdating">Guardar Cambios</BaseButton>
           </div>
         </form>
@@ -160,6 +167,20 @@
         @cancel="cancelRestoreUser"
       />
 
+      <!-- Confirmación de revocar sesiones -->
+      <ConfirmModal
+        v-model="showRevokeModal"
+        title="Revocar sesiones"
+        :message="revokeMessage"
+        :details="revokeDetails"
+        variant="danger"
+        confirm-text="Revocar"
+        cancel-text="Cancelar"
+        :loading="isRevoking"
+        @confirm="confirmRevokeSessions"
+        @cancel="cancelRevokeSessions"
+      />
+
       <!-- Reset de contraseña (modal con opción de notificar) -->
       <BaseModal v-model="showResetModal" title="Generar link de reset de contraseña" size="md">
         <form @submit.prevent="handleResetPassword" class="space-y-4">
@@ -196,7 +217,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import DashboardLayout from '@/components/organisms/DashboardLayout.vue'
 import PageHeader from '@/components/molecules/PageHeader.vue'
@@ -209,7 +230,7 @@ import FormField from '@/components/atoms/FormField.vue'
 import BaseInput from '@/components/atoms/BaseInput.vue'
 import BaseSelect from '@/components/atoms/BaseSelect.vue'
 import { useUsersStore } from '@/stores/users'
-import { createUser, listRoles, resetPassword as resetPasswordApi } from '@/services/users'
+import { createUser, listRoles, resetPassword as resetPasswordApi, revokeSessions } from '@/services/users'
 import { useNotifications } from '@/composables/useNotifications'
 import ConfirmModal from '@/components/atoms/ConfirmModal.vue'
 import { useAuthStore } from '@/stores/auth'
@@ -266,6 +287,14 @@ const restoreTargetEmail = ref<string | null>(null)
 const restoreMessage = computed(() => '¿Seguro que deseas restaurar este usuario?')
 const restoreDetails = computed(() => restoreTargetEmail.value ? `Se restaurará ${restoreTargetEmail.value}.` : '')
 
+// Revocar sesiones
+const showRevokeModal = ref(false)
+const isRevoking = ref(false)
+const revokeTargetId = ref<string | null>(null)
+const revokeTargetEmail = ref<string | null>(null)
+const revokeMessage = computed(() => '¿Estás seguro de que quieres revocar todas las sesiones activas?')
+const revokeDetails = computed(() => revokeTargetEmail.value ? `Usuario: ${revokeTargetEmail.value}. Esta acción cerrará sesión en todos los dispositivos.` : '')
+
 // Reset de contraseña
 const showResetModal = ref(false)
 const resetNotify = ref(false)
@@ -302,6 +331,13 @@ onMounted(async () => {
       { value: 'TECHNICIAN', label: 'Técnico' }
     ]
   }
+
+  // Atajo de teclado Alt+R dentro del modal de edición
+  window.addEventListener('keydown', handleShortcut)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleShortcut)
 })
 
 function goToRoles() {
@@ -569,6 +605,43 @@ async function handleUpdateUser() {
     error('Error al actualizar usuario', e?.response?.data?.error || e?.message)
   } finally {
     isUpdating.value = false
+  }
+}
+
+function openRevokeSessions() {
+  if (!editForm.value.id) return
+  revokeTargetId.value = editForm.value.id
+  revokeTargetEmail.value = editForm.value.email
+  showRevokeModal.value = true
+}
+
+async function confirmRevokeSessions() {
+  if (!revokeTargetId.value) return
+  try {
+    isRevoking.value = true
+    const res = await revokeSessions(revokeTargetId.value)
+    success('Sesiones revocadas', res?.message || 'Las sesiones activas han sido revocadas')
+    showRevokeModal.value = false
+  } catch (e: any) {
+    error('Error al revocar sesiones', e?.response?.data?.error || e?.message)
+  } finally {
+    isRevoking.value = false
+    revokeTargetId.value = null
+    revokeTargetEmail.value = null
+  }
+}
+
+function cancelRevokeSessions() {
+  showRevokeModal.value = false
+  revokeTargetId.value = null
+  revokeTargetEmail.value = null
+}
+
+function handleShortcut(e: KeyboardEvent) {
+  const key = e.key?.toLowerCase()
+  if (showEditModal.value && e.altKey && key === 'r') {
+    e.preventDefault()
+    openRevokeSessions()
   }
 }
 </script>

@@ -42,7 +42,14 @@
 
             <div class="flex justify-end gap-2">
               <BaseButton variant="secondary" @click="goBack">Volver</BaseButton>
-              <BaseButton variant="danger" @click="confirmRevokeSessions">Revocar sesiones</BaseButton>
+              <BaseButton
+                variant="danger"
+                @click="confirmRevokeSessions"
+                aria-keyshortcuts="Alt+R"
+                aria-controls="revokeConfirmModal"
+              >
+                Revocar sesiones
+              </BaseButton>
               <BaseButton variant="primary" type="submit" :loading="isSaving">Guardar Cambios</BaseButton>
             </div>
           </form>
@@ -51,6 +58,7 @@
 
       <!-- Confirmaciones -->
       <ConfirmModal
+        id="revokeConfirmModal"
         v-model="showConfirm"
         :title="confirmTitle"
         :message="confirmMessage"
@@ -64,7 +72,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import DashboardLayout from '@/components/organisms/DashboardLayout.vue'
 import PageHeader from '@/components/molecules/PageHeader.vue'
@@ -147,6 +155,12 @@ onMounted(async () => {
     hasError.value = true
     errorMsg.value = e?.response?.data?.error || e?.message || 'Error cargando usuario'
   }
+
+  window.addEventListener('keydown', handleShortcut)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleShortcut)
 })
 
 watch(() => route.params.id, async (newId) => {
@@ -214,6 +228,15 @@ function confirmRevokeSessions() {
   confirmDetails.value = 'Esta acción cerrará la sesión del usuario en todos los dispositivos. El usuario deberá volver a iniciar sesión.'
   confirmVariant.value = 'danger'
   showConfirm.value = true
+}
+
+function handleShortcut(e: KeyboardEvent) {
+  // Alt+R para abrir la confirmación de Revocar sesiones
+  const key = e.key?.toLowerCase()
+  if (e.altKey && key === 'r') {
+    e.preventDefault()
+    confirmRevokeSessions()
+  }
 }
 
 // Acciones directas de estado con confirmación
