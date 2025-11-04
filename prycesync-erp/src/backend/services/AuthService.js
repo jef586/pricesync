@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import prisma from '../config/database.js';
+import { ROLE_PERMISSIONS } from '../middleware/permissions.js'
 
 class AuthService {
   constructor() {
@@ -33,8 +34,8 @@ class AuthService {
   }
 
   // Generar tokens JWT
-  generateTokens(userId) {
-    const payload = { userId, type: 'access' };
+  generateTokens(userId, extraClaims = {}) {
+    const payload = { userId, type: 'access', ...extraClaims };
     
     const accessToken = jwt.sign(payload, this.JWT_SECRET, {
       expiresIn: this.JWT_EXPIRES_IN,
@@ -107,14 +108,20 @@ class AuthService {
         }
       });
 
-      // Generar tokens
-      const tokens = this.generateTokens(user.id);
+      // Generar tokens con claims
+      const normalizedRole = this.normalizeRole(user.role)
+      const permissions = ROLE_PERMISSIONS[normalizedRole] || []
+      const tokens = this.generateTokens(user.id, {
+        role: normalizedRole,
+        companyId: user.company?.id,
+        permissions
+      });
 
       // Crear sesión
       await this.createSession(user.id, tokens.refreshToken);
 
       return {
-        user,
+        user: { ...user, role: normalizedRole, permissions },
         tokens
       };
     } catch (error) {
@@ -133,6 +140,7 @@ class AuthService {
           email: true,
           name: true,
           passwordHash: true,
+          role: true,
           status: true,
           company: {
             select: {
@@ -158,8 +166,15 @@ class AuthService {
         throw new Error('Credenciales inválidas');
       }
 
-      // Generar tokens
-      const tokens = this.generateTokens(user.id);
+      // Calcular claims
+      const normalizedRole = this.normalizeRole(user.role)
+      const permissions = ROLE_PERMISSIONS[normalizedRole] || []
+      // Generar tokens con claims
+      const tokens = this.generateTokens(user.id, {
+        role: normalizedRole,
+        companyId: user.company?.id,
+        permissions
+      });
 
       // Crear sesión
       await this.createSession(user.id, tokens.refreshToken, ipAddress, userAgent);
@@ -174,10 +189,8 @@ class AuthService {
       // Remover password hash de la respuesta
       const { passwordHash, ...userWithoutPassword } = user;
 
-      // Obtener rol en texto desde BD para evitar conflicto de enum y normalizar
-      const roleRow = await prisma.$queryRaw`SELECT role::text AS role FROM "users" WHERE id = ${user.id} LIMIT 1`;
-      const rawRole = Array.isArray(roleRow) ? roleRow[0]?.role : roleRow?.role;
-      userWithoutPassword.role = this.normalizeRole(rawRole);
+      userWithoutPassword.role = normalizedRole;
+      userWithoutPassword.permissions = permissions;
 
       return {
         user: userWithoutPassword,
@@ -284,8 +297,15 @@ class AuthService {
         throw new Error('Sesión inválida o expirada');
       }
 
-      // Generar nuevos tokens
-      const tokens = this.generateTokens(session.userId);
+      // Generar nuevos tokens con claims actualizados
+      const currentUser = await this.getUserById(session.userId)
+      const normalizedRole = this.normalizeRole(currentUser.role)
+      const permissions = ROLE_PERMISSIONS[normalizedRole] || []
+      const tokens = this.generateTokens(session.userId, {
+        role: normalizedRole,
+        companyId: currentUser.company?.id,
+        permissions
+      });
 
       // Actualizar sesión
       const newTokenHash = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');

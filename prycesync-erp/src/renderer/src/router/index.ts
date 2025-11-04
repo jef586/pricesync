@@ -23,6 +23,7 @@ import InvoiceDetailView from '../views/InvoiceDetailView.vue'
 import CompanyView from '../views/CompanyView.vue'
 import PricingSettingsView from '../views/PricingSettingsView.vue'
 import HelpView from '../views/HelpView.vue'
+import ForbiddenView from '../views/ForbiddenView.vue'
 import SalesPOSView from '../views/SalesPOSView.vue'
 import SalesNewView from '../views/SalesNewView.vue'
 import ParkedSalesView from '../views/ParkedSalesView.vue'
@@ -88,6 +89,12 @@ const router = createRouter({
       name: 'Auth',
       component: AuthView,
       meta: { requiresAuth: false }
+    },
+    {
+      path: '/403',
+      name: 'Forbidden',
+      component: ForbiddenView,
+      meta: { requiresAuth: true }
     },
     {
       path: '/dashboard',
@@ -270,18 +277,27 @@ router.beforeEach((to, from, next) => {
     requiresAuth: to.meta.requiresAuth,
     requiresGuest: to.meta.requiresGuest,
     requiresScope: (to.meta as any).requiresScope,
+    permissions: (to.meta as any).permissions,
     isAuthenticated: authStore.isAuthenticated
   })
   
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    console.log('🚫 Redirecting to /auth - not authenticated')
-    next('/auth')
+    console.log('🚫 Redirecting to /login - not authenticated')
+    next('/login')
   } else if (to.meta.requiresGuest && authStore.isAuthenticated) {
     console.log('🚫 Redirecting to / - already authenticated')
     next('/')
   } else if ((to.meta as any).requiresScope && !authStore.hasScope(String((to.meta as any).requiresScope))) {
-    console.log('🚫 Redirecting to /dashboard - missing scope', (to.meta as any).requiresScope)
-    next('/dashboard')
+    console.log('🚫 Redirecting to /403 - missing scope', (to.meta as any).requiresScope)
+    next('/403')
+  } else if ((to.meta as any).permissions) {
+    const required = Array.isArray((to.meta as any).permissions) ? (to.meta as any).permissions : [String((to.meta as any).permissions)]
+    const hasAll = required.every((p: string) => authStore.hasPermission(p))
+    if (!hasAll) {
+      console.log('🚫 Redirecting to /403 - missing permissions', required)
+      return next('/403')
+    }
+    next()
   } else {
     console.log('✅ Navigation allowed')
     next()

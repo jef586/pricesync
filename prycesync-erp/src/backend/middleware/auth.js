@@ -41,8 +41,12 @@ export const authenticate = async (req, res, next) => {
       });
     }
 
-    // Agregar usuario al request
-    req.user = user;
+    // Agregar usuario al request con claims del token (role, permissions)
+    req.user = {
+      ...user,
+      role: decoded.role || user.role,
+      permissions: Array.isArray(decoded.permissions) ? decoded.permissions : []
+    };
     next();
   } catch (error) {
     return res.status(401).json({
@@ -91,7 +95,11 @@ export const optionalAuth = async (req, res, next) => {
     
     if (decoded.type === 'access') {
       const user = await AuthService.getUserById(decoded.userId);
-      req.user = user && user.status === 'active' ? user : null;
+      req.user = user && user.status === 'active' ? {
+        ...user,
+        role: decoded.role || user.role,
+        permissions: Array.isArray(decoded.permissions) ? decoded.permissions : []
+      } : null;
     } else {
       req.user = null;
     }

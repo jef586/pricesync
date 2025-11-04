@@ -44,17 +44,27 @@ export function requirePermission(...required) {
   return (req, res, next) => {
     try {
       if (!req.user) {
-        return res.status(401).json({ error: 'No autenticado' })
+        return res.status(401).json({ error: 'No autenticado', code: 'NOT_AUTHENTICATED' })
       }
       const roleKey = normalizeRole(req.user.role)
       const effective = new Set(ROLE_PERMISSIONS[roleKey] || [])
       const missing = required.filter(p => !effective.has(p))
       if (missing.length) {
-        return res.status(403).json({ error: 'Permiso denegado', missing })
+        return res.status(403).json({
+          error: 'Permiso denegado',
+          code: 'PERMISSION_DENIED',
+          missing,
+          audit: {
+            userId: req.user?.id,
+            path: req.path,
+            required,
+            granted: Array.from(effective)
+          }
+        })
       }
       next()
     } catch (err) {
-      return res.status(500).json({ error: 'Error en autorización', message: err.message })
+      return res.status(500).json({ error: 'Error en autorización', code: 'AUTHZ_ERROR', message: err.message })
     }
   }
 }

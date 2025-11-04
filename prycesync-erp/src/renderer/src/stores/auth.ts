@@ -7,6 +7,7 @@ export interface User {
   name: string
   role: string
   status: string
+  permissions?: string[]
   company: {
     id: string
     name: string
@@ -92,11 +93,20 @@ export const useAuthStore = defineStore('auth', () => {
     ])
   }
 
-  const hasScope = (scope: string): boolean => {
+  // Nuevo: permisos provenientes del backend/JWT
+  const hasPermission = (perm: string): boolean => {
+    const list = user.value?.permissions || []
+    if (Array.isArray(list) && list.length) {
+      return list.includes(perm)
+    }
+    // Fallback a scopes por rol legado
     const role = userRole.value || 'viewer'
     const scopes = ROLE_SCOPES[role] || new Set()
-    return scopes.has(scope)
+    return scopes.has(perm)
   }
+
+  // Alias de compatibilidad: hasScope usa misma lógica
+  const hasScope = (scope: string): boolean => hasPermission(scope)
 
   // Actions
   const login = async (credentials: LoginCredentials) => {
@@ -210,6 +220,7 @@ export const useAuthStore = defineStore('auth', () => {
 
       const data = await response.json()
       user.value = data.data.user
+      localStorage.setItem('user', JSON.stringify(user.value))
 
       return { success: true }
     } catch (err) {
@@ -294,5 +305,6 @@ export const useAuthStore = defineStore('auth', () => {
     hasRole,
     hasAnyRole,
     hasScope,
+    hasPermission,
   }
 })
