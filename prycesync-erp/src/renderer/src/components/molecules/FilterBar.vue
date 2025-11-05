@@ -34,24 +34,43 @@
         </BaseInput>
       </div>
 
-      <!-- Status Filter -->
-      <div v-if="statusOptions.length > 0" class="filter-item">
-        <label class="filter-label">Estado</label>
-        <select
-          :value="modelValue.status || ''"
-          @change="updateFilter('status', $event.target.value)"
-          class="filter-select"
-        >
-          <option value="">Todos los estados</option>
-          <option
-            v-for="option in statusOptions"
-            :key="option.value"
-            :value="option.value"
-          >
-            {{ option.label }}
-          </option>
-        </select>
-      </div>
+  <!-- Status Filter -->
+  <div v-if="statusOptions.length > 0" class="filter-item">
+    <label class="filter-label">Estado</label>
+    <select
+      :value="modelValue.status || ''"
+      @change="updateFilter('status', $event.target.value)"
+      class="filter-select"
+    >
+      <option value="">Todos los estados</option>
+      <option
+        v-for="option in statusOptions"
+        :key="option.value"
+        :value="option.value"
+      >
+        {{ option.label }}
+      </option>
+    </select>
+  </div>
+
+  <!-- Stock State Filter -->
+  <div v-if="stockOptions.length > 0" class="filter-item">
+    <label class="filter-label">Estado de stock</label>
+    <select
+      :value="modelValue.stockState || 'all'"
+      @change="updateFilter('stockState', $event.target.value)"
+      class="filter-select"
+    >
+      <option value="all">Todos</option>
+      <option
+        v-for="option in stockOptions"
+        :key="option.value"
+        :value="option.value"
+      >
+        {{ option.label }}
+      </option>
+    </select>
+  </div>
 
       <!-- Type Filter -->
       <div v-if="typeOptions.length > 0" class="filter-item">
@@ -94,8 +113,20 @@
         </div>
       </div>
 
-      <!-- Custom Filters Slot -->
-      <slot name="custom-filters" :update-filter="updateFilter" />
+      <!-- Custom Filters Slot (full width for nested grids) -->
+      <div class="filter-item col-span-full">
+        <slot name="custom-filters" :update-filter="updateFilter" />
+      </div>
+  </div>
+
+    <!-- Action Buttons -->
+    <div class="filter-actions">
+      <BaseButton variant="primary" size="sm" @click="onSearchClick">
+        Buscar
+      </BaseButton>
+      <BaseButton variant="ghost" size="sm" @click="clearAllFilters">
+        Limpiar filtros
+      </BaseButton>
     </div>
 
     <!-- Active Filters Display -->
@@ -146,6 +177,7 @@ interface Props {
   modelValue: FilterValues
   statusOptions?: FilterOption[]
   typeOptions?: FilterOption[]
+  stockOptions?: FilterOption[]
   showSearch?: boolean
   showDateRange?: boolean
   searchPlaceholder?: string
@@ -161,6 +193,7 @@ interface Emits {
 const props = withDefaults(defineProps<Props>(), {
   statusOptions: () => [],
   typeOptions: () => [],
+  stockOptions: () => [],
   showSearch: true,
   showDateRange: true,
   searchPlaceholder: 'Buscar...',
@@ -197,6 +230,11 @@ const clearFilter = (key: string) => {
 const clearAllFilters = () => {
   emit('update:modelValue', {})
   emit('filter-change', {})
+}
+
+const onSearchClick = () => {
+  const q = (props.modelValue.search ?? '').toString()
+  emit('search', q)
 }
 
 const hasActiveFilters = computed(() => {
@@ -272,7 +310,7 @@ const activeFiltersList = computed(() => {
 }
 
 .filter-grid {
-  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mb-3 items-end;
+  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 mb-2 items-end;
 }
 
 .filter-item {
@@ -309,6 +347,10 @@ const activeFiltersList = computed(() => {
 
 .active-filters {
   @apply pt-3 border-t border-gray-100;
+}
+
+.filter-actions {
+  @apply flex justify-end gap-2 mt-2;
 }
 
 .active-filters-label {
@@ -364,7 +406,7 @@ const activeFiltersList = computed(() => {
 
 /* Compact padding for BaseCard content inside FilterBar */
 :deep(.base-card__content) {
-  padding: 0.75rem;
+  padding: 0.5rem; /* más compacto */
 }
 
 /* Compact BaseInput inside FilterBar */

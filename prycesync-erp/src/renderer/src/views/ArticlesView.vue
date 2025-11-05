@@ -34,29 +34,82 @@
       <FilterBar
         v-model="uiFilters"
         :status-options="statusOptions"
+        :stock-options="stockStateOptions"
         :show-date-range="false"
         search-placeholder="Buscar por nombre, SKU o EAN..."
         @filter-change="applyFilters"
         @search="debouncedSearch"
-        class="mb-6"
+        class="mb-4"
       >
         <template #custom-filters="{ updateFilter }">
-          <div class="filter-item">
-            <label class="filter-label">Rubro</label>
-            <select
-              :value="uiFilters.categoryId || ''"
-              @change="onCategoryChange($event, updateFilter)"
-              class="filter-select border rounded px-2 py-1"
-            >
-              <option value="">Todos</option>
-              <option
-                v-for="opt in categoryOptions"
-                :key="opt.value"
-                :value="opt.value"
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+            <!-- Nombre -->
+            <div>
+              <label class="filter-label">Nombre</label>
+              <input v-model="uiFilters.name" type="text" class="filter-input border rounded px-2 py-1 w-full" />
+            </div>
+            <!-- Descripción -->
+            <div>
+              <label class="filter-label">Descripción</label>
+              <input v-model="uiFilters.description" type="text" class="filter-input border rounded px-2 py-1 w-full" />
+            </div>
+
+            <!-- Código de Barras -->
+            <div>
+              <label class="filter-label">Código de Barras</label>
+              <input v-model="uiFilters.ean" type="text" class="filter-input border rounded px-2 py-1 w-full" />
+            </div>
+            <!-- Código Proveedor -->
+            <div>
+              <label class="filter-label">Código Proveedor</label>
+              <input v-model="uiFilters.supplierSku" type="text" class="filter-input border rounded px-2 py-1 w-full" />
+            </div>
+            <!-- Rubro -->
+            <div>
+              <label class="filter-label">Rubro</label>
+              <select
+                :value="uiFilters.categoryId || ''"
+                @change="onCategoryChange($event, updateFilter)"
+                class="filter-select border rounded px-2 py-1 w-full"
               >
-                {{ opt.label }}
-              </option>
-            </select>
+                <option value="">Todos</option>
+                <option v-for="opt in categoryOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+              </select>
+            </div>
+            <!-- Sub-rubro -->
+            <div>
+              <label class="filter-label">Sub-rubro</label>
+              <input v-model="uiFilters.subcategoryId" type="text" class="filter-input border rounded px-2 py-1 w-full" placeholder="ID o nombre" />
+            </div>
+            <!-- Fabricante (opcional) -->
+            <div>
+              <label class="filter-label">Fabricante</label>
+              <input v-model="uiFilters.manufacturerId" type="text" class="filter-input border rounded px-2 py-1 w-full" placeholder="ID fabricante" />
+            </div>
+            <!-- Proveedor -->
+            <div>
+              <label class="filter-label">Proveedor</label>
+              <select v-model="uiFilters.supplierId" class="filter-select border rounded px-2 py-1 w-full">
+                <option value="">Todos</option>
+                <option v-for="opt in supplierOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+              </select>
+            </div>
+            <!-- IVA % -->
+            <div>
+              <label class="filter-label">IVA %</label>
+              <select v-model="uiFilters.vatRate" class="filter-select border rounded px-2 py-1 w-full">
+                <option :value="''">sin dato</option>
+                <option :value="0">0</option>
+                <option :value="10.5">10.5</option>
+                <option :value="21">21</option>
+              </select>
+            </div>
+            <!-- Código Interno -->
+            <div>
+              <label class="filter-label">Código Interno</label>
+              <input v-model="uiFilters.internalCode" type="text" class="filter-input border rounded px-2 py-1 w-full" />
+            </div>
+            
           </div>
         </template>
       </FilterBar>
@@ -123,6 +176,7 @@ import FilterBar from '@/components/molecules/FilterBar.vue'
 import DataTable from '@/components/atoms/DataTable.vue'
 import { useArticleStore } from '@/stores/articles'
 import { useCategories } from '@/composables/useCategories'
+import { useSuppliers } from '@/composables/useSuppliers'
 import { useNotifications } from '@/composables/useNotifications'
 
 // Minimal i18n shim
@@ -136,13 +190,25 @@ function t(key: string) {
 
 const store = useArticleStore()
 const { categories } = useCategories()
+const { suppliers, fetchSuppliers } = useSuppliers()
 const { success, error } = useNotifications()
 
 // Filtros de UI para FilterBar
 const uiFilters = ref({
   search: '',
   status: '',
-  categoryId: ''
+  categoryId: '',
+  subcategoryId: '',
+  name: '',
+  description: '',
+  ean: '',
+  supplierSku: '',
+  supplierId: '',
+  manufacturerId: '',
+  vatRate: '' as any,
+  internalCode: '',
+  stockState: 'all',
+  
 })
 
 const statusOptions = [
@@ -151,9 +217,20 @@ const statusOptions = [
   { value: 'inactive', label: 'Inactivo' }
 ]
 
+const stockStateOptions = [
+  { value: 'low', label: 'Artículos con bajo stock' },
+  { value: 'zero', label: 'Artículos sin stock' },
+  { value: 'nocontrol', label: 'Artículos sin control de stock' }
+]
+
 const categoryOptions = computed(() => [
   { label: 'Todos', value: '' },
   ...categories.value.map((c: any) => ({ label: c.name, value: c.id }))
+])
+
+const supplierOptions = computed(() => [
+  { label: 'Todos', value: '' },
+  ...suppliers.value.map((s: any) => ({ label: s.name, value: s.id }))
 ])
 
 const tableColumns = [
@@ -166,6 +243,7 @@ const tableColumns = [
 
 onMounted(async () => {
   await store.list()
+  await fetchSuppliers({ limit: 50 })
 })
 
 async function reload() {
@@ -180,6 +258,17 @@ function mapUiToStoreFilters() {
   if (uiFilters.value.status) {
     f.active = uiFilters.value.status === 'active' ? true : uiFilters.value.status === 'inactive' ? false : undefined
   }
+  // Avanzados
+  if (uiFilters.value.name) f.name = uiFilters.value.name
+  if (uiFilters.value.description) f.description = uiFilters.value.description
+  if (uiFilters.value.ean) f.ean = uiFilters.value.ean
+  if (uiFilters.value.supplierSku) f.supplierSku = uiFilters.value.supplierSku
+  if (uiFilters.value.subcategoryId) f.subcategoryId = uiFilters.value.subcategoryId
+  if (uiFilters.value.supplierId) f.supplierId = uiFilters.value.supplierId
+  if (uiFilters.value.manufacturerId) f.manufacturerId = uiFilters.value.manufacturerId
+  if (uiFilters.value.vatRate !== '' && uiFilters.value.vatRate != null) f.vatRate = Number(uiFilters.value.vatRate)
+  if (uiFilters.value.internalCode) f.internalCode = uiFilters.value.internalCode
+  if (uiFilters.value.stockState) f.stockState = uiFilters.value.stockState
   return f
 }
 

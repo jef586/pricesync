@@ -35,14 +35,26 @@ export async function listArticles(filters: ArticleFilters = {}): Promise<Pagina
   // q -> search
   if ((filters as any).search) params.append('search', String((filters as any).search))
   else if (filters.q) params.append('search', String(filters.q))
-  // rubroId -> categoryId
-  if (filters.rubroId) params.append('categoryId', String(filters.rubroId))
+  // rubroId -> categoryId (preferir categoryId si viene específicamente)
+  const categoryId = (filters.categoryId ?? filters.rubroId)
+  if (categoryId) params.append('categoryId', String(categoryId))
+  if (filters.subcategoryId) params.append('subcategoryId', String(filters.subcategoryId))
   // type (si existiera)
   if ((filters as any).type) params.append('type', String((filters as any).type))
   // active
   if (typeof filters.active === 'boolean') params.append('active', String(filters.active))
-  // controlStock (si aplica)
+  // controlStock (solo listado simple)
   if (typeof filters.controlStock === 'boolean') params.append('controlStock', String(filters.controlStock))
+  // Avanzados
+  if (filters.name) params.append('name', String(filters.name))
+  if (filters.description) params.append('description', String(filters.description))
+  if (filters.ean) params.append('ean', String(filters.ean))
+  if (filters.supplierSku) params.append('supplierSku', String(filters.supplierSku))
+  if (filters.supplierId) params.append('supplierId', String(filters.supplierId))
+  if (filters.manufacturerId) params.append('manufacturerId', String(filters.manufacturerId))
+  if (filters.vatRate != null) params.append('vatRate', String(filters.vatRate))
+  if (filters.internalCode) params.append('internalCode', String(filters.internalCode))
+  if (filters.stockState) params.append('stockState', String(filters.stockState))
   // pagination
   if (filters.page) params.append('page', String(filters.page))
   if (filters.pageSize) {
@@ -56,7 +68,16 @@ export async function listArticles(filters: ArticleFilters = {}): Promise<Pagina
   if (sortBy) params.append('sortBy', String(sortBy))
   if (sortOrder) params.append('sortOrder', String(sortOrder))
 
-  const resp = await apiClient.get(`/articles?${params.toString()}`)
+  // Selección de endpoint: usar búsqueda avanzada si hay alguno de estos filtros
+  const hasAdvanced = Boolean(
+    filters.name || filters.description || filters.ean || filters.supplierSku || filters.supplierId ||
+    filters.manufacturerId || filters.vatRate != null || filters.internalCode || filters.stockState ||
+    filters.subcategoryId || (filters.categoryId && filters.categoryId !== filters.rubroId) ||
+    (filters as any).search || filters.q
+  )
+
+  const endpoint = hasAdvanced ? '/articles/search' : '/articles'
+  const resp = await apiClient.get(`${endpoint}?${params.toString()}`)
   const payload = resp.data
   const rawItems: any[] = Array.isArray(payload?.data)
     ? payload.data

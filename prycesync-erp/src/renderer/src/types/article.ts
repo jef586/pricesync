@@ -1,4 +1,4 @@
-﻿// UH-ART-3: Tipos estrictos para ArtÃ­culos
+// UH-ART-3: Tipos estrictos para ArtÃ­culos
 
 export type BarcodeType = 'EAN13' | 'EAN8' | 'CODE128' | 'PLU' | null
 export type ArticleType = 'PRODUCT' | 'SERVICE'
@@ -51,12 +51,31 @@ export interface ArticleDTO {
 }
 
 export interface ArticleFilters {
+  // Búsqueda rápida
   q?: string
+  // Compat: nombre de rubro en frontend
   rubroId?: string
+  // Estado
   active?: boolean
+  // Control de stock (listado simple)
   controlStock?: boolean
+  // Avanzados (para /articles/search)
+  name?: string
+  description?: string
+  ean?: string
+  supplierSku?: string
+  categoryId?: string
+  subcategoryId?: string
+  supplierId?: string
+  manufacturerId?: string
+  vatRate?: number
+  internalCode?: string
+  stockState?: 'all' | 'low' | 'zero' | 'nocontrol'
+  // Paginación y orden
   page?: number
   pageSize?: number
+  sortBy?: string
+  sortOrder?: 'asc' | 'desc'
 }
 
 export interface Paginated<T> {

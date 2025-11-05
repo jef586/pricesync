@@ -10,53 +10,353 @@ class ArticleController {
   // Buscar artículos
   static async searchArticles(req, res) {
     try {
-      const { q: query, limit = 10 } = req.query;
+      const {
+        // búsqueda ligera (autocomplete)
+        q: query,
+        limit = 10,
+        // filtros avanzados
+        name,
+        description,
+        ean,
+        eanMatch, // 'exact' | 'prefix'
+        supplierSku,
+        supplierSkuMatch, // 'exact' | 'prefix'
+        categoryId,
+        subcategoryId,
+        supplierId,
+        manufacturerId, // no existe en el esquema actual
+        vatRate,
+        active,
+        internalCode,
+        stockState, // all | low | zero | nocontrol
+        // paginación y orden
+        page = 1,
+        pageSize,
+        sort
+      } = req.query;
+
       const companyId = req.user.company.id;
 
-      if (!query || query.length < 2) {
-        return res.json([]);
+      // ¿Hay búsqueda avanzada?
+      const isAdvanced = [
+        name, description, ean, supplierSku, categoryId, subcategoryId, supplierId,
+        manufacturerId, vatRate, active, internalCode, stockState, pageSize, sort
+      ].some((v) => v !== undefined && v !== '');
+
+      // Rama: búsqueda ligera para autocomplete (comportamiento actual)
+      if (!isAdvanced) {
+        if (!query || String(query).length < 2) {
+          return res.json([]);
+        }
+
+        const articles = await prisma.article.findMany({
+          where: {
+            companyId,
+            deletedAt: null,
+            OR: [
+              { name: { contains: String(query), mode: 'insensitive' } },
+              { sku: { contains: String(query), mode: 'insensitive' } },
+              { barcode: { contains: String(query), mode: 'insensitive' } },
+              { description: { contains: String(query), mode: 'insensitive' } },
+              { barcodes: { some: { code: { contains: String(query), mode: 'insensitive' } } } }
+            ]
+          },
+          select: {
+            id: true,
+            sku: true,
+            name: true,
+            description: true,
+            pointsPerUnit: true,
+            pricePublic: true,
+            stock: true,
+            active: true,
+            type: true,
+            category: { select: { id: true, name: true } }
+          },
+          take: parseInt(limit),
+          orderBy: { name: 'asc' }
+        });
+
+        return res.json(articles);
       }
 
-      const articles = await prisma.article.findMany({
-        where: {
-          companyId,
-          deletedAt: null,
-          OR: [
-            { name: { contains: query, mode: 'insensitive' } },
-            { sku: { contains: query, mode: 'insensitive' } },
-            { barcode: { contains: query, mode: 'insensitive' } },
-            { description: { contains: query, mode: 'insensitive' } },
-            { barcodes: { some: { code: { contains: query, mode: 'insensitive' } } } }
-          ]
-        },
-        select: {
-          id: true,
-          sku: true,
-          name: true,
-          description: true,
-          pointsPerUnit: true,
-          pricePublic: true,
-          stock: true,
-          active: true,
-          type: true,
-          category: {
-            select: {
-              id: true,
-              name: true
-            }
-          }
-        },
-        take: parseInt(limit),
-        orderBy: { name: 'asc' }
-      });
+      // Rama: búsqueda avanzada
+      const pageNum = parseInt(page) || 1;
+      const perPage = parseInt(pageSize || limit) || 20;
 
-      res.json(articles);
+      // sort: "campo:dir" (name:asc)
+      let orderBy = { createdAt: 'desc' };
+      if (sort && typeof sort === 'string') {
+        const [fieldRaw, dirRaw] = String(sort).split(':');
+        const field = ['name', 'sku', 'createdAt'].includes(fieldRaw) ? fieldRaw : 'createdAt';
+        const dir = ['asc', 'desc'].includes(dirRaw) ? dirRaw : 'desc';
+        orderBy = { [field]: dir };
+      }
+
+      const where = {
+        companyId,
+        deletedAt: null,
+        ...(active !== undefined && active !== '' ? { active: String(active) === 'true' } : {}),
+        ...(name ? { name: { contains: String(name), mode: 'insensitive' } } : {}),
+        ...(description ? { description: { contains: String(description), mode: 'insensitive' } } : {}),
+        ...(internalCode ? { sku: { contains: String(internalCode), mode: 'insensitive' } } : {}),
+        // Jerarquía de rubros: subcategoria directa o hijos de rubro
+        ...(() => {
+          if (subcategoryId) return { categoryId: String(subcategoryId) };
+          if (categoryId) return {
+            OR: [
+              { categoryId: String(categoryId) },
+              { category: { parentId: String(categoryId) } }
+            ]
+          };
+          return {};
+        })()
+      };
+
+      // Filtro por EAN/PLU (barcode principal o secundarios)
+      if (ean) {
+        const code = String(ean);
+        const matchPrefix = String(eanMatch || '').toLowerCase() === 'prefix';
+        where.OR = [
+          ...(where.OR || []),
+          matchPrefix
+            ? { barcode: { startsWith: code, mode: 'insensitive' } }
+            : { barcode: code },
+          matchPrefix
+            ? { barcodes: { some: { code: { startsWith: code, mode: 'insensitive' } } } }
+            : { barcodes: { some: { code } } }
+        ];
+      }
+
+      // supplierSku + supplierId
+      if (supplierSku || supplierId) {
+        const skuMatchPrefix = String(supplierSkuMatch || '').toLowerCase() === 'prefix';
+        where.suppliers = {
+          some: {
+            ...(supplierId ? { supplierId: String(supplierId) } : {}),
+            ...(supplierSku
+              ? (skuMatchPrefix
+                  ? { supplierSku: { startsWith: String(supplierSku), mode: 'insensitive' } }
+                  : { supplierSku: String(supplierSku) })
+              : {})
+          }
+        };
+      }
+
+      if (vatRate) {
+        const vr = Number(vatRate);
+        if (!Number.isNaN(vr)) where.taxRate = vr;
+      }
+
+      // Estado de stock: zero/low/nocontrol
+      let finalWhere = { ...where };
+      if (stockState && String(stockState).toLowerCase() !== 'all') {
+        const mode = String(stockState).toLowerCase();
+        if (mode === 'nocontrol') {
+          finalWhere = { ...finalWhere, controlStock: false };
+        } else {
+          // zero/low requieren controlStock=true y evaluar onHand por StockBalance
+          const baseCandidates = await prisma.article.findMany({
+            where: { ...finalWhere, controlStock: true },
+            select: { id: true, stockMin: true }
+          });
+          const ids = baseCandidates.map(a => a.id);
+          if (ids.length === 0) {
+            return res.json({ items: [], page: pageNum, pageSize: perPage, total: 0 });
+          }
+          const sums = await prisma.stockBalance.groupBy({
+            by: ['articleId'],
+            where: { companyId, articleId: { in: ids } },
+            _sum: { onHandUn: true }
+          });
+          const sumMap = new Map(sums.map(s => [s.articleId, Number(s._sum.onHandUn || 0)]));
+          const filteredIds = baseCandidates
+            .filter(a => {
+              const onHand = sumMap.get(a.id) ?? 0;
+              if (mode === 'zero') return onHand === 0;
+              if (mode === 'low') return (a.stockMin != null) && (onHand <= Number(a.stockMin));
+              return true;
+            })
+            .map(a => a.id);
+
+          if (filteredIds.length === 0) {
+            return res.json({ items: [], page: pageNum, pageSize: perPage, total: 0 });
+          }
+
+          finalWhere = { ...finalWhere, controlStock: true, id: { in: filteredIds } };
+        }
+      }
+
+      const skip = (pageNum - 1) * perPage;
+      const [items, total] = await Promise.all([
+        prisma.article.findMany({
+          where: finalWhere,
+          select: {
+            id: true,
+            sku: true,
+            name: true,
+            description: true,
+            type: true,
+            active: true,
+            cost: true,
+            pricePublic: true,
+            pointsPerUnit: true,
+            stock: true,
+            stockMin: true,
+            stockMax: true,
+            controlStock: true,
+            taxRate: true,
+            categoryId: true,
+            category: { select: { id: true, name: true } },
+            createdAt: true,
+            updatedAt: true
+          },
+          skip,
+          take: perPage,
+          orderBy
+        }),
+        prisma.article.count({ where: finalWhere })
+      ]);
+
+      return res.json({ items, page: pageNum, pageSize: perPage, total });
     } catch (error) {
       console.error('Error searching articles:', error);
       res.status(500).json({
         error: 'Error interno del servidor',
         message: 'No se pudieron buscar los artículos'
       });
+    }
+  }
+
+  // Exportar CSV del resultado filtrado (sin paginar)
+  static async exportArticlesCSV(req, res) {
+    try {
+      const {
+        name, description, ean, eanMatch, supplierSku, supplierSkuMatch,
+        categoryId, subcategoryId, supplierId, manufacturerId, vatRate, active,
+        internalCode, stockState, sort
+      } = req.query;
+      const companyId = req.user.company.id;
+
+      let orderBy = { createdAt: 'desc' };
+      if (sort && typeof sort === 'string') {
+        const [fieldRaw, dirRaw] = String(sort).split(':');
+        const field = ['name', 'sku', 'createdAt'].includes(fieldRaw) ? fieldRaw : 'createdAt';
+        const dir = ['asc', 'desc'].includes(dirRaw) ? dirRaw : 'desc';
+        orderBy = { [field]: dir };
+      }
+
+      const where = {
+        companyId,
+        deletedAt: null,
+        ...(active !== undefined && active !== '' ? { active: String(active) === 'true' } : {}),
+        ...(name ? { name: { contains: String(name), mode: 'insensitive' } } : {}),
+        ...(description ? { description: { contains: String(description), mode: 'insensitive' } } : {}),
+        ...(internalCode ? { sku: { contains: String(internalCode), mode: 'insensitive' } } : {}),
+        ...(() => {
+          if (subcategoryId) return { categoryId: String(subcategoryId) };
+          if (categoryId) return {
+            OR: [
+              { categoryId: String(categoryId) },
+              { category: { parentId: String(categoryId) } }
+            ]
+          };
+          return {};
+        })()
+      };
+
+      if (ean) {
+        const code = String(ean);
+        const matchPrefix = String(eanMatch || '').toLowerCase() === 'prefix';
+        where.OR = [
+          ...(where.OR || []),
+          matchPrefix
+            ? { barcode: { startsWith: code, mode: 'insensitive' } }
+            : { barcode: code },
+          matchPrefix
+            ? { barcodes: { some: { code: { startsWith: code, mode: 'insensitive' } } } }
+            : { barcodes: { some: { code } } }
+        ];
+      }
+
+      if (supplierSku || supplierId) {
+        const skuMatchPrefix = String(supplierSkuMatch || '').toLowerCase() === 'prefix';
+        where.suppliers = {
+          some: {
+            ...(supplierId ? { supplierId: String(supplierId) } : {}),
+            ...(supplierSku
+              ? (skuMatchPrefix
+                  ? { supplierSku: { startsWith: String(supplierSku), mode: 'insensitive' } }
+                  : { supplierSku: String(supplierSku) })
+              : {})
+          }
+        };
+      }
+
+      if (vatRate) {
+        const vr = Number(vatRate);
+        if (!Number.isNaN(vr)) where.taxRate = vr;
+      }
+
+      let finalWhere = { ...where };
+      if (stockState && String(stockState).toLowerCase() !== 'all') {
+        const mode = String(stockState).toLowerCase();
+        if (mode === 'nocontrol') {
+          finalWhere = { ...finalWhere, controlStock: false };
+        } else {
+          const baseCandidates = await prisma.article.findMany({
+            where: { ...finalWhere, controlStock: true },
+            select: { id: true, stockMin: true }
+          });
+          const ids = baseCandidates.map(a => a.id);
+          if (ids.length === 0) {
+            res.setHeader('Content-Type', 'text/csv');
+            res.setHeader('Content-Disposition', 'attachment; filename="articles.csv"');
+            return res.send('sku,name,pricePublic,stock,active\n');
+          }
+          const sums = await prisma.stockBalance.groupBy({
+            by: ['articleId'],
+            where: { companyId, articleId: { in: ids } },
+            _sum: { onHandUn: true }
+          });
+          const sumMap = new Map(sums.map(s => [s.articleId, Number(s._sum.onHandUn || 0)]));
+          const filteredIds = baseCandidates
+            .filter(a => {
+              const onHand = sumMap.get(a.id) ?? 0;
+              if (mode === 'zero') return onHand === 0;
+              if (mode === 'low') return (a.stockMin != null) && (onHand <= Number(a.stockMin));
+              return true;
+            })
+            .map(a => a.id);
+          finalWhere = { ...finalWhere, controlStock: true, id: { in: filteredIds } };
+        }
+      }
+
+      const rows = await prisma.article.findMany({
+        where: finalWhere,
+        select: {
+          sku: true,
+          name: true,
+          pricePublic: true,
+          stock: true,
+          active: true
+        },
+        orderBy
+      });
+
+      // Construir CSV
+      const header = ['sku','name','pricePublic','stock','active'];
+      const lines = [header.join(',')];
+      for (const r of rows) {
+        lines.push([r.sku, r.name?.replace(/"/g, '"'), String(r.pricePublic), String(r.stock ?? 0), String(!!r.active)].join(','));
+      }
+      const csv = lines.join('\n');
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename="articles.csv"');
+      return res.send(csv);
+    } catch (error) {
+      console.error('Error exporting articles CSV:', error);
+      res.status(500).json({ error: 'Error interno del servidor', message: 'No se pudo exportar CSV' });
     }
   }
 
