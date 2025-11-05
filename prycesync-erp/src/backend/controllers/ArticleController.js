@@ -1063,6 +1063,196 @@ class ArticleController {
     }
   }
 
+  // --- NUEVO: Lookup enriquecido de artículo ---
+  static async lookupArticle(req, res) {
+    try {
+      const { id, barcode, sku, supplierId, supplierSku, q } = req.query || {}
+      const companyId = req.user.company.id
+
+      // Política de visibilidad de costo: admins/supervisores/técnicos pueden ver costo
+      const role = String(req.user.role || '').toUpperCase()
+      const canSeeCost = ['SUPERADMIN', 'ADMIN', 'SUPERVISOR', 'TECHNICIAN'].includes(role)
+
+      const articleInclude = {
+        category: { select: { id: true, name: true } },
+        barcodes: true,
+        suppliers: { include: { supplier: { select: { id: true, code: true, name: true } } } },
+        wholesaleTiers: { select: { id: true, uom: true, minQty: true, price: true, discountPct: true, active: true, validFrom: true, validTo: true } },
+        ArticleBulkPricing: { select: { id: true, uom: true, minQty: true, mode: true, unitPrice: true, percentOff: true, priority: true, active: true, validFrom: true, validTo: true } },
+        image: true
+      }
+
+      const baseSelect = {
+        id: true,
+        sku: true,
+        name: true,
+        description: true,
+        type: true,
+        active: true,
+        cost: true,
+        gainPct: true,
+        pricePublic: true,
+        pointsPerUnit: true,
+        stock: true,
+        taxRate: true,
+        internalTaxType: true,
+        internalTaxValue: true,
+        category: true,
+        barcodes: true,
+        suppliers: true,
+        wholesaleTiers: true,
+        ArticleBulkPricing: true,
+        image: true,
+        barcode: true
+      }
+
+      let article = null
+
+      // Prioridades de resolución: id > barcode > sku > supplierId+supplierSku > q (búsqueda ligera)
+      if (id) {
+        article = await prisma.article.findFirst({ where: { id: String(id), companyId, deletedAt: null }, select: baseSelect, include: articleInclude })
+      }
+
+      if (!article && barcode) {
+        const code = barcode.toString().trim()
+        article = await prisma.article.findFirst({
+          where: {
+            companyId,
+            deletedAt: null,
+            OR: [
+              { barcode: code },
+              { barcodes: { some: { code } } }
+            ]
+          },
+          select: baseSelect,
+          include: articleInclude
+        })
+      }
+
+      if (!article && sku) {
+        article = await prisma.article.findFirst({ where: { companyId, deletedAt: null, sku: sku.toString().trim() }, select: baseSelect, include: articleInclude })
+      }
+
+      if (!article && supplierId && supplierSku) {
+        const link = await prisma.articleSupplier.findFirst({
+          where: {
+            supplierId: supplierId.toString().trim(),
+            supplierSku: supplierSku.toString().trim(),
+            article: { companyId, deletedAt: null }
+          },
+          include: { article: { select: baseSelect, include: articleInclude } }
+        })
+        article = link?.article || null
+      }
+
+      if (!article && q && String(q).length >= 2) {
+        const results = await prisma.article.findMany({
+          where: {
+            companyId,
+            deletedAt: null,
+            OR: [
+              { name: { contains: q.toString(), mode: 'insensitive' } },
+              { sku: { contains: q.toString(), mode: 'insensitive' } },
+              { barcode: { contains: q.toString(), mode: 'insensitive' } },
+              { description: { contains: q.toString(), mode: 'insensitive' } },
+              { barcodes: { some: { code: { contains: q.toString(), mode: 'insensitive' } } } },
+              { suppliers: { some: { supplierSku: { contains: q.toString(), mode: 'insensitive' } } } }
+            ]
+          },
+          select: baseSelect,
+          include: articleInclude,
+          take: 1,
+          orderBy: { name: 'asc' }
+        })
+        article = results?.[0] || null
+      }
+
+      if (!article) {
+        return res.status(404).json({ success: false, message: 'Artículo no encontrado' })
+      }
+
+      // Preparar datos auxiliares
+      const imageUrl = article.image?.thumbnailUrl || article.image?.imageUrl || article.imageUrl || null
+      const barcodes = [article.barcode, ...(Array.isArray(article.barcodes) ? article.barcodes.map(b => b.code) : [])].filter(Boolean)
+      const suppliers = (Array.isArray(article.suppliers) ? article.suppliers : []).map((l) => ({
+        id: l.id,
+        supplierId: l.supplierId,
+        supplierCode: l.supplier?.code,
+        supplierName: l.supplier?.name,
+        supplierSku: l.supplierSku,
+        isPrimary: !!l.isPrimary
+      }))
+      const primarySupplier = suppliers.find(s => s.isPrimary) || null
+
+      // Cálculo de precio público y desglose
+      const numericCost = Number(article.cost || 0)
+      const numericGain = Number(article.gainPct ?? NaN)
+      const numericTaxRate = Number(article.taxRate || 0)
+      const useGainPct = Number.isFinite(numericGain) ? numericGain : (await getCompanyPricing(companyId)).defaultMarginPercent
+
+      const internalTaxType = article.internalTaxType || 'NONE'
+      const internalTaxValue = Number(article.internalTaxValue || 0)
+
+      // compute internal tax amount
+      const internalTaxAmount = (() => {
+        const c = numericCost
+        const val = internalTaxValue
+        if (!internalTaxType || internalTaxType === 'NONE') return 0
+        if (internalTaxType === 'FIXED' || internalTaxType === 'ABS') return Number(val)
+        if (internalTaxType === 'PERCENT') return c * (Number(val) / 100)
+        return 0
+      })()
+
+      const baseWithMargin = numericCost * (1 + useGainPct / 100)
+      const netBeforeVAT = baseWithMargin + internalTaxAmount
+      const vatAmount = netBeforeVAT * (numericTaxRate / 100)
+      const { pricePublic: computedPricePublic } = directPricing({ cost: numericCost, gainPct: useGainPct, taxRate: numericTaxRate, internalTaxType, internalTaxValue })
+
+      const pricing = {
+        taxRate: numericTaxRate,
+        gainPct: useGainPct,
+        internalTaxType,
+        internalTaxValue,
+        internalTaxAmount: Number(internalTaxAmount.toFixed(2)),
+        netBeforeVAT: Number(netBeforeVAT.toFixed(2)),
+        vatAmount: Number(vatAmount.toFixed(2)),
+        pricePublicStored: Number(article.pricePublic),
+        pricePublicComputed: Number(computedPricePublic)
+      }
+
+      const payload = {
+        id: article.id,
+        sku: article.sku,
+        name: article.name,
+        description: article.description,
+        type: article.type,
+        active: article.active,
+        stock: article.stock,
+        pointsPerUnit: article.pointsPerUnit,
+        category: article.category,
+        imageUrl,
+        barcodes,
+        suppliers,
+        primarySupplier,
+        taxRate: numericTaxRate,
+        internalTaxType,
+        internalTaxValue,
+        canSeeCost,
+        // Sólo incluir costo si el rol puede verlo
+        cost: canSeeCost ? Number(article.cost || 0) : undefined,
+        pricePublic: Number(article.pricePublic),
+        pricing,
+        wholesaleTiers: article.wholesaleTiers,
+        bulkPricing: article.ArticleBulkPricing
+      }
+
+      return res.json({ success: true, data: payload })
+    } catch (error) {
+      console.error('Error in lookupArticle:', error)
+      res.status(500).json({ error: 'Error interno del servidor' })
+    }
+  }
+
   // --- Subrecurso: Imagen principal ---
   static async uploadImage(req, res) {
     try {

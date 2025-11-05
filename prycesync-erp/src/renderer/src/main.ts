@@ -29,4 +29,12 @@ if (authStore.token) {
 const { initTheme } = useTheme()
 initTheme()
 
+// Atajo global: F9 abre Consulta de Precios
+window.addEventListener('keydown', (e: KeyboardEvent) => {
+  if (e.key === 'F9') {
+    e.preventDefault()
+    router.push('/articles/price-lookup')
+  }
+})
+
 app.mount('#app')

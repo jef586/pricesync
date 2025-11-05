@@ -30,6 +30,7 @@ import ParkedSalesView from '../views/ParkedSalesView.vue'
 import ArticlesView from '../views/ArticlesView.vue'
 import ArticleNewView from '../views/ArticleNewView.vue'
 import ArticleEditView from '../views/ArticleEditView.vue'
+import PriceLookupView from '../views/PriceLookupView.vue'
 import AIChatView from '../views/AIChatView.vue'
 import UsersView from '../views/UsersView.vue'
 import UserEditView from '../views/UserEditView.vue'
@@ -259,6 +260,12 @@ const router = createRouter({
       name: 'Articles',
       component: ArticlesView,
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/articles/price-lookup',
+      name: 'PriceLookup',
+      component: PriceLookupView,
+      meta: { requiresAuth: true, requiresScope: 'article:read' }
     },
     {
       path: '/articles/new',

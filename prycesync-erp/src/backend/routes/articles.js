@@ -33,6 +33,8 @@ const requireWrite = requireScopes('article:write')
 // Búsqueda y listado
 router.get('/search', requireRead, readLimit, ArticleController.searchArticles)
 router.get('/', requireRead, readLimit, ArticleController.getArticles)
+// Lookup enriquecido para POS / consulta de precios
+router.get('/lookup', requireRead, readLimit, ArticleController.lookupArticle)
 // Resolver
 router.get('/resolve', requireResolve, readLimit, ArticleController.resolveArticle)
 

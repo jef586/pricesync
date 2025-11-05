@@ -1,4 +1,4 @@
-﻿import { apiClient } from './api'
+import { apiClient } from './api'
 import type { ArticleDTO, ArticleFilters, Paginated } from '@/types/article'
 
 // UH-ART-3: Servicio HTTP para Artículos (/api/articles)
@@ -191,4 +191,30 @@ export async function uploadArticleImage(articleId: string, file: File): Promise
 
 export async function deleteArticleImage(articleId: string): Promise<void> {
   await apiClient.delete(`/articles/${articleId}/image`)
+}
+
+// --- Lookup enriquecido de artículo (id, barcode, sku, proveedor o búsqueda libre)
+export async function lookup(params: {
+  id?: string
+  barcode?: string
+  sku?: string
+  supplierId?: string
+  supplierSku?: string
+  q?: string
+}): Promise<any | null> {
+  const query = new URLSearchParams()
+  if (params.id) query.append('id', String(params.id))
+  if (params.barcode) query.append('barcode', String(params.barcode))
+  if (params.sku) query.append('sku', String(params.sku))
+  if (params.supplierId) query.append('supplierId', String(params.supplierId))
+  if (params.supplierSku) query.append('supplierSku', String(params.supplierSku))
+  if (params.q) query.append('q', String(params.q))
+
+  try {
+    const resp = await apiClient.get(`/articles/lookup?${query.toString()}`)
+    return resp.data?.data || resp.data
+  } catch (err: any) {
+    if (err?.response?.status === 404) return null
+    throw err
+  }
 }

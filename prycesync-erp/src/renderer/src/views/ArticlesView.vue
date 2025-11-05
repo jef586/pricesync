@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <DashboardLayout>
     <div class="articles-view">
       <!-- Header (alineado al estilo de Proveedores) -->
@@ -16,6 +16,16 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
             </svg>
             Nuevo Artículo
+          </button>
+          <button
+            @click="$router.push('/articles/price-lookup')"
+            class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700"
+          >
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <circle cx="10" cy="10" r="6" stroke-width="2" />
+              <path d="M20 20L15.5 15.5" stroke-width="2" stroke-linecap="round" />
+            </svg>
+            Consulta de Precios (F9)
           </button>
         </div>
       </div>
