@@ -483,6 +483,41 @@ model ArticleWholesaleTier {
   @@map("article_wholesale_tiers")
 }
 
+// Quantity promotions per article (UH-ART-25)
+model ArticleQuantityPromotion {
+  id            String   @id @default(cuid())
+  articleId     String   @map("article_id")
+  article       Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  active        Boolean  @default(true)
+  exclusive     Boolean  @default(false)
+  priceListIds  Json     @map("price_list_ids")
+  startsAt      DateTime? @map("starts_at")
+  endsAt        DateTime? @map("ends_at")
+  createdBy     String?  @map("created_by")
+  updatedBy     String?  @map("updated_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  tiers ArticleQuantityPromoTier[]
+
+  @@index([articleId], map: "idx_article_qty_promo_article")
+  @@index([articleId, active, startsAt, endsAt], map: "idx_article_qty_promo_filters")
+  @@map("article_quantity_promotions")
+}
+
+model ArticleQuantityPromoTier {
+  id           String  @id @default(cuid())
+  promotionId  String  @map("promotion_id")
+  promotion    ArticleQuantityPromotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  minQtyUn     Decimal @map("min_qty_un") @db.Decimal(12, 3)
+  pricePerUnit Decimal? @map("price_per_unit") @db.Decimal(12, 2)
+  percentOff   Decimal? @map("percent_off") @db.Decimal(5, 2)
+  sort         Int
+
+  @@unique([promotionId, sort])
+  @@map("article_quantity_promo_tiers")
+}
+
 // New article bulk pricing table (UH-ART-19)
 model ArticleBulkPricing {
   id         String        @id @default(cuid())

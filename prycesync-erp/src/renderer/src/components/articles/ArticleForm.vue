@@ -245,7 +245,7 @@
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label class="block text-sm mb-1">Descripción</label>
-          <textarea v-model.trim="form.description" class="border rounded px-3 py-2 w-full" rows="3" />
+          <textarea v-model.trim="form.description" class="border rounded px-3 py-2 w-full" rows="3"></textarea>
         </div>
         <div>
           <label class="block text-sm mb-1">Foto</label>
@@ -341,43 +341,104 @@
     </section>
 
 
-    <!-- Combos/Kits -->
-    <section v-if="showAdvanced" aria-labelledby="combo-section">
-      <h2 id="combo-section" class="text-lg font-semibold">{{ t('inventory.article.sections.combo') }}</h2>
-      <div>
-        <div class="flex items-center gap-2 mb-2">
-          <BaseButton variant="secondary" @click="addComboRow">Agregar componente</BaseButton>
-          <label class="inline-flex items-center gap-2">
-            <input type="checkbox" v-model="form.comboOwnPrice" />
-            <span>Precio propio (no suma)</span>
-          </label>
+    <!-- Combos y Promociones -->
+    <section v-if="showAdvanced" aria-labelledby="combos-promos-section">
+      <h2 id="combos-promos-section" class="text-lg font-semibold">{{ t('inventory.article.sections.combosPromos') }}</h2>
+      <div class="space-y-6">
+        <!-- Tabla de componentes del combo -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2">
+              <BaseButton variant="secondary" @click="addComboRow">Agregar componente</BaseButton>
+              <label class="inline-flex items-center gap-2">
+                <input type="checkbox" v-model="form.comboOwnPrice" />
+                <span>Precio propio (no suma)</span>
+              </label>
+            </div>
+            <div class="flex items-center gap-2">
+              <BaseButton v-if="quantityPromoLoaded" variant="secondary" @click="openPromoModal">Editar promo</BaseButton>
+              <BaseButton v-if="quantityPromoLoaded" variant="ghost" @click="removePromotion">Quitar promo</BaseButton>
+              <BaseButton v-else variant="primary" @click="openPromoModal">Promoción por cantidad</BaseButton>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="min-w-full">
+              <thead>
+                <tr>
+                  <th class="text-left py-2 px-3">Código</th>
+                  <th class="text-left py-2 px-3">Nombre</th>
+                  <th class="text-right py-2 px-3">Cantidad</th>
+                  <th class="py-2 px-3">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(row, idx) in form.comboComponents" :key="idx">
+                  <td class="py-2 px-3"><input v-model.trim="row.code" type="text" class="border rounded px-2 py-1 w-full" /></td>
+                  <td class="py-2 px-3"><input v-model.trim="row.name" type="text" class="border rounded px-2 py-1 w-full" /></td>
+                  <td class="py-2 px-3 text-right"><input v-model.number="row.qty" type="number" step="0.01" min="0" class="border rounded px-2 py-1 w-24 text-right" /></td>
+                  <td class="py-2 px-3"><BaseButton variant="ghost" @click="removeComboRow(idx)">Eliminar</BaseButton></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
-        <div class="overflow-x-auto">
-          <table class="min-w-full">
-            <thead>
-              <tr>
-                <th class="text-left py-2 px-3">Código</th>
-                <th class="text-left py-2 px-3">Nombre</th>
-                <th class="text-right py-2 px-3">Cantidad</th>
-                <th class="py-2 px-3">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(row, idx) in form.comboComponents" :key="idx">
-                <td class="py-2 px-3"><input v-model.trim="row.code" type="text" class="border rounded px-2 py-1 w-full" /></td>
-                <td class="py-2 px-3"><input v-model.trim="row.name" type="text" class="border rounded px-2 py-1 w-full" /></td>
-                <td class="py-2 px-3 text-right"><input v-model.number="row.qty" type="number" step="0.01" min="0" class="border rounded px-2 py-1 w-24 text-right" /></td>
-                <td class="py-2 px-3"><BaseButton variant="ghost" @click="removeComboRow(idx)">Eliminar</BaseButton></td>
-              </tr>
-            </tbody>
-          </table>
+
+        <!-- Card: Promoción por cantidad -->
+        <div class="rounded-lg border p-4">
+          <div class="flex items-center justify-between mb-3">
+            <div>
+              <h3 class="text-md font-semibold">Promoción por cantidad</h3>
+              <p class="text-sm text-slate-600">Configura tiers de precio por cantidad para este artículo.</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <BaseButton v-if="quantityPromoLoaded && quantityPromo" variant="secondary" @click="openPromoModal">Editar</BaseButton>
+              <BaseButton v-if="quantityPromoLoaded && quantityPromo" variant="ghost" @click="removePromotion">Quitar</BaseButton>
+              <BaseButton v-if="!quantityPromoLoaded || !quantityPromo" variant="primary" @click="openPromoModal">Promoción por cantidad</BaseButton>
+            </div>
+          </div>
+          <div v-if="promoErrorMsg" class="p-2 bg-red-50 text-red-700 text-sm mb-2" role="alert">{{ promoErrorMsg }}</div>
+          <div v-if="promoLoading" class="text-sm text-gray-600">Cargando promoción…</div>
+          <div v-else-if="quantityPromoLoaded && quantityPromo" class="text-sm text-gray-700">
+            <ul class="list-disc ml-5">
+              <li>Estado: <strong>{{ quantityPromo.active ? 'Activa' : 'Inactiva' }}</strong> — {{ quantityPromo.exclusive ? 'No acumular (exclusiva)' : 'Acumulable' }}</li>
+              <li>Listas de precio: {{ (quantityPromo.priceListIds || []).join(', ') || 'Todas' }}</li>
+              <li>Vigencia: {{ quantityPromo.startsAt ? formatDate(quantityPromo.startsAt) : '—' }} → {{ quantityPromo.endsAt ? formatDate(quantityPromo.endsAt) : '—' }}</li>
+              <li># Tiers: {{ promoTiers.length }}</li>
+            </ul>
+            <!-- Vista previa simple -->
+            <div class="mt-3">
+              <div class="text-xs text-slate-500 mb-1">Vista previa de cálculo (precio base: {{ formatCurrency(form.pricePublic || 0) }})</div>
+              <div class="grid grid-cols-3 gap-2">
+                <div class="p-2 rounded border">
+                  <div class="text-xs">Cantidad 1</div>
+                  <div class="text-sm font-semibold">${{ formatCurrency(simulateUnitPrice(form.pricePublic || 0, 1)) }}</div>
+                </div>
+                <div class="p-2 rounded border">
+                  <div class="text-xs">Cantidad 5</div>
+                  <div class="text-sm font-semibold">${{ formatCurrency(simulateUnitPrice(form.pricePublic || 0, 5)) }}</div>
+                </div>
+                <div class="p-2 rounded border">
+                  <div class="text-xs">Cantidad 10</div>
+                  <div class="text-sm font-semibold">${{ formatCurrency(simulateUnitPrice(form.pricePublic || 0, 10)) }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div v-else class="text-sm text-gray-600">Sin promoción configurada.</div>
         </div>
       </div>
     </section>
 
     <!-- Precio por mayor -->
     <section v-if="showAdvanced" aria-labelledby="wholesale-section">
-      <h2 id="wholesale-section" class="text-lg font-semibold">{{ t('inventory.article.sections.wholesale') }}</h2>
+      <div class="flex items-center justify-between">
+        <h2 id="wholesale-section" class="text-lg font-semibold">{{ t('inventory.article.sections.wholesale') }}</h2>
+        <div class="flex items-center gap-2">
+          <BaseButton v-if="quantityPromoLoaded" variant="secondary" @click="openPromoModal">Editar promo</BaseButton>
+          <BaseButton v-if="quantityPromoLoaded" variant="ghost" @click="removePromotion">Quitar promo</BaseButton>
+          <BaseButton v-else variant="primary" @click="openPromoModal">Promoción por cantidad</BaseButton>
+        </div>
+      </div>
       <div v-if="mode === 'edit' && props.initial?.id">
         <ArticleBulkPricingGrid :article-id="String(props.initial.id)" />
       </div>
@@ -401,6 +462,100 @@
       </div>
     </section>
 
+    <!-- Modal: Promoción por cantidad -->
+    <BaseModal v-model="showPromoModal" title="Promoción por cantidad" size="lg" @close="promoErrorMsg = ''">
+      <form id="promoForm" @submit.prevent="savePromotion" class="space-y-4" aria-label="Configurar promoción por cantidad">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <label class="inline-flex items-center gap-2">
+            <input type="checkbox" v-model="quantityPromo.active" aria-label="Activa" />
+            <span>Activa</span>
+          </label>
+          <label class="inline-flex items-center gap-2">
+            <input type="checkbox" v-model="quantityPromo.exclusive" aria-label="No acumular (exclusiva)" />
+            <span>No acumular (exclusiva)</span>
+          </label>
+        </div>
+
+        <!-- Listas de precio (multi-select simple con checkboxes) -->
+        <div>
+          <label class="block text-sm mb-1">Listas de precio</label>
+          <div class="flex flex-wrap gap-3">
+            <label v-for="pl in priceListOptions" :key="pl" class="inline-flex items-center gap-2">
+              <input type="checkbox" :value="pl" v-model="quantityPromo.priceListIds" />
+              <span>{{ pl }}</span>
+            </label>
+          </div>
+          <p class="text-xs text-slate-500 mt-1">Por defecto: Lista 1</p>
+        </div>
+
+        <!-- Vigencia -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm mb-1">Vigencia desde</label>
+            <input type="date" v-model="quantityPromo.startsAt" class="border rounded px-3 py-2 w-full" />
+          </div>
+          <div>
+            <label class="block text-sm mb-1">Vigencia hasta</label>
+            <input type="date" v-model="quantityPromo.endsAt" class="border rounded px-3 py-2 w-full" />
+          </div>
+        </div>
+
+        <!-- Tiers -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <label class="block text-sm font-medium">Tiers (UN)</label>
+            <BaseButton variant="secondary" @click="addPromoTier" aria-keyshortcuts="Alt+T">+ Agregar fila</BaseButton>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="min-w-full">
+              <thead>
+                <tr>
+                  <th class="text-left py-2 px-3">Desde (UN)</th>
+                  <th class="text-right py-2 px-3">Precio unitario</th>
+                  <th class="text-right py-2 px-3">% desc.</th>
+                  <th class="py-2 px-3">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(t, idx) in promoTiers" :key="idx">
+                  <td class="py-2 px-3"><input v-model.number="t.minQtyUn" type="number" step="1" min="1" class="border rounded px-2 py-1 w-24 text-right" /></td>
+                  <td class="py-2 px-3 text-right"><input v-model.number="t.pricePerUnit" type="number" step="0.01" min="0" :disabled="t.percentOff != null && Number(t.percentOff) > 0" class="border rounded px-2 py-1 w-28 text-right" /></td>
+                  <td class="py-2 px-3 text-right"><input v-model.number="t.percentOff" type="number" step="0.01" min="0" :disabled="t.pricePerUnit != null && Number(t.pricePerUnit) > 0" class="border rounded px-2 py-1 w-24 text-right" /></td>
+                  <td class="py-2 px-3"><BaseButton variant="ghost" @click="removePromoTier(idx)">Eliminar</BaseButton></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p v-if="promoErrorMsg" class="text-red-600 text-sm mt-2">{{ promoErrorMsg }}</p>
+        </div>
+
+        <!-- Vista previa -->
+        <div class="mt-3">
+          <div class="text-xs text-slate-500 mb-1">Vista previa (simulada): cantidades 1, 5 y 10</div>
+          <div class="grid grid-cols-3 gap-2">
+            <div class="p-2 rounded border">
+              <div class="text-xs">1 UN</div>
+              <div class="text-sm font-semibold">${{ formatCurrency(simulateUnitPrice(form.pricePublic || 0, 1)) }}</div>
+            </div>
+            <div class="p-2 rounded border">
+              <div class="text-xs">5 UN</div>
+              <div class="text-sm font-semibold">${{ formatCurrency(simulateUnitPrice(form.pricePublic || 0, 5)) }}</div>
+            </div>
+            <div class="p-2 rounded border">
+              <div class="text-xs">10 UN</div>
+              <div class="text-sm font-semibold">${{ formatCurrency(simulateUnitPrice(form.pricePublic || 0, 10)) }}</div>
+            </div>
+          </div>
+          <p class="text-xs text-slate-500 mt-2">Si la promo es exclusiva, no se acumula con mayorista/cupones.</p>
+        </div>
+
+      </form>
+      <template #footer>
+        <BaseButton variant="ghost" @click="showPromoModal = false">Cancelar</BaseButton>
+        <BaseButton variant="primary" type="submit" form="promoForm" :loading="promoLoading" aria-keyshortcuts="Ctrl+S">Guardar</BaseButton>
+      </template>
+    </BaseModal>
+
 
     <!-- Confirmación de borrado -->
     <ConfirmModal v-model="showDeleteModal" :title="t('actions.delete')" :message="t('inventory.article.confirm.delete')" @confirm="onSoftDelete" />
@@ -412,6 +567,7 @@ import { onMounted, reactive, ref, computed, watch } from 'vue'
 import BaseSelect from '@/components/atoms/BaseSelect.vue'
 import BaseButton from '@/components/atoms/BaseButton.vue'
 import ConfirmModal from '@/components/atoms/ConfirmModal.vue'
+import BaseModal from '@/components/atoms/BaseModal.vue'
 import SupplierFormModal from '@/components/suppliers/SupplierFormModal.vue'
 import ArticleBulkPricingGrid from '@/components/articles/ArticleBulkPricingGrid.vue'
 import { useArticleStore } from '@/stores/articles'
@@ -420,6 +576,7 @@ import { useSuppliers } from '@/composables/useSuppliers'
 import { useNotifications } from '@/composables/useNotifications'
 import EntitySearch from '@/components/molecules/EntitySearch.vue'
 import { addArticleSupplierLink, getArticleBarcodes, addArticleBarcode, deleteArticleBarcode, uploadArticleImage, deleteArticleImage } from '@/services/articles'
+import { getPromotion, createPromotion, updatePromotion, deletePromotion, listTiers, createTier, updateTier, deleteTier, type ArticleQuantityPromotionDto, type ArticleQuantityPromoTierDto } from '@/services/quantityPromotionService'
 
 const props = defineProps<{ mode: 'create' | 'edit'; initial?: any }>()
 const emits = defineEmits(['saved', 'cancel', 'price-change'])
@@ -436,7 +593,8 @@ function t(key: string) {
     'inventory.article.sections.suppliers': 'Proveedores',
     'inventory.article.sections.secondaryBarcodes': 'Códigos secundarios',
     'inventory.article.sections.uom': 'Unidades/Conversiones',
-    'inventory.article.sections.combo': 'Combos/Kits',
+  'inventory.article.sections.combo': 'Combos/Kits',
+  'inventory.article.sections.combosPromos': 'Combos y Promociones',
     'inventory.article.sections.wholesale': 'Precio por mayor',
     'inventory.article.sections.pointsStockDays': 'Puntos y Días de stock',
     'inventory.article.fields.name': 'Nombre',
@@ -532,6 +690,21 @@ const showSupplierModal = ref(false)
 const showAdvanced = ref(false)
 const apiBase = String((import.meta as any).env?.VITE_API_URL || '')
 
+// Promoción por cantidad (UI state)
+const showPromoModal = ref(false)
+const promoLoading = ref(false)
+const promoErrorMsg = ref('')
+const quantityPromoLoaded = ref(false)
+const quantityPromo = reactive<ArticleQuantityPromotionDto>({
+  active: true,
+  exclusive: false,
+  priceListIds: [],
+  startsAt: null,
+  endsAt: null
+})
+const promoTiers = reactive<ArticleQuantityPromoTierDto[]>([])
+const priceListOptions = ref<string[]>(['LISTA-1', 'LISTA-2', 'LISTA-3'])
+
 // Selección de proveedores con EntitySearch
 const selectedSupplier1 = ref<any | null>(null)
 const selectedSupplier2 = ref<any | null>(null)
@@ -588,6 +761,10 @@ onMounted(async () => {
   }
   // keyboard shortcuts
   window.addEventListener('keydown', onKeyDown)
+  // Load quantity promotion when editing
+  if (props.mode === 'edit' && props.initial?.id) {
+    await loadPromotion()
+  }
 })
 
 watch(() => form.categoryId, () => {
@@ -606,13 +783,196 @@ watch([
 
 function onKeyDown(e: KeyboardEvent) {
   if (e.ctrlKey && e.key.toLowerCase() === 's') {
-    e.preventDefault(); onSubmit()
+    e.preventDefault();
+    if (showPromoModal.value) {
+      savePromotion()
+    } else {
+      onSubmit()
+    }
   }
   if (e.key === 'Escape') {
-    e.preventDefault(); onCancel()
+    e.preventDefault();
+    if (showPromoModal.value) {
+      showPromoModal.value = false
+    } else {
+      onCancel()
+    }
   }
   if (e.altKey && e.key.toLowerCase() === 'n') {
     e.preventDefault(); showSupplierModal.value = true
+  }
+}
+
+function formatDate(d: string | Date | null | undefined): string {
+  if (!d) return '—'
+  const date = typeof d === 'string' ? new Date(d) : d
+  try {
+    return new Intl.DateTimeFormat('es-AR', { dateStyle: 'medium' }).format(date as Date)
+  } catch (_) {
+    return String(d)
+  }
+}
+
+function formatCurrency(n: number): string {
+  const x = Number(n || 0)
+  return x.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+function bestTierForQty(qty: number): ArticleQuantityPromoTierDto | null {
+  if (!promoTiers.length) return null
+  const applicable = promoTiers.filter(t => Number(t.minQtyUn) <= qty)
+  if (!applicable.length) return null
+  applicable.sort((a, b) => Number(b.minQtyUn) - Number(a.minQtyUn))
+  return applicable[0]
+}
+
+function simulateUnitPrice(base: number, qty: number): number {
+  const tier = bestTierForQty(qty)
+  if (!tier) return Number(base || 0)
+  if (tier.pricePerUnit != null && Number(tier.pricePerUnit) > 0) {
+    return Number(tier.pricePerUnit)
+  }
+  if (tier.percentOff != null && Number(tier.percentOff) > 0) {
+    const off = Number(tier.percentOff) / 100
+    return Math.max(0, Number(base || 0) * (1 - off))
+  }
+  return Number(base || 0)
+}
+
+async function loadPromotion() {
+  promoLoading.value = true
+  promoErrorMsg.value = ''
+  try {
+    const articleId = String(props.initial!.id)
+    const promo = await getPromotion(articleId)
+    const tiers = await listTiers(articleId)
+    if (promo) {
+      quantityPromoLoaded.value = true
+      Object.assign(quantityPromo, promo)
+    } else {
+      quantityPromoLoaded.value = false
+      // initialize blank promo
+      Object.assign(quantityPromo, {
+        active: true,
+        exclusive: false,
+        priceListIds: ['LISTA-1'],
+        startsAt: null,
+        endsAt: null
+      })
+    }
+    promoTiers.splice(0, promoTiers.length, ...tiers.sort((a,b) => Number(a.sort||0) - Number(b.sort||0)))
+  } catch (err: any) {
+    console.error('loadPromotion failed', err)
+    promoErrorMsg.value = err?.response?.data?.message || 'Error al cargar promoción'
+    quantityPromoLoaded.value = false
+  } finally {
+    promoLoading.value = false
+  }
+}
+
+function openPromoModal() {
+  if (!quantityPromoLoaded.value && props.mode === 'edit' && props.initial?.id) {
+    loadPromotion().then(() => { showPromoModal.value = true })
+    return
+  }
+  // initialize if creating from scratch
+  if (!quantityPromo) {
+    Object.assign(quantityPromo, {
+      active: true,
+      exclusive: false,
+      priceListIds: ['LISTA-1'],
+      startsAt: null,
+      endsAt: null
+    })
+  }
+  showPromoModal.value = true
+}
+
+function validateTiers(): string[] {
+  const errs: string[] = []
+  // Basic validations: minQty>0, ascending order, one mode per row, values>0
+  if (!promoTiers.length) {
+    errs.push('Debe agregar al menos un tier')
+  }
+  const sorted = [...promoTiers].map(t => ({...t}))
+  for (let i=0;i<sorted.length;i++) {
+    const t = sorted[i]
+    const minq = Number(t.minQtyUn)
+    if (!Number.isFinite(minq) || minq <= 0) errs.push(`Fila ${i+1}: Desde (UN) debe ser > 0`)
+    const hasPrice = t.pricePerUnit != null && Number(t.pricePerUnit) > 0
+    const hasPct = t.percentOff != null && Number(t.percentOff) > 0
+    if (hasPrice && hasPct) errs.push(`Fila ${i+1}: Usar Precio unitario o % desc., no ambos`)
+    if (!hasPrice && !hasPct) errs.push(`Fila ${i+1}: Completar Precio unitario o % desc.`)
+  }
+  const asc = [...promoTiers].map(t => Number(t.minQtyUn)).every((v, i, arr) => i === 0 || v >= arr[i-1])
+  if (!asc) errs.push('El orden de Desde (UN) debe ser ascendente')
+  return errs
+}
+
+async function savePromotion() {
+  const errors = validateTiers()
+  if (errors.length) { promoErrorMsg.value = errors[0]; return }
+  promoErrorMsg.value = ''
+  promoLoading.value = true
+  try {
+    const articleId = props.initial?.id ? String(props.initial.id) : ''
+    // Persist promotion
+    if (quantityPromoLoaded.value && quantityPromo?.id) {
+      await updatePromotion(articleId, {
+        active: !!quantityPromo.active,
+        exclusive: !!quantityPromo.exclusive,
+        priceListIds: Array.isArray(quantityPromo.priceListIds) ? quantityPromo.priceListIds : [],
+        startsAt: quantityPromo.startsAt || null,
+        endsAt: quantityPromo.endsAt || null
+      })
+    } else {
+      const created = await createPromotion(articleId, {
+        active: !!quantityPromo.active,
+        exclusive: !!quantityPromo.exclusive,
+        priceListIds: Array.isArray(quantityPromo.priceListIds) ? quantityPromo.priceListIds : [],
+        startsAt: quantityPromo.startsAt || null,
+        endsAt: quantityPromo.endsAt || null
+      })
+      Object.assign(quantityPromo, created)
+      quantityPromoLoaded.value = true
+    }
+    // Replace tiers: delete existing and re-create
+    const existing = await listTiers(articleId)
+    for (const t of existing) { try { await deleteTier(articleId, String(t.id)) } catch (_) {} }
+    const ordered = [...promoTiers].map((t, idx) => ({ ...t, sort: idx }))
+    for (const t of ordered) {
+      await createTier(articleId, {
+        minQtyUn: Number(t.minQtyUn),
+        pricePerUnit: (t.pricePerUnit != null && Number(t.pricePerUnit) > 0) ? Number(t.pricePerUnit) : null,
+        percentOff: (t.percentOff != null && Number(t.percentOff) > 0) ? Number(t.percentOff) : null,
+        sort: Number(t.sort ?? t.sort ?? 0)
+      })
+    }
+    await loadPromotion()
+    showPromoModal.value = false
+    success('Promoción guardada')
+  } catch (err: any) {
+    console.error('savePromotion failed', err)
+    promoErrorMsg.value = err?.response?.data?.message || 'Error al guardar promoción'
+  } finally {
+    promoLoading.value = false
+  }
+}
+
+async function removePromotion() {
+  if (props.mode !== 'edit' || !props.initial?.id) return
+  promoLoading.value = true
+  try {
+    await deletePromotion(String(props.initial.id))
+    quantityPromoLoaded.value = false
+    promoTiers.splice(0, promoTiers.length)
+    Object.assign(quantityPromo, { active: true, exclusive: false, priceListIds: ['LISTA-1'], startsAt: null, endsAt: null })
+    success('Promoción eliminada')
+  } catch (err: any) {
+    console.error('removePromotion failed', err)
+    promoErrorMsg.value = err?.response?.data?.message || 'Error al eliminar promoción'
+  } finally {
+    promoLoading.value = false
   }
 }
 
@@ -890,6 +1250,12 @@ function removeComboRow(idx: number) { form.comboComponents.splice(idx, 1) }
 // Wholesale
 function addWholesaleTier() { form.wholesaleTiers.push({ uom: 'UN', qty: 1, price: null, discountPct: null }) }
 function removeWholesaleTier(idx: number) { form.wholesaleTiers.splice(idx, 1) }
+
+// Quantity Promotion tiers
+function addPromoTier() {
+  promoTiers.push({ minQtyUn: Math.max(1, (promoTiers.at(-1)?.minQtyUn || 0) + 1), pricePerUnit: null, percentOff: null, sort: promoTiers.length })
+}
+function removePromoTier(idx: number) { promoTiers.splice(idx, 1) }
 
 // Stock Days widget
 const stockSemaphoreClass = computed(() => {

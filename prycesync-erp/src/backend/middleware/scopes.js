@@ -22,6 +22,7 @@ const ROLE_SCOPES = {
   admin: new Set([
     'article:read',
     'article:write',
+    'promotions:write',
     'stock:read',
     'stock:write',
     'stock:override',
@@ -36,6 +37,7 @@ const ROLE_SCOPES = {
   manager: new Set([
     'article:read',
     'article:write',
+    'promotions:write',
     'stock:read',
     'stock:write',
     'stock:kardex',

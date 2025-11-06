@@ -6,6 +6,7 @@ import { rateLimit } from '../middleware/rateLimit.js'
 import { recordArticleRequest } from '../observability/deprecationMetrics.js'
 import multer from 'multer'
 import ArticleBulkPricingController from '../controllers/ArticleBulkPricingController.js'
+import ArticleQuantityPromotionController from '../controllers/ArticleQuantityPromotionController.js'
 
 const router = express.Router()
 
@@ -29,6 +30,7 @@ const requireResolve = requireScopes('purchases:resolve')
 // Escritura: 20/min
 const writeLimit = rateLimit({ keyPrefix: 'rl:articles:write', limit: 20, windowSeconds: 60 })
 const requireWrite = requireScopes('article:write')
+const requirePromoWrite = requireScopes('promotions:write')
 
 // Búsqueda y listado
 router.get('/search', requireRead, readLimit, ArticleController.searchArticles)
@@ -66,6 +68,18 @@ router.get('/:id/bulk-pricing', requireRead, readLimit, ArticleBulkPricingContro
 router.post('/:id/bulk-pricing', requireWrite, writeLimit, ArticleBulkPricingController.create)
 router.put('/:id/bulk-pricing/:ruleId', requireWrite, writeLimit, ArticleBulkPricingController.update)
 router.delete('/:id/bulk-pricing/:ruleId', requireWrite, writeLimit, ArticleBulkPricingController.remove)
+
+// Subrecurso: promoción por cantidad (tiers específicos del artículo)
+router.get('/:id/quantity-promo', requireRead, readLimit, ArticleQuantityPromotionController.get)
+router.post('/:id/quantity-promo', requireWrite, requirePromoWrite, writeLimit, ArticleQuantityPromotionController.create)
+router.put('/:id/quantity-promo', requireWrite, requirePromoWrite, writeLimit, ArticleQuantityPromotionController.update)
+router.delete('/:id/quantity-promo', requireWrite, requirePromoWrite, writeLimit, ArticleQuantityPromotionController.remove)
+
+// Tiers de la promoción por cantidad
+router.get('/:id/quantity-promo/tiers', requireRead, readLimit, ArticleQuantityPromotionController.listTiers)
+router.post('/:id/quantity-promo/tiers', requireWrite, requirePromoWrite, writeLimit, ArticleQuantityPromotionController.createTier)
+router.put('/:id/quantity-promo/tiers/:tierId', requireWrite, requirePromoWrite, writeLimit, ArticleQuantityPromotionController.updateTier)
+router.delete('/:id/quantity-promo/tiers/:tierId', requireWrite, requirePromoWrite, writeLimit, ArticleQuantityPromotionController.deleteTier)
 
 // Subrecursos: proveedores
 router.get('/:id/suppliers', requireRead, readLimit, ArticleController.getSuppliers)

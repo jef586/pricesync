@@ -273,7 +273,26 @@
         <div class="col-span-1 grid grid-rows-[1fr_1fr_1fr] gap-4 h-full">
           <!-- Combos/Kits -->
           <div class="ps-card p-4 h-full">
-            <h2 class="text-base font-bold mb-2">Combos/Kits</h2>
+            <div class="flex items-center justify-between mb-2">
+              <h2 class="text-base font-bold">Combos y Promociones</h2>
+              <div class="flex items-center gap-2">
+                <button
+                  v-if="!hasPromo"
+                  class="ps-btn ps-btn--secondary ps-btn--compact text-xs px-3 py-1"
+                  @click="openPromoModal"
+                >Promoción por cantidad</button>
+                <button
+                  v-else
+                  class="ps-btn ps-btn--secondary ps-btn--compact text-xs px-3 py-1"
+                  @click="openPromoModal"
+                >Editar promo</button>
+                <button
+                  v-if="hasPromo"
+                  class="ps-btn ps-btn--danger ps-btn--compact text-xs px-3 py-1"
+                  @click="removePromo"
+                >Quitar promo</button>
+              </div>
+            </div>
             <div class="overflow-x-auto">
               <table class="ps-table w-full table-fixed text-xs leading-tight">
                 <thead>
@@ -286,18 +305,21 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr>
-                    <td class="px-2 py-1">ART-001</td>
-                    <td class="px-2 py-1 break-words">Item A</td>
-                    <td class="px-2 py-1">2</td>
+                  <tr v-for="c in components" :key="c.key" class="hover:bg-gray-50">
+                    <td class="px-2 py-1">{{ c.sku || c.barcode || c.articleId || '—' }}</td>
+                    <td class="px-2 py-1 break-words">{{ c.name || '—' }}</td>
+                    <td class="px-2 py-1">{{ c.qty }}</td>
                     <td class="px-2 py-1">UN</td>
-                    <td class="px-2 py-1">10</td>
+                    <td class="px-2 py-1">{{ c.stock ?? '—' }}</td>
+                  </tr>
+                  <tr v-if="components.length === 0">
+                    <td class="px-2 py-1 text-secondary" colspan="5">Sin componentes. Agregue al menos uno.</td>
                   </tr>
                 </tbody>
               </table>
             </div>
             <div class="mt-3">
-              <button class="ps-btn ps-btn--secondary ps-btn--compact text-xs px-3 py-1">+ Agregar componente</button>
+              <button class="ps-btn ps-btn--secondary ps-btn--compact text-xs px-3 py-1" @click="showComponentModal = true">+ Agregar componente</button>
               <p class="mt-2 text-xs text-secondary">Al vender combo descuenta stock de componentes.</p>
             </div>
           </div>
@@ -307,13 +329,13 @@
             <div class="flex items-center justify-between mb-4">
               <h2 class="text-base font-bold">Reglas</h2>
               <div class="flex items-center gap-2">
-                <button class="ps-btn ps-btn--secondary ps-btn--compact text-xs px-3 py-1" @click="tab9 = 'mayorista'" :class="{ 'ring-2 ring-emerald-400': tab9 === 'mayorista' }">Mayorista & Promos</button>
+                <!-- <button class="ps-btn ps-btn--secondary ps-btn--compact text-xs px-3 py-1" @click="tab9 = 'mayorista'" :class="{ 'ring-2 ring-emerald-400': tab9 === 'mayorista' }">Mayorista & Promos</button> -->
                 <button class="ps-btn ps-btn--secondary ps-btn--compact text-xs px-3 py-1" @click="tab9 = 'puntos'" :class="{ 'ring-2 ring-emerald-400': tab9 === 'puntos' }">Puntos</button>
                 <button class="ps-btn ps-btn--secondary ps-btn--compact text-xs px-3 py-1" @click="tab9 = 'dos'" :class="{ 'ring-2 ring-emerald-400': tab9 === 'dos' }">Días de stock</button>
                 <button class="ps-btn ps-btn--secondary ps-btn--compact text-xs px-3 py-1" @click="tab9 = 'auditoria'" :class="{ 'ring-2 ring-emerald-400': tab9 === 'auditoria' }">Auditoría</button>
               </div>
             </div>
-            <div v-show="tab9 === 'mayorista'" class="space-y-3">
+            <!-- <div v-show="tab9 === 'mayorista'" class="space-y-3">
               <div class="text-sm font-semibold">Reglas por cantidad</div>
               <div>
                 <table class="ps-table w-full table-auto text-xs leading-tight">
@@ -329,17 +351,17 @@
                   </thead>
                   <tbody class="text-[11px]">
                     <tr>
-                      <td class="px-2 py-1">UN</td>
-                      <td class="px-2 py-1">10</td>
-                      <td class="px-2 py-1 break-words">%OFF 5</td>
+                      <td class="px-2 py-1">{{ promoForm.uom }}</td>
+                      <td class="px-2 py-1">{{ promoForm.minQty }}</td>
+                      <td class="px-2 py-1 break-words">{{ hasPromo ? ('%OFF ' + promoForm.offPct) : '—' }}</td>
                       <td class="px-2 py-1 break-words">2025-01-01→2025-12-31</td>
-                      <td class="px-2 py-1">✔</td>
+                      <td class="px-2 py-1">{{ hasPromo ? '✔' : '—' }}</td>
                       <td class="px-2 py-1">1</td>
                     </tr>
                   </tbody>
                 </table>
               </div>
-            </div>
+            </div> -->
             <div v-show="tab9 === 'puntos'" class="text-xs">
               <label class="text-sm font-semibold">pointsPerUnit</label>
               <input type="number" v-model.number="pointsPerUnit" class="w-full mt-1 px-2 py-1 text-xs rounded-md border-default" />
@@ -376,11 +398,69 @@
     </main>
     </div>
   </DashboardLayout>
+
+  <!-- Modal de Promoción por cantidad -->
+  <BaseModal v-model="showPromoModal" title="Promoción por cantidad" size="md">
+    <form id="promoForm" @submit.prevent="savePromo" class="space-y-3">
+      <div class="grid grid-cols-2 gap-2 text-xs">
+        <div>
+          <label class="text-xs font-semibold">UoM</label>
+          <select v-model="promoForm.uom" class="w-full mt-1 px-2 py-1 text-xs rounded-md border-default">
+            <option value="UN">UN</option>
+            <option value="KG">KG</option>
+            <option value="LT">LT</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs font-semibold">Cantidad mínima</label>
+          <input type="number" v-model.number="promoForm.minQty" class="w-full mt-1 px-2 py-1 text-xs rounded-md border-default" />
+        </div>
+        <div class="col-span-2">
+          <label class="text-xs font-semibold">Descuento %</label>
+          <input type="number" v-model.number="promoForm.offPct" class="w-full mt-1 px-2 py-1 text-xs rounded-md border-default" />
+        </div>
+      </div>
+    </form>
+    <template #footer>
+      <button class="ps-btn ps-btn--secondary" @click="showPromoModal = false">Cancelar</button>
+      <button class="ps-btn ps-btn--primary" form="promoForm" @click="savePromo">Guardar</button>
+    </template>
+  </BaseModal>
+  <!-- Modal de componente de combo -->
+  <BaseModal v-model="showComponentModal" title="Agregar componente" size="md">
+    <form id="compForm" @submit.prevent="addComponent" class="space-y-3">
+      <div class="grid grid-cols-3 gap-2 text-xs">
+        <div class="col-span-2">
+          <label class="text-xs font-semibold">Código (SKU / EAN)</label>
+          <input v-model="componentForm.code" class="w-full mt-1 px-2 py-1 text-xs rounded-md border-default" placeholder="Ingrese SKU o código de barras" />
+          <p v-if="componentForm.error" class="mt-1 text-[10px] text-red-600">{{ componentForm.error }}</p>
+        </div>
+        <div>
+          <label class="text-xs font-semibold">Cantidad</label>
+          <input type="number" min="1" v-model.number="componentForm.qty" class="w-full mt-1 px-2 py-1 text-xs rounded-md border-default" />
+        </div>
+        <div class="col-span-3">
+          <button type="button" class="ps-btn ps-btn--secondary ps-btn--compact text-xs px-3 py-1" @click="resolveComponent">Buscar y precargar</button>
+          <div v-if="componentForm.resolved" class="mt-2 text-xs">
+            <div><strong>Artículo:</strong> {{ componentForm.resolved.name }} ({{ componentForm.resolved.sku || componentForm.resolved.barcode || componentForm.resolved.id }})</div>
+          </div>
+        </div>
+      </div>
+    </form>
+    <template #footer>
+      <button class="ps-btn ps-btn--secondary" @click="showComponentModal = false">Cancelar</button>
+      <button class="ps-btn ps-btn--primary" form="compForm" @click="addComponent">Agregar</button>
+    </template>
+  </BaseModal>
 </template>
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import DashboardLayout from '@/components/organisms/DashboardLayout.vue';
+import BaseModal from '@/components/atoms/BaseModal.vue';
 import { useRouter } from 'vue-router';
+import { createArticle, resolveArticle } from '@/services/articles';
+import { apiClient } from '@/services/api';
+import { createPromotion, getPromotion, createTier } from '@/services/quantityPromotionService';
 
   const router = useRouter();
   const isDirty = ref(false);
@@ -403,6 +483,7 @@ const form = ref({
 });
   const imagePreview = ref('');
   const imageInput = ref<HTMLInputElement | null>(null);
+  const imageFile = ref<File | null>(null);
   const imageError = ref('');
 
   function selectImageFile() {
@@ -439,11 +520,13 @@ const form = ref({
     if (imagePreview.value) URL.revokeObjectURL(imagePreview.value);
     const url = URL.createObjectURL(file);
     imagePreview.value = url;
+    imageFile.value = file;
   }
 
   function removeImage() {
     if (imagePreview.value) URL.revokeObjectURL(imagePreview.value);
     imagePreview.value = '';
+    imageFile.value = null;
   }
 
 // Pricing
@@ -477,6 +560,64 @@ const aliasInput = ref('');
 // Tabs (.div9)
 const tab9 = ref<'mayorista' | 'puntos' | 'dos' | 'auditoria'>('mayorista');
 const pointsPerUnit = ref(0);
+
+// Promoción por cantidad (UI local)
+const hasPromo = ref(false);
+const showPromoModal = ref(false);
+const promoForm = ref({ uom: 'UN', minQty: 10, offPct: 5 });
+const openPromoModal = () => { showPromoModal.value = true };
+const removePromo = () => { hasPromo.value = false };
+const savePromo = () => { hasPromo.value = true; showPromoModal.value = false };
+
+// Combos dinámicos
+type ComboComponent = { key: string; articleId?: string; sku?: string; barcode?: string; name?: string; qty: number; stock?: number };
+const components = ref<ComboComponent[]>([]);
+const showComponentModal = ref(false);
+const componentForm = ref<{ code: string; qty: number; resolved: any | null; error: string | null }>({ code: '', qty: 1, resolved: null, error: null });
+
+async function resolveComponent() {
+  componentForm.value.error = null;
+  const code = componentForm.value.code?.trim();
+  if (!code) {
+    componentForm.value.error = 'Ingrese un código para buscar';
+    return;
+  }
+  try {
+    const art = await resolveArticle({ barcode: code, sku: code });
+    if (!art) {
+      componentForm.value.error = 'Artículo no encontrado';
+      componentForm.value.resolved = null;
+      return;
+    }
+    componentForm.value.resolved = art;
+  } catch (err: any) {
+    componentForm.value.error = err?.message || 'Error resolviendo artículo';
+  }
+}
+
+function addComponent() {
+  componentForm.value.error = null;
+  const qty = Number(componentForm.value.qty || 0);
+  if (!(qty > 0)) {
+    componentForm.value.error = 'Cantidad debe ser > 0';
+    return;
+  }
+  const art = componentForm.value.resolved;
+  if (!art) {
+    componentForm.value.error = 'Primero busque y seleccione un artículo';
+    return;
+  }
+  components.value.push({
+    key: `${art.id}-${Date.now()}`,
+    articleId: art.id,
+    sku: art.sku,
+    barcode: art.barcode,
+    name: art.name,
+    qty
+  });
+  componentForm.value = { code: '', qty: 1, resolved: null, error: null };
+  showComponentModal.value = false;
+}
 
 // Validation flags
 const validation = ref({ eanDuplicate: false, stockInvalid: false, uomInvalid: false, aliasDuplicate: false });
@@ -537,12 +678,59 @@ const goBack = () => {
 
 const save = async () => {
   isSaving.value = true;
-  console.log('Guardando...');
-  // Simular llamada a API
-  await new Promise(resolve => setTimeout(resolve, 1500));
-  isSaving.value = false;
-  isDirty.value = false;
-  console.log('Guardado con éxito.');
+  try {
+    const payload: any = {
+      name: form.value.name?.trim(),
+      type: form.value.type,
+      active: !!form.value.active,
+      sku: form.value.sku?.trim() || undefined,
+      barcode: form.value.ean?.trim() || undefined,
+      taxRate: Number(calc.value.ivaPct),
+      cost: Number(calc.value.cost),
+      gainPct: Number(calc.value.marginPct),
+      pricePublic: Number(calc.value.pricePublic),
+      internalTaxType: calc.value.internalTaxIsPct ? 'PERCENT' : 'AMOUNT',
+      internalTaxValue: Number(calc.value.internalTax) || 0,
+      stockMin: stock.value.min || undefined,
+      stockMax: stock.value.max || undefined,
+      pointsPerUnit: pointsPerUnit.value || undefined,
+      bundleComponents: components.value.map(c => ({ articleId: c.articleId, qty: c.qty })),
+      comboOwnPrice: false
+    };
+
+    const created = await createArticle(payload);
+    const articleId = (created as any)?.id;
+
+    if (imageFile.value && articleId) {
+      try {
+        const { uploadArticleImage } = await import('@/services/articles');
+        await uploadArticleImage(articleId, imageFile.value);
+      } catch (err) {
+        console.warn('No se pudo subir la imagen', err);
+      }
+    }
+
+    if (hasPromo.value && articleId) {
+      try {
+        const convResp = await apiClient.post(`/articles/${articleId}/convert`, { uom: promoForm.value.uom, qty: promoForm.value.minQty });
+        const minQtyUn = Number(convResp.data?.qtyUn ?? convResp.data?.convertedQty ?? promoForm.value.minQty);
+        const existingPromo = await getPromotion(articleId);
+        if (!existingPromo) {
+          await createPromotion(articleId, { active: true, exclusive: false, priceListIds: [] });
+        }
+        await createTier(articleId, { minQtyUn, percentOff: Number(promoForm.value.offPct), pricePerUnit: null });
+      } catch (err) {
+        console.warn('No se pudo guardar la promoción por cantidad', err);
+      }
+    }
+
+    isDirty.value = false;
+    console.log('Guardado con éxito.', created);
+  } catch (err) {
+    console.error('Error guardando artículo', err);
+  } finally {
+    isSaving.value = false;
+  }
 };
 
 const saveAndNew = async () => {

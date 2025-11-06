@@ -84,9 +84,9 @@
             </td>
             <td class="px-3 py-2">
               <div class="flex gap-1 items-center">
-                <input v-model="(r as any).validFrom" type="date" class="border rounded px-2 py-1" />
+                <input v-model="r.validFrom" type="date" class="border rounded px-2 py-1" />
                 <span>-</span>
-                <input v-model="(r as any).validTo" type="date" class="border rounded px-2 py-1" />
+                <input v-model="r.validTo" type="date" class="border rounded px-2 py-1" />
               </div>
             </td>
             <td class="px-3 py-2 text-center">
@@ -213,8 +213,8 @@ async function saveRule(r: BulkPricingRule) {
     percentOff: r.mode === 'PERCENT_OFF' ? (r.percentOff ?? 0) : null,
     active: r.active,
     priority: r.priority ?? 0,
-    validFrom: (r as any).validFrom || null,
-    validTo: (r as any).validTo || null,
+    validFrom: r.validFrom || null,
+    validTo: r.validTo || null,
   }
   if (!validateRow(patch as BulkPricingRule)) return
   await updateArticleRule(props.articleId, r.id!, patch)
