@@ -7,6 +7,7 @@ import { recordArticleRequest } from '../observability/deprecationMetrics.js'
 import multer from 'multer'
 import ArticleBulkPricingController from '../controllers/ArticleBulkPricingController.js'
 import ArticleQuantityPromotionController from '../controllers/ArticleQuantityPromotionController.js'
+import ArticleFixedPricesController from '../controllers/ArticleFixedPricesController.js'
 
 const router = express.Router()
 
@@ -80,6 +81,14 @@ router.get('/:id/quantity-promo/tiers', requireRead, readLimit, ArticleQuantityP
 router.post('/:id/quantity-promo/tiers', requireWrite, requirePromoWrite, writeLimit, ArticleQuantityPromotionController.createTier)
 router.put('/:id/quantity-promo/tiers/:tierId', requireWrite, requirePromoWrite, writeLimit, ArticleQuantityPromotionController.updateTier)
 router.delete('/:id/quantity-promo/tiers/:tierId', requireWrite, requirePromoWrite, writeLimit, ArticleQuantityPromotionController.deleteTier)
+
+// UH-ART-26: Precios fijos por listas (L1–L3)
+router.get('/:id/prices-fixed', requireRead, readLimit, ArticleFixedPricesController.get)
+router.put('/:id/prices-fixed', requireWrite, writeLimit, ArticleFixedPricesController.upsert)
+
+// Alias de compatibilidad: qty-promos -> quantity-promo
+router.get('/:id/qty-promos', requireRead, readLimit, ArticleQuantityPromotionController.get)
+router.put('/:id/qty-promos', requireWrite, requirePromoWrite, writeLimit, ArticleQuantityPromotionController.update)
 
 // Subrecursos: proveedores
 router.get('/:id/suppliers', requireRead, readLimit, ArticleController.getSuppliers)

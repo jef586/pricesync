@@ -380,6 +380,71 @@
             </div>
           </div>
 
+          <!-- Card: Listas de Precios (4 fijas) -->
+          <section class="ps-card overflow-hidden max-w-full p-4">
+            <h2 class="text-base font-bold mb-2">Listas de Precios (4 fijas)</h2>
+            <div class="space-y-1.5 w-full text-xs">
+              <!-- LISTA 1 -->
+              <div class="grid grid-cols-12 gap-1 items-center w-full">
+                <div class="col-span-5 flex items-center gap-1 min-w-0">
+                  <span class="font-semibold truncate">LISTA 1 Ganancia %:</span>
+                  <input type="number" step="0.01" v-model.number="priceLists[1].margin" @input="lastEditedByRow[1] = 'margin'" class="w-full px-2 py-1 rounded-md border-default" />
+                </div>
+                <div class="col-span-5 flex items-center gap-1 min-w-0">
+                  <span class="font-semibold truncate">Precio al Público:</span>
+                  <input type="number" step="0.01" v-model.number="priceLists[1].final" @input="lastEditedByRow[1] = 'final'" class="w-full px-2 py-1 rounded-md border-default" />
+                </div>
+                <div class="col-span-2 min-w-0">
+                  <button class="ps-btn ps-btn--secondary ps-btn--compact px-3 py-1 w-full" @click="calcRow(1)">Calcular</button>
+                </div>
+              </div>
+              <!-- LISTA 2 -->
+              <div class="grid grid-cols-12 gap-1 items-center w-full">
+                <div class="col-span-5 flex items-center gap-1 min-w-0">
+                  <span class="font-semibold truncate">LISTA 2 Ganancia %:</span>
+                  <input type="number" step="0.01" v-model.number="priceLists[2].margin" @input="lastEditedByRow[2] = 'margin'" class="w-full px-2 py-1 rounded-md border-default" />
+                </div>
+                <div class="col-span-5 flex items-center gap-1 min-w-0">
+                  <span class="font-semibold truncate">Precio al Público:</span>
+                  <input type="number" step="0.01" v-model.number="priceLists[2].final" @input="lastEditedByRow[2] = 'final'" class="w-full px-2 py-1 rounded-md border-default" />
+                </div>
+                <div class="col-span-2 min-w-0">
+                  <button class="ps-btn ps-btn--secondary ps-btn--compact px-3 py-1 w-full" @click="calcRow(2)">Calcular</button>
+                </div>
+              </div>
+              <!-- LISTA 3 -->
+              <div class="grid grid-cols-12 gap-1 items-center w-full">
+                <div class="col-span-5 flex items-center gap-1 min-w-0">
+                  <span class="font-semibold truncate">LISTA 3 Ganancia %:</span>
+                  <input type="number" step="0.01" v-model.number="priceLists[3].margin" @input="lastEditedByRow[3] = 'margin'" class="w-full px-2 py-1 rounded-md border-default" />
+                </div>
+                <div class="col-span-5 flex items-center gap-1 min-w-0">
+                  <span class="font-semibold truncate">Precio al Público:</span>
+                  <input type="number" step="0.01" v-model.number="priceLists[3].final" @input="lastEditedByRow[3] = 'final'" class="w-full px-2 py-1 rounded-md border-default" />
+                </div>
+                <div class="col-span-2 min-w-0">
+                  <button class="ps-btn ps-btn--secondary ps-btn--compact px-3 py-1 w-full" @click="calcRow(3)">Calcular</button>
+                </div>
+              </div>
+              <!-- LISTA 4 (Promo) -->
+              <div class="grid grid-cols-12 gap-1 items-center w-full">
+                <div class="col-span-7 flex items-center gap-1 min-w-0">
+                  <span class="font-semibold truncate">LISTA 4 (Promo) Precio:</span>
+                  <input :value="toCurrency(l4Preview)" class="w-full px-2 py-1 rounded-md border-default bg-gray-50" readonly />
+                </div>
+                <div class="col-span-3 min-w-0">
+                  <input type="number" min="1" v-model.number="l4Qty" class="w-full px-2 py-1 rounded-md border-default" placeholder="Qty" />
+                </div>
+                <div class="col-span-2 grid grid-cols-2 gap-1 min-w-0">
+                  <button class="ps-btn ps-btn--secondary ps-btn--compact px-3 py-1 w-full" @click="openPromoModal">Configurar</button>
+                  <button class="ps-btn ps-btn--secondary ps-btn--compact px-3 py-1 w-full" @click="refreshL4">Preview</button>
+                </div>
+              </div>
+
+              <div class="text-[10px] text-secondary">Redondeo: 2 dec, HALF_UP. IVA e Imp. Interno incluidos.</div>
+            </div>
+          </section>
+
           <!-- Resumen de precio -->
           <div class="ps-card p-4 h-full">
             <h2 class="text-base font-bold mb-2">Resumen de precio</h2>
@@ -700,6 +765,7 @@ const save = async () => {
 
     const created = await createArticle(payload);
     const articleId = (created as any)?.id;
+    lastCreatedArticleId.value = articleId || ''
 
     if (imageFile.value && articleId) {
       try {
@@ -766,6 +832,78 @@ watch([() => stock.value.min, () => stock.value.max], () => {
 watch([() => uom.value.bu.factor, () => uom.value.kg.factor, () => uom.value.lt.factor], () => {
   validation.value.uomInvalid = [uom.value.bu.factor, uom.value.kg.factor, uom.value.lt.factor].some(f => f <= 0);
 });
+
+// --- UH-ART-26: Estado local L1–L3 y helpers ---
+type FixedRow = { margin?: number, final?: number, locked: boolean }
+const priceLists = ref<Record<number, FixedRow>>({
+  1: { margin: 20, final: undefined, locked: false },
+  2: { margin: 15, final: undefined, locked: false },
+  3: { margin: 10, final: undefined, locked: false },
+})
+const lastEditedByRow: Record<number, 'margin' | 'final' | null> = { 1: null, 2: null, 3: null }
+const lastCreatedArticleId = ref('')
+const l4Qty = ref<number>(1)
+const l4Preview = ref<number>(0)
+
+function calcRow(row: number) {
+  const r = priceLists.value[row]
+  const ivaFactor = 1 + (calc.value.ivaPct / 100)
+  const internal = effectiveInternalTax.value
+  const neto = calc.value.cost + internal
+  if (lastEditedByRow[row] === 'final') {
+    const final = Number(r.final || 0)
+    const precioNeto = final / ivaFactor
+    const margen = ((precioNeto / neto) - 1) * 100
+    r.margin = roundHalfUp(margen, 2)
+  } else {
+    const marginPct = Number(r.margin || 0)
+    const precioNeto = neto * (1 + marginPct / 100)
+    const final = precioNeto * ivaFactor
+    r.final = roundHalfUp(final, 2)
+  }
+}
+
+async function saveFixedPrices() {
+  if (!lastCreatedArticleId.value) return
+  // Validación: no permitir editar margen y precio a la vez
+  for (const i of [1,2,3]) {
+    const r = priceLists.value[i]
+    if (r.margin != null && r.final != null) {
+      alert('No se permite editar margen y precio a la vez (L'+i+')')
+      return
+    }
+  }
+  const payload: any = {
+    l1MarginPct: priceLists.value[1].margin ?? null,
+    l1FinalPrice: priceLists.value[1].final ?? null,
+    l1Locked: !!priceLists.value[1].locked,
+    l2MarginPct: priceLists.value[2].margin ?? null,
+    l2FinalPrice: priceLists.value[2].final ?? null,
+    l2Locked: !!priceLists.value[2].locked,
+    l3MarginPct: priceLists.value[3].margin ?? null,
+    l3FinalPrice: priceLists.value[3].final ?? null,
+    l3Locked: !!priceLists.value[3].locked,
+  }
+  try {
+    await apiClient.put(`/articles/${lastCreatedArticleId.value}/prices-fixed`, payload)
+    alert('Listas fijas guardadas')
+  } catch (err: any) {
+    alert(err?.message || 'Error guardando listas fijas')
+  }
+}
+
+async function refreshL4() {
+  if (!lastCreatedArticleId.value) return
+  // usar l1 por defecto para base
+  const list = priceLists.value[1].final != null || priceLists.value[1].margin != null ? 'l1' : (priceLists.value[2].final != null || priceLists.value[2].margin != null ? 'l2' : 'l3')
+  try {
+    const resp = await apiClient.get(`/pricing/preview`, { params: { articleId: lastCreatedArticleId.value, qty: l4Qty.value, priceList: list } })
+    l4Preview.value = Number(resp.data?.data?.finalUnitPrice || resp.data?.data?.baseUnitPrice || 0)
+  } catch (err) {
+    console.warn('No se pudo obtener preview L4', err)
+    l4Preview.value = 0
+  }
+}
 watch(() => form.value.ean, (v) => {
   // placeholder para duplicado
   validation.value.eanDuplicate = v === '1234567890123';

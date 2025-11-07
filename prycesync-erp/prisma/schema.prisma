@@ -390,6 +390,8 @@ model Article {
   images                 ArticleImage[]           @relation("ArticleImages")
   ArticleBulkPricing     ArticleBulkPricing[]
   ArticleDemandStats     ArticleDemandStats[]
+  // Precios fijos por listas L1–L3 (UH-ART-26)
+  fixedPrices            ArticlePricesFixed?
 
   @@index([imageId], map: "idx_articles_image")
   @@index([companyId], map: "idx_articles_company")
@@ -538,6 +540,34 @@ model ArticleBulkPricing {
 
   @@index([articleId, uom, minQty, priority], map: "idx_article_bulk_pricing_rule")
   @@map("article_bulk_pricing")
+}
+
+// Fixed price lists per article (UH-ART-26)
+model ArticlePricesFixed {
+  id         String   @id @default(cuid())
+  articleId  String   @map("article_id")
+  article    Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  // Lista 1 (Minorista)
+  l1MarginPct  Decimal? @map("l1_margin_pct") @db.Decimal(7, 3)
+  l1FinalPrice Decimal? @map("l1_final_price") @db.Decimal(12, 2)
+  l1Locked     Boolean  @map("l1_locked") @default(false)
+
+  // Lista 2 (Mayorista 1)
+  l2MarginPct  Decimal? @map("l2_margin_pct") @db.Decimal(7, 3)
+  l2FinalPrice Decimal? @map("l2_final_price") @db.Decimal(12, 2)
+  l2Locked     Boolean  @map("l2_locked") @default(false)
+
+  // Lista 3 (Mayorista 2)
+  l3MarginPct  Decimal? @map("l3_margin_pct") @db.Decimal(7, 3)
+  l3FinalPrice Decimal? @map("l3_final_price") @db.Decimal(12, 2)
+  l3Locked     Boolean  @map("l3_locked") @default(false)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([articleId])
+  @@map("article_prices_fixed")
 }
 
 // ============================================================================
