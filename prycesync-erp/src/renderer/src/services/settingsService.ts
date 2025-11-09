@@ -1,4 +1,5 @@
 import { apiClient } from './api'
+import { z } from 'zod'
 
 export interface PricingSettings {
   defaultMarginPercent: number
@@ -59,4 +60,34 @@ export function computePreviewSale(
   }
 
   return value
+}
+
+// --- Printing Settings ---
+export const PrintingSettingsSchema = z.object({
+  defaultPrinter: z.string().nullable().optional(),
+  paperWidth: z.number().min(30).max(120),
+  marginTop: z.number().min(0).max(50),
+  marginRight: z.number().min(0).max(50),
+  marginBottom: z.number().min(0).max(50),
+  marginLeft: z.number().min(0).max(50),
+  fontSize: z.number().min(8).max(24),
+  autoPrintAfterSale: z.boolean(),
+  branchId: z.string().nullable().optional()
+})
+
+export type PrintingSettings = z.infer<typeof PrintingSettingsSchema>
+
+export async function getPrintingSettings(params?: { branchId?: string | null }): Promise<PrintingSettings> {
+  const res = await apiClient.get('/settings/printing', { params })
+  return res.data.data || res.data
+}
+
+export async function updatePrintingSettings(payload: Partial<PrintingSettings>): Promise<PrintingSettings> {
+  // Validate before sending
+  const parsed = PrintingSettingsSchema.partial().safeParse(payload)
+  if (!parsed.success) {
+    throw new Error('Validación de configuración de impresión inválida')
+  }
+  const res = await apiClient.put('/settings/printing', payload)
+  return res.data.data || res.data
 }

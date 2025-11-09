@@ -17,6 +17,7 @@ import importsRoutes from './routes/imports.js'
 import opsRoutes from './routes/ops.js'
 import aiRoutes from './routes/ai.js';
 import pricingRoutes from './routes/pricing.js';
+import settingsRoutes from './routes/settings.js';
 import usersRoutes from './routes/users.js';
 import rolesRoutes from './routes/roles.js';
 import auditRoutes from './routes/audit.js';
@@ -83,6 +84,7 @@ app.use('/api/afip', afipRoutes);
 app.use('/api/imports', importsRoutes)
 app.use('/api/ai', aiRoutes);
 app.use('/api/pricing', pricingRoutes);
+app.use('/api/settings', settingsRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/roles', rolesRoutes);
 app.use('/api/audit', auditRoutes);

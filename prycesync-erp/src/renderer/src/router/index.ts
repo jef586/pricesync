@@ -22,6 +22,7 @@ import InvoiceEditView from '../views/InvoiceEditView.vue'
 import InvoiceDetailView from '../views/InvoiceDetailView.vue'
 import CompanyView from '../views/CompanyView.vue'
 import PricingSettingsView from '../views/PricingSettingsView.vue'
+import PrintingSettingsView from '../views/PrintingSettingsView.vue'
 import HelpView from '../views/HelpView.vue'
 import ForbiddenView from '../views/ForbiddenView.vue'
 import SalesPOSView from '../views/SalesPOSView.vue'
@@ -90,6 +91,12 @@ const router = createRouter({
     {
       path: '/company/pricing',
       component: PricingSettingsView,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/company/settings/printing',
+      name: 'CompanyPrintingSettings',
+      component: PrintingSettingsView,
       meta: { requiresAuth: true }
     },
     {

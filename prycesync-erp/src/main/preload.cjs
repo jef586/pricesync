@@ -12,6 +12,11 @@ contextBridge.exposeInMainWorld('pos', {
   scan: (code) => ipcRenderer.invoke('pos:scan', code)
 });
 
+contextBridge.exposeInMainWorld('system', {
+  listPrinters: () => ipcRenderer.invoke('system:list-printers'),
+  printTest: (payload) => ipcRenderer.invoke('system:print-test', payload)
+});
+
 // Fallback: definir también en window para dev
 try {
   window.windowControls = {

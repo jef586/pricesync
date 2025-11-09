@@ -18,8 +18,8 @@
 
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Formulario de configuración -->
-        <div class="lg:col-span-2 bg-white rounded-lg shadow p-6">
-          <h3 class="text-lg font-medium text-gray-900 mb-4">Reglas Generales</h3>
+        <div class="lg:col-span-2 ps-surface rounded-lg shadow border-default p-6">
+          <h3 class="text-lg font-medium text-primary mb-4">Reglas Generales</h3>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <BaseInput
               v-model.number="settings.defaultMarginPercent"
@@ -71,8 +71,8 @@
 
           <!-- Overrides por proveedor -->
           <div class="mt-8">
-            <h3 class="text-lg font-medium text-gray-900">Overrides por proveedor</h3>
-            <p class="text-sm text-gray-500 mb-4">Define márgenes específicos que sobrescriben el margen por defecto.</p>
+            <h3 class="text-lg font-medium text-primary">Overrides por proveedor</h3>
+            <p class="text-sm text-secondary mb-4">Define márgenes específicos que sobrescriben el margen por defecto.</p>
 
             <div class="space-y-4">
               <div
@@ -107,14 +107,14 @@
                 </div>
               </div>
 
-              <BaseButton variant="outline" @click="addOverrideRow">Agregar proveedor</BaseButton>
+              <BaseButton variant="secondary" @click="addOverrideRow">Agregar proveedor</BaseButton>
             </div>
           </div>
         </div>
 
         <!-- Preview -->
-        <div class="bg-white rounded-lg shadow p-6">
-          <h3 class="text-lg font-medium text-gray-900 mb-4">Preview de Cálculo</h3>
+        <div class="ps-surface rounded-lg shadow border-default p-6">
+          <h3 class="text-lg font-medium text-primary mb-4">Preview de Cálculo</h3>
           <div class="space-y-4">
             <EntitySelector
               label="Proveedor (opcional)"
@@ -142,9 +142,9 @@
               min="0"
             />
 
-            <div class="mt-2 p-4 bg-gray-50 rounded">
-              <p class="text-sm text-gray-600">Precio de Venta calculado:</p>
-              <p class="text-2xl font-semibold text-gray-900">${{ formatCurrency(previewSale) }}</p>
+            <div class="mt-2 p-4 ps-surface border-default rounded">
+              <p class="text-sm text-secondary">Precio de Venta calculado:</p>
+              <p class="text-2xl font-semibold text-primary">${{ formatCurrency(previewSale) }}</p>
             </div>
           </div>
         </div>

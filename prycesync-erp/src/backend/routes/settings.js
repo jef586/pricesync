@@ -11,4 +11,9 @@ router.use(scopeByCompanyId)
 router.get('/pricing', SettingsController.getPricingSettings)
 router.put('/pricing', SettingsController.updatePricingSettings)
 
+// Printing settings endpoints
+router.get('/printing', SettingsController.getPrintingSettings)
+router.put('/printing', SettingsController.updatePrintingSettings)
+router.post('/printing', SettingsController.updatePrintingSettings)
+
 export default router

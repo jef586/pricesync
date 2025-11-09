@@ -110,3 +110,50 @@ ipcMain.on('window:toggleMaximize', () => {
     win.maximize();
   }
 });
+
+// IPC: List printers available in the active window (Electron)
+ipcMain.handle('system:list-printers', async () => {
+  try {
+    const win = getActiveWindow()
+    if (!win) return { ok: false, error: 'No active window' }
+    const printers = await win.webContents.getPrintersAsync()
+    return { ok: true, printers }
+  } catch (err) {
+    return { ok: false, error: (err && err.message) || 'unknown' }
+  }
+});
+
+// IPC: Print test page to a selected printer
+ipcMain.handle('system:print-test', async (_event, payload) => {
+  try {
+    const win = getActiveWindow()
+    if (!win) return { ok: false, error: 'No active window' }
+
+    const text = (payload && payload.text) || 'Test de impresión PryceSync ERP'
+    const deviceName = payload && payload.printerName
+
+    // Create a minimal about:blank window, render simple HTML and print silently
+    const temp = new BrowserWindow({
+      show: false,
+      webPreferences: { nodeIntegration: false, contextIsolation: true }
+    })
+    await temp.loadURL('about:blank')
+    await temp.webContents.executeJavaScript(`
+      document.body.style.fontFamily = 'sans-serif';
+      document.body.style.margin = '24px';
+      document.body.innerHTML = '<h2>Impresión de prueba</h2><p>' + ${JSON.stringify(text)} + '</p>';
+    `)
+
+    await new Promise((resolve, reject) => {
+      temp.webContents.print({ silent: true, deviceName }, (success, failureReason) => {
+        if (!success) return reject(new Error(failureReason || 'print-failed'))
+        resolve()
+      })
+    })
+
+    temp.destroy()
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: (err && err.message) || 'unknown' }
+  }
+});

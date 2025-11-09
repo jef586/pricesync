@@ -25,8 +25,11 @@
           </svg>
         </div>
         <h2>Configuración de Empresa</h2>
-        <p>Esta funcionalidad estará disponible próximamente.</p>
-        <p>Aquí podrás gestionar la información de tu empresa, configuraciones fiscales y datos de contacto.</p>
+        <p class="text-secondary">Aquí podrás gestionar la información de tu empresa y otras configuraciones.</p>
+        <div class="mt-6 flex flex-wrap gap-3 justify-center">
+          <RouterLink to="/company/pricing" class="btn-primary">Configurar Pricing</RouterLink>
+          <RouterLink to="/company/settings/printing" class="btn-primary">Impresión de Tickets</RouterLink>
+        </div>
       </div>
     </div>
   </DashboardLayout>
@@ -69,12 +72,13 @@ import PageHeader from '../components/molecules/PageHeader.vue'
 }
 
 .content-placeholder {
-  background: white;
+  background: var(--ps-card);
   border-radius: 0.75rem;
   padding: 4rem 2rem;
   text-align: center;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
-  border: 1px solid #e2e8f0;
+  box-shadow: var(--ps-shadow-sm);
+  border: var(--ps-border-width) solid var(--ps-border);
+  color: var(--ps-text-primary);
 }
 
 .placeholder-icon {
