@@ -65,6 +65,7 @@ import { useProducts } from '@/composables/useProducts'
 import { useCustomers } from '@/composables/useCustomers'
 import { useRouter } from 'vue-router'
 import { apiClient } from '@/services/api'
+import { usePrintingStore } from '@/stores/printing'
 // Pestañas locales
 type Tab = { id: string; title: string }
 const tabs = ref<Tab[]>([])
@@ -74,7 +75,23 @@ const activeFormRef = ref<any>(null)
 // Modal de éxito tras cobrar venta
 const successModalOpen = ref(false)
 const successSaleId = ref<string>('')
-const onSaleSuccess = (sid: string) => { successSaleId.value = sid; successModalOpen.value = true }
+const printingStore = usePrintingStore()
+const onSaleSuccess = async (sid: string) => {
+  successSaleId.value = sid
+  successModalOpen.value = true
+
+  printingStore.loadFromLocalStorage()
+  if (printingStore.settings.autoPrintAfterSale) {
+    const res = await printingStore.printTicket(sid)
+    if (res.ok && res.queued) {
+      showToast('Ticket en cola: se imprimirá cuando haya conexión')
+    } else if (res.ok) {
+      showToast('Ticket de venta enviado a la impresora')
+    } else {
+      showToast('No se pudo imprimir el ticket')
+    }
+  }
+}
 const closeSuccessModal = () => { successModalOpen.value = false }
 let counter = 0
 const activateTab = (id: string) => { activeTabId.value = id }

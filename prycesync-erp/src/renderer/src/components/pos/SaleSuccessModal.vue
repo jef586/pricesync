@@ -90,7 +90,8 @@
 import { ref, watch, onMounted, onBeforeUnmount, nextTick, computed } from 'vue'
 import BaseModal from '@/components/atoms/BaseModal.vue'
 import BaseButton from '@/components/atoms/BaseButton.vue'
-import { fetchSalePdf, sendSaleEmail, printSale } from '@/services/salesService'
+import { fetchSalePdf, sendSaleEmail } from '@/services/salesService'
+import { usePrintingStore } from '@/stores/printing'
 
 interface Props {
   saleId: string
@@ -161,11 +162,21 @@ const sendEmail = async () => {
   }
 }
 
+const printingStore = usePrintingStore()
+
 const printSale = async () => {
+  if (!props.saleId) return
   loadingAction.value = 'print'
   try {
-    await printSale(props.saleId)
-    showToast('Impresión encolada')
+    printingStore.loadFromLocalStorage()
+    const res = await printingStore.printTicket(props.saleId)
+    if (res.ok && res.queued) {
+      showToast('Ticket en cola: se imprimirá al reconectar')
+    } else if (res.ok) {
+      showToast('Ticket de venta enviado a la impresora')
+    } else {
+      showToast('No se pudo imprimir el ticket', 'error')
+    }
   } catch (err: any) {
     console.error('Error imprimiendo', err)
     showToast('Error de impresión', 'error')

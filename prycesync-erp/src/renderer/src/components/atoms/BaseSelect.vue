@@ -6,7 +6,7 @@
     </label>
     <select
       :id="id"
-      :value="modelValue"
+      :value="normalizedModelValue"
       :required="required"
       :disabled="disabled"
       :aria-invalid="hasError ? 'true' : undefined"
@@ -18,7 +18,7 @@
         }
       ]"
       v-bind="$attrs"
-      @change="$emit('update:modelValue', ($event.target as HTMLSelectElement).value)"
+      @change="onChange($event)"
       @blur="$emit('blur')"
       @focus="$emit('focus')"
     >
@@ -26,7 +26,7 @@
       <option
         v-for="option in options"
         :key="option.value"
-        :value="option.value"
+        :value="option.value ?? ''"
       >
         {{ option.label }}
       </option>
@@ -38,13 +38,15 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
+
 interface Option {
-  value: string
+  value: string | null
   label: string
 }
 
 interface Props {
-  modelValue: string
+  modelValue: string | null
   label?: string
   placeholder?: string
   options: Option[]
@@ -56,19 +58,26 @@ interface Props {
 }
 
 interface Emits {
-  (e: 'update:modelValue', value: string): void
+  (e: 'update:modelValue', value: string | null): void
   (e: 'blur'): void
   (e: 'focus'): void
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   required: false,
   disabled: false,
   hasError: false,
   id: () => `select-${Math.random().toString(36).substr(2, 9)}`
 })
 
-defineEmits<Emits>()
+const emit = defineEmits<Emits>()
+
+const normalizedModelValue = computed(() => props.modelValue ?? '')
+
+function onChange(event: Event) {
+  const value = (event.target as HTMLSelectElement).value
+  emit('update:modelValue', value === '' ? null : value)
+}
 </script>
 
 <style scoped>

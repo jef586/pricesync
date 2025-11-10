@@ -7,6 +7,7 @@ import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
 import { useAuthStore } from './stores/auth'
+import { usePrintingStore } from './stores/printing'
 
 const app = createApp(App)
 const pinia = createPinia()
@@ -36,5 +37,19 @@ window.addEventListener('keydown', (e: KeyboardEvent) => {
     router.push('/articles/price-lookup')
   }
 })
+
+// Silent retry of pending print jobs shortly after startup
+setTimeout(async () => {
+  try {
+    const printing = usePrintingStore()
+    printing.loadFromLocalStorage()
+    const pending = printing.pendingJobs()
+    if (pending > 0) {
+      await printing.retryPrintQueueAll()
+    }
+  } catch (_) {
+    // ignore
+  }
+}, 1200)
 
 app.mount('#app')

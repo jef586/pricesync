@@ -1,5 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { printTicketOrQueue } from '@/services/printOrQueue'
+import { getPendingCount, retryAll } from '@/services/printQueue'
 import { type PrintingSettings, getPrintingSettings, updatePrintingSettings } from '@/services/settingsService'
 
 const LS_KEY = 'printing_settings'
@@ -17,6 +19,7 @@ export const usePrintingStore = defineStore('printing', () => {
     branchId: null
   })
   const isLoaded = ref(false)
+  const isPrinting = ref(false)
 
   const loadFromLocalStorage = () => {
     try {
@@ -55,12 +58,32 @@ export const usePrintingStore = defineStore('printing', () => {
     return updated
   }
 
+  const printTicket = async (invoiceId: string) => {
+    isPrinting.value = true
+    try {
+      const res = await printTicketOrQueue(invoiceId, { printerName: settings.value.defaultPrinter })
+      return res
+    } finally {
+      isPrinting.value = false
+    }
+  }
+
+  const retryPrintQueueAll = async () => {
+    return await retryAll({ printerName: settings.value.defaultPrinter })
+  }
+
+  const pendingJobs = () => getPendingCount()
+
   return {
     settings,
     isLoaded,
+    isPrinting,
     loadFromLocalStorage,
     persistToLocalStorage,
     load,
-    save
+    save,
+    printTicket,
+    retryPrintQueueAll,
+    pendingJobs
   }
 })

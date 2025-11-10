@@ -27,3 +27,9 @@ export async function printTicket(invoiceId: string, opts?: { printerName?: stri
   }
   return { ok: true, fallback: true }
 }
+
+export async function getTicketHtml(invoiceId: string): Promise<string> {
+  const { data } = await apiClient.get(`/print/ticket/${invoiceId}`, { params: { htmlOnly: 'true' } })
+  const payload = data?.data || data
+  return payload.html
+}
