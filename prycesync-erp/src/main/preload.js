@@ -9,7 +9,8 @@ contextBridge.exposeInMainWorld('pos', {
 // Expose system IPC for printers and test printing
 contextBridge.exposeInMainWorld('system', {
   listPrinters: () => ipcRenderer.invoke('system:list-printers'),
-  printTest: (payload) => ipcRenderer.invoke('system:print-test', payload)
+  printTest: (payload) => ipcRenderer.invoke('system:print-test', payload),
+  printTicket: (payload) => ipcRenderer.invoke('system:print-ticket', payload)
 })
 
 // Exponer controles de ventana (IPC seguro)

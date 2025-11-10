@@ -157,3 +157,43 @@ ipcMain.handle('system:print-test', async (_event, payload) => {
     return { ok: false, error: (err && err.message) || 'unknown' }
   }
 });
+
+// IPC: Print a ticket given HTML or PDF base64
+ipcMain.handle('system:print-ticket', async (_event, payload) => {
+  try {
+    const win = getActiveWindow()
+    if (!win) return { ok: false, error: 'No active window' }
+
+    const deviceName = payload && payload.printerName
+    const html = payload && payload.html
+    const pdfBase64 = payload && payload.pdfBase64
+
+    const temp = new BrowserWindow({
+      show: false,
+      webPreferences: { nodeIntegration: false, contextIsolation: true }
+    })
+
+    if (html && typeof html === 'string' && html.length > 0) {
+      await temp.loadURL('about:blank')
+      await temp.webContents.executeJavaScript(`document.open();document.write(${JSON.stringify(html)});document.close();`)
+    } else if (pdfBase64 && typeof pdfBase64 === 'string' && pdfBase64.length > 0) {
+      const dataUrl = `data:application/pdf;base64,${pdfBase64}`
+      await temp.loadURL(dataUrl)
+    } else {
+      temp.destroy()
+      return { ok: false, error: 'No content provided' }
+    }
+
+    await new Promise((resolve, reject) => {
+      temp.webContents.print({ silent: true, deviceName }, (success, failureReason) => {
+        if (!success) return reject(new Error(failureReason || 'print-failed'))
+        resolve()
+      })
+    })
+
+    temp.destroy()
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: (err && err.message) || 'unknown' }
+  }
+})

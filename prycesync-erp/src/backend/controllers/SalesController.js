@@ -190,19 +190,23 @@ class SalesController {
           include: {
             items: true,
             payments: true,
-            customer: { select: { id: true, name: true, email: true } },
-            taxLines: true
+            customer: { select: { id: true, name: true, email: true } }
           }
         });
 
-        // Aplicar tributos (retenciones/percepciones) para la venta
-        const provinceCode = customer?.state || req.user?.company?.state || 'BA'
-        await TaxService.applyTaxesForSale(tx, {
-          companyId,
-          sale,
-          items: computedItems,
-          provinceCode
-        })
+        // Aplicar tributos (retenciones/percepciones) para la venta en best-effort:
+        // no bloquear la creación de la venta si hay incompatibilidades de esquema
+        try {
+          const provinceCode = customer?.state || req.user?.company?.state || 'BA'
+          await TaxService.applyTaxesForSale(tx, {
+            companyId,
+            sale,
+            items: computedItems,
+            provinceCode
+          })
+        } catch (taxErr) {
+          console.warn('Tax apply failed (non-blocking):', taxErr?.message || taxErr)
+        }
 
         return sale;
       });
@@ -226,8 +230,7 @@ class SalesController {
         include: {
           items: true,
           payments: true,
-          customer: { select: { id: true, name: true, email: true } },
-          taxLines: true
+          customer: { select: { id: true, name: true, email: true } }
         }
       });
 
@@ -369,16 +372,26 @@ class SalesController {
               }
             });
           }
-          // Recalcular tributos de la venta
-          await tx.documentTaxLine.deleteMany({ where: { salesOrderId: id } })
-          const cust = await tx.customer.findUnique({ where: { id: existing.customerId } })
-          const provinceCode = cust?.state || req.user?.company?.state || 'BA'
-          await TaxService.applyTaxesForSale(tx, {
-            companyId,
-            sale: { id, createdAt: existing.createdAt, subtotal: totals?.subtotal?.toNumber ? totals.subtotal.toNumber() : (totals?.subtotal || existing.subtotal) },
-            items: preparedItems,
-            provinceCode
-          })
+          // Recalcular tributos de la venta (best‑effort):
+          // saltar si el esquema de tributos no está listo y no bloquear la actualización
+          try {
+            const schemaReady = await TaxService.isTaxSchemaReady(tx)
+            if (schemaReady) {
+              await tx.documentTaxLine.deleteMany({ where: { salesOrderId: id } })
+              const cust = await tx.customer.findUnique({ where: { id: existing.customerId } })
+              const provinceCode = cust?.state || req.user?.company?.state || 'BA'
+              await TaxService.applyTaxesForSale(tx, {
+                companyId,
+                sale: { id, createdAt: existing.createdAt, subtotal: totals?.subtotal?.toNumber ? totals.subtotal.toNumber() : (totals?.subtotal || existing.subtotal) },
+                items: preparedItems,
+                provinceCode
+              })
+            } else {
+              console.warn('Tax schema not ready; skipping tax recomputation for sale update')
+            }
+          } catch (taxErr) {
+            console.warn('Tax recompute failed (non-blocking):', taxErr?.message || taxErr)
+          }
         }
 
         // If sale transitioned to cancelled from paid, revert stock and loyalty
@@ -400,13 +413,22 @@ class SalesController {
           }
         }
 
-        // Reversión de tributos cuando pasa a cancelada
+        // Reversión de tributos cuando pasa a cancelada (best‑effort)
         if ((data.status === 'cancelled') && (existing.status !== 'cancelled')) {
-          await TaxService.revertTaxesForDocument(tx, {
-            companyId,
-            docId: id,
-            docType: 'SALE'
-          })
+          try {
+            const schemaReady = await TaxService.isTaxSchemaReady(tx)
+            if (schemaReady) {
+              await TaxService.revertTaxesForDocument(tx, {
+                companyId,
+                docId: id,
+                docType: 'SALE'
+              })
+            } else {
+              console.warn('Tax schema not ready; skipping tax reversal for sale cancel')
+            }
+          } catch (taxErr) {
+            console.warn('Tax reversal failed (non-blocking):', taxErr?.message || taxErr)
+          }
         }
         return sale;
       });

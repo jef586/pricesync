@@ -1,6 +1,23 @@
 import { Decimal } from '@prisma/client/runtime/library.js'
 
 class TaxService {
+  static async isTaxSchemaReady(tx) {
+    try {
+      const docCol = await tx.$queryRaw`SELECT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'document_tax_lines' AND column_name = 'base_method'
+      ) AS ok`;
+      const hasDocBase = Array.isArray(docCol) ? Boolean(docCol[0]?.ok) : Boolean(docCol?.ok);
+
+      const rulesTbl = await tx.$queryRaw`SELECT to_regclass('public.tax_rules') IS NOT NULL AS ok`;
+      const hasRules = Array.isArray(rulesTbl) ? Boolean(rulesTbl[0]?.ok) : Boolean(rulesTbl?.ok);
+
+      return hasDocBase && hasRules;
+    } catch (e) {
+      // If introspection fails, assume not ready to avoid breaking sale creation
+      return false;
+    }
+  }
   static periodFromDate(date) {
     const d = date instanceof Date ? date : new Date(date)
     const y = d.getFullYear()
@@ -48,6 +65,10 @@ class TaxService {
   }
 
   static async applyTaxesForDocument(tx, { companyId, doc, docType, items = [], provinceCode }) {
+    // Skip if tax schema/tables are not present (best-effort)
+    const ready = await TaxService.isTaxSchemaReady(tx)
+    if (!ready) return []
+
     const docDate = (doc?.issueDate || doc?.createdAt) ? new Date(doc.issueDate || doc.createdAt) : new Date()
     const rules = await TaxService.getActiveRules(tx, { companyId, provinceCode, date: docDate })
     if (!rules.length) return []

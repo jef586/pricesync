@@ -1,7 +1,19 @@
 FROM node:20-alpine
 
-# Instalar OpenSSL para Prisma y otras dependencias necesarias
-RUN apk add --no-cache openssl postgresql-client
+# Instalar OpenSSL para Prisma y dependencias para Chromium (Puppeteer)
+RUN apk add --no-cache \
+  openssl \
+  postgresql-client \
+  chromium \
+  nss \
+  freetype \
+  harfbuzz \
+  ca-certificates \
+  ttf-freefont
+
+# Configurar Puppeteer para usar Chromium del sistema y evitar descarga en build
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 WORKDIR /app
 
