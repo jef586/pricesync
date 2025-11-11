@@ -1,110 +1,75 @@
-// Simple local print queue persisted in localStorage
-// API:
-// - addPending({ invoiceId, html, ts })
-// - retryAll({ printerName?, delayMs? })
-// - remove(id)
-// - getAll()
-// - getPendingCount()
+type RetryOptions = { printerName?: string | null }
 
-export type PendingPrintJob = {
-  id: string
-  invoiceId: string
-  html: string
-  ts: number
-}
-
-const LS_KEY = 'pendingPrints'
-
-function loadAll(): PendingPrintJob[] {
-  try {
-    const raw = localStorage.getItem(LS_KEY)
-    if (!raw) return []
-    const parsed = JSON.parse(raw)
-    if (Array.isArray(parsed)) {
-      return parsed.filter((j) => j && j.id && j.invoiceId && j.html && j.ts)
-    }
-  } catch (_) {
-    // ignore
-  }
-  return []
-}
-
-function saveAll(list: PendingPrintJob[]) {
-  try {
-    localStorage.setItem(LS_KEY, JSON.stringify(list))
-  } catch (_) {
-    // ignore
-  }
-}
-
-export function getAll(): PendingPrintJob[] {
-  return loadAll()
-}
+const STORAGE_KEY = 'print_queue_pending'
 
 export function getPendingCount(): number {
-  return loadAll().length
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return 0
+    const arr = JSON.parse(raw)
+    return Array.isArray(arr) ? arr.length : 0
+  } catch {
+    return 0
+  }
 }
 
-export function addPending(job: { invoiceId: string; html: string; ts?: number }): PendingPrintJob {
-  const ts = typeof job.ts === 'number' ? job.ts : Date.now()
-  const id = `${job.invoiceId}-${ts}`
-  const list = loadAll()
-  const pending: PendingPrintJob = { id, invoiceId: job.invoiceId, html: job.html, ts }
-  list.push(pending)
-  saveAll(list)
-  return pending
-}
-
-export function remove(id: string) {
-  const list = loadAll()
-  const next = list.filter((j) => j.id !== id)
-  saveAll(next)
-}
-
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
-// Retry all pending jobs using IPC. If IPC is absent, attempts a browser print fallback.
-export async function retryAll(opts?: { printerName?: string | null; delayMs?: number }): Promise<{ tried: number; succeeded: number; failed: number }>
-{
-  const delayMs = typeof opts?.delayMs === 'number' ? opts!.delayMs! : 500
-  let list = loadAll()
-  const tried = list.length
-  let succeeded = 0
-  let failed = 0
-
-  for (const job of list) {
+export async function getPendingCountAsync(): Promise<number> {
+  const sys: any = (window as any).system
+  if (sys && sys.printQueue && typeof sys.printQueue.getPendingCount === 'function') {
     try {
-      const sys: any = (window as any).system
-      if (sys && typeof sys.printTicket === 'function') {
-        const res = await sys.printTicket({ html: job.html, printerName: opts?.printerName || null })
-        if (res?.ok) {
-          remove(job.id)
-          succeeded += 1
-        } else {
-          failed += 1
-        }
-      } else {
-        // Fallback: attempt browser print
-        const w = window.open('', '_blank', 'noopener,noreferrer')
-        if (w) {
-          w.document.write(job.html)
-          w.document.close()
-          w.focus()
-          try { w.print() } catch (_) {}
-          setTimeout(() => w.close(), 1500)
-          remove(job.id)
-          succeeded += 1
-        } else {
-          failed += 1
-        }
-      }
-    } catch (_) {
-      failed += 1
+      const count = await sys.printQueue.getPendingCount()
+      return typeof count === 'number' ? count : getPendingCount()
+    } catch {
+      return getPendingCount()
     }
-    if (delayMs > 0) await sleep(delayMs)
+  }
+  return getPendingCount()
+}
+
+export function addPending(job: { invoiceId: string; html: string }) {
+  // localStorage backup
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    const arr = raw ? JSON.parse(raw) : []
+    arr.push(job)
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(arr))
+  } catch {}
+
+  // IPC-backed queue
+  const sys: any = (window as any).system
+  if (sys && sys.printQueue && typeof sys.printQueue.addPending === 'function') {
+    try { sys.printQueue.addPending(job.invoiceId, job.html) } catch {}
+  }
+}
+
+export async function retryAll(opts?: RetryOptions): Promise<{ attempted: number; success: number; failed: number }> {
+  const sys: any = (window as any).system
+  if (sys && sys.printQueue && typeof sys.printQueue.retryPending === 'function') {
+    try {
+      const res = await sys.printQueue.retryPending(opts || {})
+      // Sync local backup by clearing items that succeeded is handled in main via event
+      return res
+    } catch {}
   }
 
-  return { tried, succeeded, failed }
+  // Fallback: attempt printing via browser (not silent)
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    const arr: Array<{ invoiceId: string; html: string }> = raw ? JSON.parse(raw) : []
+    let success = 0
+    for (const item of arr) {
+      const doc = window.open('', '_blank')
+      if (!doc) continue
+      doc.document.write(item.html)
+      doc.document.close()
+      await new Promise<void>((resolve) => setTimeout(resolve, 300))
+      try { doc.print() } catch {}
+      success += 1
+      doc.close()
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([]))
+    return { attempted: arr.length, success, failed: Math.max(0, arr.length - success) }
+  } catch {
+    return { attempted: 0, success: 0, failed: 0 }
+  }
 }

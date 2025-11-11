@@ -9,6 +9,12 @@
         </div>
         <div class="hidden sm:flex items-center gap-2 text-xs text-gray-500">
           <span>Última actualización: {{ lastUpdate }}</span>
+          <!-- Indicador de impresiones pendientes -->
+          <button v-if="printingPendingCount > 0" class="ml-3 flex items-center gap-1 px-2 py-1 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
+                  @click="retryPendingPrints">
+            <PrinterIcon class="h-4 w-4" />
+            <span>Impresiones pendientes: {{ printingPendingCount }}</span>
+          </button>
         </div>
       </div>
 
@@ -276,9 +282,33 @@ import { useRouter } from 'vue-router'
 import DashboardLayout from '@/components/organisms/DashboardLayout.vue'
 
 // Heroicons
-import { BoltIcon, ChartBarIcon, CubeIcon, DocumentTextIcon, CurrencyDollarIcon, ExclamationTriangleIcon, InformationCircleIcon } from '@heroicons/vue/24/outline'
+import { BoltIcon, ChartBarIcon, CubeIcon, DocumentTextIcon, CurrencyDollarIcon, ExclamationTriangleIcon, InformationCircleIcon, PrinterIcon } from '@heroicons/vue/24/outline'
+import { usePrintingStore } from '@/stores/printing'
+import { onMounted, ref as vRef } from 'vue'
+import { useNotifications } from '@/composables/useNotifications'
 
 const router = useRouter()
+const printingStore = usePrintingStore()
+const { success } = useNotifications()
+const printingPendingCount = vRef<number>(0)
+
+onMounted(async () => {
+  try {
+    await printingStore.init()
+    printingPendingCount.value = printingStore.pendingCount
+    // Small refresh to ensure IPC count
+    const c = await printingStore.refreshPendingCount()
+    printingPendingCount.value = c
+  } catch {}
+})
+
+const retryPendingPrints = async () => {
+  try {
+    const res = await printingStore.retryPrintQueueAll()
+    printingPendingCount.value = printingStore.pendingCount
+    if (res?.success > 0) success(`Reintentados ${res.success} tickets`) 
+  } catch {}
+}
 
 // Mock de datos
 const lastUpdate = ref(new Date().toLocaleString())

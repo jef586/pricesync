@@ -1,27 +1,35 @@
-import { addPending } from './printQueue'
-import { getTicketHtml } from './printingService'
+import { getTicketHtml } from '@/services/printingService'
+import { addPending } from '@/services/printQueue'
 
-export type PrintResult = {
-  ok: boolean
-  queued?: boolean
-  message?: string
-}
+type PrintOptions = { printerName?: string | null }
 
-export async function printTicketOrQueue(invoiceId: string, opts?: { printerName?: string | null }): Promise<PrintResult> {
+export async function printTicketOrQueue(invoiceId: string, opts?: PrintOptions) {
+  const sys: any = (window as any).system
   try {
     const html = await getTicketHtml(invoiceId)
-    const sys: any = (window as any).system
     if (sys && typeof sys.printTicket === 'function') {
-      const res = await sys.printTicket({ html, printerName: opts?.printerName || null })
-      if (res?.ok) {
-        return { ok: true }
-      }
-      addPending({ invoiceId, html })
-      return { ok: true, queued: true, message: 'Impresión en cola por falta de conexión con la impresora.' }
+      await sys.printTicket({ invoiceId, html, printerName: opts?.printerName || null })
+      return { ok: true }
     }
+    // No IPC available: try browser print fallback
+    const doc = window.open('', '_blank')
+    if (doc) {
+      doc.document.write(html)
+      doc.document.close()
+      await new Promise<void>((resolve) => setTimeout(resolve, 300))
+      try { doc.print() } catch {}
+      doc.close()
+      return { ok: true }
+    }
+    // Could not print; queue
     addPending({ invoiceId, html })
-    return { ok: true, queued: true, message: 'Impresión en cola: no se encontró IPC de impresión.' }
-  } catch (err: any) {
-    return { ok: false, message: err?.message || 'Error inesperado al imprimir.' }
+    return { ok: false, queued: true }
+  } catch (err) {
+    // Generate HTML and queue on failure
+    try {
+      const html = await getTicketHtml(invoiceId)
+      addPending({ invoiceId, html })
+    } catch {}
+    return { ok: false, error: String(err) }
   }
 }

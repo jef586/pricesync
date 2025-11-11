@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { printTicketOrQueue } from '@/services/printOrQueue'
-import { getPendingCount, retryAll, getPendingCountAsync } from '@/services/printQueue'
+import { getPendingCount, retryAll } from '@/services/printQueue'
 import { type PrintingSettings, getPrintingSettings, updatePrintingSettings } from '@/services/settingsService'
 
 const LS_KEY = 'printing_settings'
@@ -20,7 +20,6 @@ export const usePrintingStore = defineStore('printing', () => {
   })
   const isLoaded = ref(false)
   const isPrinting = ref(false)
-  const pendingCount = ref<number>(0)
 
   const loadFromLocalStorage = () => {
     try {
@@ -44,30 +43,6 @@ export const usePrintingStore = defineStore('printing', () => {
     }
   }
 
-  const refreshPendingCount = async () => {
-    try {
-      const asyncCount = await getPendingCountAsync()
-      pendingCount.value = asyncCount
-    } catch {
-      // fallback to local count
-      pendingCount.value = getPendingCount()
-    }
-    return pendingCount.value
-  }
-
-  const init = async () => {
-    try {
-      await refreshPendingCount()
-      const sys: any = (window as any).system
-      if (sys && sys.printQueue && typeof sys.printQueue.onPrintSuccess === 'function') {
-        sys.printQueue.onPrintSuccess((_data: any) => {
-          // a print succeeded in main-process; refresh counter
-          refreshPendingCount().catch(() => {})
-        })
-      }
-    } catch (_) { /* noop */ }
-  }
-
   const load = async (branchId?: string | null) => {
     const data = await getPrintingSettings({ branchId: branchId || undefined })
     settings.value = data
@@ -87,8 +62,6 @@ export const usePrintingStore = defineStore('printing', () => {
     isPrinting.value = true
     try {
       const res = await printTicketOrQueue(invoiceId, { printerName: settings.value.defaultPrinter })
-      // Update pending counter in case the job was queued
-      await refreshPendingCount()
       return res
     } finally {
       isPrinting.value = false
@@ -96,23 +69,17 @@ export const usePrintingStore = defineStore('printing', () => {
   }
 
   const retryPrintQueueAll = async () => {
-    const res = await retryAll({ printerName: settings.value.defaultPrinter })
-    await refreshPendingCount()
-    return res
+    return await retryAll({ printerName: settings.value.defaultPrinter })
   }
 
-  // Backward compatibility: synchronous local count
   const pendingJobs = () => getPendingCount()
 
   return {
     settings,
     isLoaded,
     isPrinting,
-    pendingCount,
     loadFromLocalStorage,
     persistToLocalStorage,
-    refreshPendingCount,
-    init,
     load,
     save,
     printTicket,

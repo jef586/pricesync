@@ -14,6 +14,18 @@
           >
             Guardar Cambios
           </BaseButton>
+          <div class="flex items-center gap-2 ml-2">
+            <BaseButton
+              variant="secondary"
+              :disabled="isTesting || isLoading"
+              @click="retryAllPending"
+            >
+              Reintentar pendientes
+            </BaseButton>
+            <span v-if="printingStore.pendingCount > 0" class="inline-flex items-center px-2 py-1 rounded text-xs bg-amber-100 text-amber-700 border border-amber-200">
+              Pendientes: {{ printingStore.pendingCount }}
+            </span>
+          </div>
         </template>
       </PageHeader>
 
@@ -310,6 +322,7 @@ onMounted(() => {
   loadSettings()
   refreshPrinters()
   fetchLogs()
+  printingStore.refreshPendingCount().catch(() => {})
 })
 
 function resetFilters() {
@@ -352,6 +365,16 @@ function statusLabel(status: 'success'|'error'|'pending') {
 function onPreview(log: any) { logsStore.preview(log) }
 function onRetry(log: any) { logsStore.retry(log) }
 function onPageChange(p: number) { logsStore.setPage(p) }
+
+async function retryAllPending() {
+  try {
+    const res = await printingStore.retryPrintQueueAll()
+    if (res?.success > 0) success(`Reintentados ${res.success} tickets`) 
+    else success('Reintento ejecutado')
+  } catch (e: any) {
+    error('No se pudieron reintentar los pendientes', e?.message || '')
+  }
+}
 </script>
 
 <style scoped>
