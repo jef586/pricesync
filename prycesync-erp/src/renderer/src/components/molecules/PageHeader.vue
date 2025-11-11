@@ -1,5 +1,5 @@
 <template>
-  <div class="page-header">
+  <div :class="['page-header', { 'page-header--dense': dense }]">
     <div class="page-header__content">
       <h1 class="page-header__title">{{ title }}</h1>
       <p v-if="subtitle" class="page-header__subtitle">{{ subtitle }}</p>
@@ -14,9 +14,10 @@
 interface Props {
   title: string
   subtitle?: string
+  dense?: boolean
 }
 
-defineProps<Props>()
+withDefaults(defineProps<Props>(), { dense: false })
 </script>
 
 <style scoped>
@@ -27,6 +28,8 @@ defineProps<Props>()
   margin-bottom: 2rem;
   gap: 1rem;
 }
+
+.page-header--dense { margin-bottom: 1rem; }
 
 .page-header__content {
   flex: 1;
@@ -40,12 +43,16 @@ defineProps<Props>()
   line-height: 1.2;
 }
 
+.page-header--dense .page-header__title { font-size: 1.25rem; margin-bottom: 0.25rem; }
+
 .page-header__subtitle {
   font-size: 0.875rem;
   color: var(--ps-text-secondary);
   margin: 0;
   line-height: 1.4;
 }
+
+.page-header--dense .page-header__subtitle { font-size: 0.75rem; }
 
 .page-header__actions {
   display: flex;

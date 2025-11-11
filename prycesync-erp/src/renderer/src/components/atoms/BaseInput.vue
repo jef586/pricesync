@@ -1,5 +1,5 @@
 <template>
-  <div class="base-input">
+  <div :class="['base-input', { 'base-input--dense': dense }]">
     <label v-if="label" :for="id" class="base-input__label">
       {{ label }}
       <span v-if="required" class="base-input__required">*</span>
@@ -17,6 +17,7 @@
       :aria-invalid="hasError ? 'true' : undefined"
       :class="[
         'base-input__field',
+        dense ? 'base-input__field--dense' : '',
         {
           'base-input__field--error': hasError,
           'base-input__field--disabled': disabled
@@ -47,6 +48,7 @@ interface Props {
   step?: string
   min?: string | number
   max?: string | number
+  dense?: boolean
 }
 
 interface Emits {
@@ -60,7 +62,8 @@ withDefaults(defineProps<Props>(), {
   required: false,
   disabled: false,
   hasError: false,
-  id: () => `input-${Math.random().toString(36).substr(2, 9)}`
+  id: () => `input-${Math.random().toString(36).substr(2, 9)}`,
+  dense: false
 })
 
 const emit = defineEmits<Emits>()
@@ -84,10 +87,13 @@ const handleInput = (event: Event) => {
   @apply w-full mb-4;
 }
 
+.base-input--dense { @apply mb-2; }
+
 .base-input__label {
   @apply block text-sm font-semibold mb-2;
   color: var(--ps-text-secondary);
 }
+.base-input--dense .base-input__label { @apply text-xs mb-1; }
 
 .base-input__required {
   @apply text-red-500;
@@ -99,6 +105,8 @@ const handleInput = (event: Event) => {
   color: var(--ps-text-primary);
   border-color: var(--ps-border);
 }
+
+.base-input__field--dense { @apply px-3 py-2 text-sm; }
 
 .base-input__field::placeholder { color: var(--ps-text-secondary); }
 .base-input__field:focus { border-color: var(--ps-primary); }
@@ -116,4 +124,5 @@ const handleInput = (event: Event) => {
 .base-input__error {
   @apply mt-2 text-sm text-red-600 font-medium;
 }
+.base-input--dense .base-input__error { @apply mt-1 text-xs; }
 </style>

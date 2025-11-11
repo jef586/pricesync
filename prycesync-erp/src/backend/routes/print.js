@@ -17,6 +17,7 @@ router.get('/ticket/:invoiceId', async (req, res) => {
   const branchId = req.query.branchId || null
   const widthMm = Number(req.query.paperWidth || req.query.widthMm || 0) || undefined
   const paymentMethod = req.query.paymentMethod || null
+  const isPreview = String(req.query.preview || 'false') === 'true'
 
   try {
     if (!companyId) return res.status(401).json({ error: 'Empresa no encontrada en el contexto de usuario' })
@@ -59,7 +60,18 @@ router.get('/ticket/:invoiceId', async (req, res) => {
       pdfBase64 = pdfBuffer.toString('base64')
     }
 
-    await logPrint({ invoiceId, printerName, status: 'SUCCESS', message: null })
+    if (!isPreview) {
+      await logPrint({
+        invoiceId,
+        printerName,
+        status: 'success',
+        message: null,
+        attempts: 1,
+        userId: req.user?.id || null,
+        companyId,
+        branchId
+      })
+    }
 
     return res.json({
       success: true,
@@ -73,7 +85,18 @@ router.get('/ticket/:invoiceId', async (req, res) => {
     })
   } catch (error) {
     console.error('Error generando ticket:', error)
-    try { await logPrint({ invoiceId, printerName, status: 'ERROR', message: String(error?.message || error) }) } catch (_) {}
+    try {
+      await logPrint({
+        invoiceId,
+        printerName,
+        status: 'error',
+        message: String(error?.message || error),
+        attempts: 1,
+        userId: req.user?.id || null,
+        companyId: req.companyId || req.user?.companyId || req.user?.company?.id || null,
+        branchId: req.query?.branchId || null
+      })
+    } catch (_) {}
     return res.status(500).json({ error: 'Error interno del servidor' })
   }
 })

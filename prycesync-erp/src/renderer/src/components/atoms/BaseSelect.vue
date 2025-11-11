@@ -1,5 +1,5 @@
 <template>
-  <div class="base-select">
+  <div :class="['base-select', { 'base-select--dense': dense }]">
     <label v-if="label" :for="id" class="base-select__label">
       {{ label }}
       <span v-if="required" class="base-select__required">*</span>
@@ -12,6 +12,7 @@
       :aria-invalid="hasError ? 'true' : undefined"
       :class="[
         'base-select__field',
+        dense ? 'base-select__field--dense' : '',
         {
           'base-select__field--error': hasError,
           'base-select__field--disabled': disabled
@@ -55,6 +56,7 @@ interface Props {
   hasError?: boolean
   errorMessage?: string
   id?: string
+  dense?: boolean
 }
 
 interface Emits {
@@ -67,7 +69,8 @@ const props = withDefaults(defineProps<Props>(), {
   required: false,
   disabled: false,
   hasError: false,
-  id: () => `select-${Math.random().toString(36).substr(2, 9)}`
+  id: () => `select-${Math.random().toString(36).substr(2, 9)}`,
+  dense: false
 })
 
 const emit = defineEmits<Emits>()
@@ -84,11 +87,13 @@ function onChange(event: Event) {
 .base-select {
   @apply w-full mb-4;
 }
+.base-select--dense { @apply mb-2; }
 
 .base-select__label {
   @apply block text-sm font-semibold mb-2;
   color: var(--ps-text-secondary);
 }
+.base-select--dense .base-select__label { @apply text-xs mb-1; }
 
 .base-select__required {
   @apply text-red-500;
@@ -100,6 +105,8 @@ function onChange(event: Event) {
   color: var(--ps-text-primary);
   border-color: var(--ps-border);
 }
+
+.base-select__field--dense { @apply px-3 py-2 text-sm; }
 
 .base-select__field--error {
   @apply border-red-300 focus:ring-red-500 focus:border-red-500 bg-red-50;
@@ -114,6 +121,7 @@ function onChange(event: Event) {
 .base-select__error {
   @apply mt-2 text-sm text-red-600 font-medium;
 }
+.base-select--dense .base-select__error { @apply mt-1 text-xs; }
 
 /* Custom arrow styling */
 .base-select__field {

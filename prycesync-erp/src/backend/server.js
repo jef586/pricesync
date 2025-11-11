@@ -14,6 +14,7 @@ import reportRoutes from './routes/reports.js';
 import supplierRoutes from './routes/suppliers.js';
 import afipRoutes from './routes/afip.js';
 import printRoutes from './routes/print.js';
+import printLogsRoutes from './routes/print-logs.js';
 import importsRoutes from './routes/imports.js'
 import opsRoutes from './routes/ops.js'
 import aiRoutes from './routes/ai.js';
@@ -83,6 +84,7 @@ app.use('/api/stock', stockRoutes);
 app.use('/api/stock', stockEstimatorRoutes);
 app.use('/api/afip', afipRoutes);
 app.use('/api/print', printRoutes);
+app.use('/api/print/logs', printLogsRoutes);
 app.use('/api/imports', importsRoutes)
 app.use('/api/ai', aiRoutes);
 app.use('/api/pricing', pricingRoutes);

@@ -118,24 +118,34 @@ export async function generatePdfBufferFromHtml(html, { widthMm = 80 } = {}) {
   }
 }
 
-export async function logPrint({ invoiceId, printerName, status, message }) {
+export async function logPrint({ invoiceId, printerName, status, message, attempts = 1, userId = null, companyId = null, branchId = null }) {
+  const normalizedStatus = String(status || 'success').toLowerCase()
   try {
+    // Try Prisma model first (may target public.print_logs depending on schema config)
     await prisma.printLog.create({
       data: {
         invoiceId,
         printerName: printerName || null,
-        status: status || 'SUCCESS',
+        status: normalizedStatus,
+        attempts,
+        userId: userId || null,
+        companyId: companyId || null,
+        branchId: branchId || null,
         message: message || null
       }
     })
   } catch (e) {
-    // As a last resort, write raw to fully-qualified table if model fails
+    // Fallback to fully-qualified schema write to ensure logs are captured
     try {
       await prisma.$executeRawUnsafe(
-        'INSERT INTO core_reports.print_logs (invoice_id, printer_name, status, message) VALUES ($1, $2, $3, $4)',
+        'INSERT INTO core_reports.print_logs (invoice_id, printer_name, status, attempts, user_id, company_id, branch_id, message) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
         invoiceId,
         printerName || null,
-        status || 'SUCCESS',
+        normalizedStatus,
+        attempts,
+        userId || null,
+        companyId || null,
+        branchId || null,
         message || null
       )
     } catch (ignore) {
