@@ -29,7 +29,7 @@
       </div>
 
       <!-- Acciones -->
-      <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <BaseButton
           ref="firstActionRef"
           :disabled="!!loadingAction"
@@ -51,21 +51,12 @@
         </BaseButton>
         <BaseButton
           :disabled="!!loadingAction"
-          :loading="loadingAction === 'preview'"
-          loading-text="Cargando…"
-          variant="secondary"
-          @click="openPreview"
-        >
-          Vista previa de ticket
-        </BaseButton>
-        <BaseButton
-          :disabled="!!loadingAction"
           :loading="loadingAction === 'print'"
           loading-text="Imprimiendo…"
           variant="ghost"
           @click="printSale"
         >
-          {{ printButtonLabel }}
+          Imprimir
         </BaseButton>
       </div>
 
@@ -93,9 +84,6 @@
       <BaseButton variant="secondary" :disabled="!!loadingAction" @click="handleClose">Cerrar</BaseButton>
     </template>
   </BaseModal>
-
-  <!-- Modal secundario: Ticket Preview -->
-  <TicketPreviewModal :invoice-id="saleId" :open="previewOpen" @update:open="(v) => (previewOpen = v)" />
 </template>
 
 <script setup lang="ts">
@@ -104,7 +92,6 @@ import BaseModal from '@/components/atoms/BaseModal.vue'
 import BaseButton from '@/components/atoms/BaseButton.vue'
 import { fetchSalePdf, sendSaleEmail } from '@/services/salesService'
 import { usePrintingStore } from '@/stores/printing'
-import TicketPreviewModal from '@/components/pos/TicketPreviewModal.vue'
 
 interface Props {
   saleId: string
@@ -117,7 +104,7 @@ const props = defineProps<Props>()
 const isOpen = ref(!!props.open)
 watch(() => props.open, (v) => { isOpen.value = !!v })
 
-const loadingAction = ref<null | 'pdf' | 'email' | 'print' | 'preview'>(null)
+const loadingAction = ref<null | 'pdf' | 'email' | 'print'>(null)
 const toast = ref<{ show: boolean; type: 'success' | 'error'; message: string }>({ show: false, type: 'success', message: '' })
 const showEmailForm = ref(false)
 const emailTo = ref('')
@@ -177,19 +164,6 @@ const sendEmail = async () => {
 
 const printingStore = usePrintingStore()
 
-const previewOpen = ref(false)
-const autoPrintEnabled = computed(() => !!printingStore.settings.autoPrintAfterSale)
-const printButtonLabel = computed(() => autoPrintEnabled.value ? 'Reimprimir' : 'Imprimir')
-
-const openPreview = async () => {
-  loadingAction.value = 'preview'
-  try {
-    previewOpen.value = true
-  } finally {
-    loadingAction.value = null
-  }
-}
-
 const printSale = async () => {
   if (!props.saleId) return
   loadingAction.value = 'print'
@@ -246,5 +220,5 @@ onBeforeUnmount(() => { window.removeEventListener('keydown', handleKeydown) })
 </script>
 
 <style scoped>
-/* No estilos adicionales: usamos BaseModal + utilidades */
+/* No styles adicionales: usamos BaseModal + utilidades */
 </style>
