@@ -34,6 +34,9 @@ router.put('/:id/move', authorize('inventory:rubros:update'), RubroController.mo
 router.delete('/:id', authorize('inventory:rubros:delete'), RubroController.deleteRubro);
 
 // POST /api/rubros/:id/restore - Restaurar rubro eliminado (requiere permiso: inventory:rubros:update)
-router.post('/:id/restore', authorize('inventory:rubros:update'), RubroController.restoreRubro);
+router.post('/:id/restore', authorize('inventory:rubros:delete'), RubroController.restoreRubro);
+
+// DELETE /api/rubros/:id/permanent - Eliminación física definitiva (requiere permiso: inventory:rubros:delete)
+router.delete('/:id/permanent', authorize('inventory:rubros:delete'), RubroController.deleteRubroPermanent);
 
 export default router;

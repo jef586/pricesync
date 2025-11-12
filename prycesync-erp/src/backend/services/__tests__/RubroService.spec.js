@@ -26,7 +26,13 @@ vi.mock('../../config/database.js', () => ({
       findMany: vi.fn(),
       count: vi.fn(),
       findFirst: vi.fn(),
-      update: vi.fn()
+      update: vi.fn(),
+      updateMany: vi.fn(),
+      deleteMany: vi.fn(),
+      delete: vi.fn()
+    },
+    article: {
+      count: vi.fn()
     }
   }
 }));
@@ -384,6 +390,70 @@ describe('RubroService', () => {
       await expect(RubroService.restoreRubro('rubro-123', mockUser))
         .rejects
         .toThrow(new AppError('CONFLICT', 'Ya existe un rubro con ese nombre en este nivel'));
+    });
+  });
+
+  describe('restoreRubro cascade', () => {
+    it('should restore rubro and descendants when cascade=true', async () => {
+      const deletedRubro = { id: 'rubro-1', name: 'Root', parentId: null, path: 'rubro-1', deletedAt: new Date() };
+      prisma.category.findFirst.mockResolvedValueOnce(deletedRubro);
+      RubroValidationService.validateUniqueSiblingName.mockResolvedValue(true);
+      prisma.$transaction.mockImplementation(async (cb) => cb(prisma));
+      prisma.category.update.mockResolvedValue({ ...deletedRubro, deletedAt: null, isActive: true });
+      prisma.category.updateMany.mockResolvedValue({ count: 2 });
+
+      const result = await RubroService.restoreRubro('rubro-1', mockUser, true);
+
+      expect(result.deletedAt).toBeNull();
+      expect(prisma.category.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ path: expect.objectContaining({ startsWith: 'rubro-1.' }) })
+      }));
+    });
+
+    it('should reject restore when a parent is deleted', async () => {
+      const deletedChild = { id: 'child-1', name: 'Child', parentId: 'parent-1', path: 'parent-1.child-1', deletedAt: new Date() };
+      prisma.category.findFirst.mockResolvedValueOnce(deletedChild);
+      prisma.category.findFirst.mockResolvedValueOnce({ id: 'parent-1', deletedAt: new Date(), parentId: null });
+
+      await expect(RubroService.restoreRubro('child-1', mockUser, false)).rejects.toThrow(
+        new AppError('CONFLICT', 'No se puede restaurar porque su padre está eliminado', 'PARENT_DELETED')
+      );
+    });
+  });
+
+  describe('permanentDeleteRubro', () => {
+    it('should block delete when articles are associated', async () => {
+      prisma.category.findFirst.mockResolvedValue({ id: 'rubro-1', name: 'Root', path: 'rubro-1' });
+      prisma.article.count.mockResolvedValue(1);
+
+      await expect(RubroService.permanentDeleteRubro('rubro-1', mockUser)).rejects.toThrow(
+        new AppError('CONFLICT', 'No se puede eliminar el rubro porque tiene artículos asociados', 'HAS_ARTICLES')
+      );
+    });
+
+    it('should block delete when has children and force=false', async () => {
+      prisma.category.findFirst.mockResolvedValue({ id: 'rubro-1', name: 'Root', path: 'rubro-1' });
+      prisma.article.count.mockResolvedValue(0);
+      prisma.category.count.mockResolvedValue(2);
+
+      await expect(RubroService.permanentDeleteRubro('rubro-1', mockUser, false)).rejects.toThrow(
+        new AppError('CONFLICT', 'No se puede eliminar el rubro porque tiene subrubros', 'HAS_CHILDREN')
+      );
+    });
+
+    it('should delete rubro and descendants when force=true', async () => {
+      prisma.category.findFirst.mockResolvedValue({ id: 'rubro-1', name: 'Root', path: 'rubro-1' });
+      prisma.article.count.mockResolvedValue(0);
+      prisma.$transaction.mockImplementation(async (cb) => cb(prisma));
+      prisma.category.deleteMany.mockResolvedValue({ count: 3 });
+      prisma.category.delete.mockResolvedValue({ id: 'rubro-1' });
+
+      await RubroService.permanentDeleteRubro('rubro-1', mockUser, true);
+
+      expect(prisma.category.deleteMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ path: expect.objectContaining({ startsWith: 'rubro-1.' }) })
+      }));
+      expect(prisma.category.delete).toHaveBeenCalledWith({ where: { id: 'rubro-1' } });
     });
   });
 

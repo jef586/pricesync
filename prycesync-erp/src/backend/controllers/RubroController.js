@@ -153,14 +153,31 @@ class RubroController {
    */
   static restoreRubro = asyncHandler(async (req, res) => {
     const { id } = req.params;
+    const { cascade = false } = req.query;
 
-    const rubro = await RubroService.restoreRubro(id, req.user);
+    const rubro = await RubroService.restoreRubro(id, req.user, cascade === 'true');
 
     res.json({
       success: true,
       message: 'Rubro restaurado exitosamente',
       data: rubro
     });
+  });
+
+  /**
+   * Permanent delete rubro
+   * DELETE /api/rubros/:id/permanent
+   */
+  static deleteRubroPermanent = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { force = false } = req.query;
+
+    await RubroService.permanentDeleteRubro(id, req.user, force === 'true', {
+      ip: req.ip,
+      userAgent: req.headers['user-agent']
+    });
+
+    res.status(204).send();
   });
 
   /**

@@ -398,6 +398,112 @@ describe('Rubros API E2E Tests', () => {
     });
   });
 
+  describe('POST /api/rubros/:id/restore?cascade=true', () => {
+    it('should restore rubro and its children when cascade=true', async () => {
+      const parentResp = await request(app)
+        .post('/api/rubros')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ name: 'Parent Restore', marginRate: 10 });
+
+      const childResp = await request(app)
+        .post('/api/rubros')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ name: 'Child Restore', parentId: parentResp.body.data.id });
+
+      await request(app)
+        .delete(`/api/rubros/${childResp.body.data.id}`)
+        .set('Authorization', `Bearer ${authToken}`);
+      await request(app)
+        .delete(`/api/rubros/${parentResp.body.data.id}`)
+        .set('Authorization', `Bearer ${authToken}`);
+
+      const restoreResp = await request(app)
+        .post(`/api/rubros/${parentResp.body.data.id}/restore`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .query({ cascade: true });
+
+      expect(restoreResp.status).toBe(200);
+      const childGet = await request(app)
+        .get(`/api/rubros/${childResp.body.data.id}`)
+        .set('Authorization', `Bearer ${authToken}`);
+      expect(childGet.status).toBe(200);
+      expect(childGet.body.data.deletedAt).toBeNull();
+    });
+  });
+
+  describe('DELETE /api/rubros/:id/permanent', () => {
+    it('should return 409 when deleting with children and force=false', async () => {
+      const parentResp = await request(app)
+        .post('/api/rubros')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ name: 'Parent Hard', marginRate: 10 });
+
+      await request(app)
+        .post('/api/rubros')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ name: 'Child Hard', parentId: parentResp.body.data.id });
+
+      const delResp = await request(app)
+        .delete(`/api/rubros/${parentResp.body.data.id}/permanent`)
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(delResp.status).toBe(409);
+    });
+
+    it('should hard delete parent and children when force=true', async () => {
+      const parentResp = await request(app)
+        .post('/api/rubros')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ name: 'Parent Hard 2' });
+
+      const childResp = await request(app)
+        .post('/api/rubros')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ name: 'Child Hard 2', parentId: parentResp.body.data.id });
+
+      const delResp = await request(app)
+        .delete(`/api/rubros/${parentResp.body.data.id}/permanent`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .query({ force: true });
+
+      expect(delResp.status).toBe(204);
+
+      const getParent = await request(app)
+        .get(`/api/rubros/${parentResp.body.data.id}`)
+        .set('Authorization', `Bearer ${authToken}`);
+      expect(getParent.status).toBe(404);
+
+      const getChild = await request(app)
+        .get(`/api/rubros/${childResp.body.data.id}`)
+        .set('Authorization', `Bearer ${authToken}`);
+      expect(getChild.status).toBe(404);
+    });
+
+    it('should block hard delete when articles are associated', async () => {
+      const catResp = await request(app)
+        .post('/api/rubros')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ name: 'With Articles' });
+
+      await prisma.article.create({
+        data: {
+          name: 'A1',
+          sku: 'SKU-A1',
+          pricePublic: 100,
+          companyId: testCompanyId,
+          categoryId: catResp.body.data.id,
+          taxRate: 21
+        }
+      });
+
+      const delResp = await request(app)
+        .delete(`/api/rubros/${catResp.body.data.id}/permanent`)
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(delResp.status).toBe(409);
+    });
+  });
+
   describe('GET /api/rubros/tree', () => {
     it('should return hierarchical rubro tree', async () => {
       const response = await request(app)

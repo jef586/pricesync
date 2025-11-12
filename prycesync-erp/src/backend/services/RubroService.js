@@ -423,7 +423,7 @@ class RubroService {
    * @param {Object} user - User object with company info
    * @returns {Promise<Object>} - Restored rubro
    */
-  static async restoreRubro(id, user) {
+  static async restoreRubro(id, user, cascade = false) {
     const companyId = user.companyId || user.company?.id;
 
     // Check if rubro exists and is deleted
@@ -451,24 +451,105 @@ class RubroService {
       throw new AppError('CONFLICT', 'Ya existe un rubro con ese nombre en este nivel');
     }
 
-    // Restore rubro
-    const restoredRubro = await prisma.category.update({
-      where: { id },
-      data: {
-        deletedAt: null,
-        isActive: true
-      },
-      include: {
-        parent: {
-          select: {
-            id: true,
-            name: true
-          }
-        }
+    // Validate ancestors are active
+    let parentId = rubro.parentId || null;
+    while (parentId) {
+      const parent = await prisma.category.findFirst({
+        where: { id: parentId, companyId },
+        select: { id: true, deletedAt: true, isActive: true, parentId: true }
+      });
+      if (!parent || parent.deletedAt) {
+        throw new AppError('CONFLICT', 'No se puede restaurar porque su padre está eliminado', 'PARENT_DELETED');
       }
+      parentId = parent.parentId || null;
+    }
+
+    const restoredRubro = await prisma.$transaction(async (tx) => {
+      const updated = await tx.category.update({
+        where: { id },
+        data: { deletedAt: null, isActive: true },
+        include: { parent: { select: { id: true, name: true } } }
+      });
+
+      if (cascade) {
+        const basePath = updated.path || updated.id;
+        await tx.category.updateMany({
+          where: { companyId, deletedAt: { not: null }, path: { startsWith: `${basePath}.` } },
+          data: { deletedAt: null, isActive: true }
+        });
+      }
+
+      return updated;
+    });
+
+    await AuditService.log({
+      actorId: user.id,
+      actorName: user.name,
+      targetId: id,
+      targetName: restoredRubro?.name,
+      actionType: 'RESTORE',
+      payloadDiff: { entity: 'rubro', action: 'RESTORE', cascade },
+      companyId
     });
 
     return restoredRubro;
+  }
+
+  /**
+   * Permanent delete rubro with optional cascade
+   */
+  static async permanentDeleteRubro(id, user, force = false, meta = {}) {
+    const companyId = user.companyId || user.company?.id;
+
+    const rubro = await prisma.category.findFirst({
+      where: { id, companyId },
+      select: { id: true, name: true, path: true }
+    });
+
+    if (!rubro) {
+      throw new AppError('NOT_FOUND', 'Rubro no encontrado');
+    }
+
+    const articlesCount = await prisma.article.count({
+      where: { companyId, categoryId: id, deletedAt: null }
+    });
+    if (articlesCount > 0) {
+      throw new AppError('CONFLICT', 'No se puede eliminar el rubro porque tiene artículos asociados', 'HAS_ARTICLES');
+    }
+
+    if (!force) {
+      const childrenCount = await prisma.category.count({ where: { companyId, parentId: id } });
+      if (childrenCount > 0) {
+        throw new AppError('CONFLICT', 'No se puede eliminar el rubro porque tiene subrubros', 'HAS_CHILDREN');
+      }
+    }
+
+    const affected = await prisma.$transaction(async (tx) => {
+      let deletedChildren = 0;
+      if (force) {
+        const basePath = rubro.path || rubro.id;
+        const delRes = await tx.category.deleteMany({
+          where: { companyId, path: { startsWith: `${basePath}.` } }
+        });
+        deletedChildren = delRes.count || 0;
+      }
+
+      await tx.category.delete({ where: { id } });
+
+      return deletedChildren + 1;
+    });
+
+    await AuditService.log({
+      actorId: user.id,
+      actorName: user.name,
+      targetId: id,
+      targetName: rubro?.name,
+      actionType: 'DELETE_PERMANENT',
+      payloadDiff: { entity: 'rubro', action: 'DELETE_PERMANENT', affected_count: affected, cascade: !!force },
+      companyId,
+      ip: meta?.ip,
+      userAgent: meta?.userAgent
+    });
   }
 
   /**
