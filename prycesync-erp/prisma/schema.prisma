@@ -328,6 +328,13 @@ model Category {
   parent      Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
   children    Category[] @relation("CategoryHierarchy")
 
+  // Campos jerárquicos y de configuración
+  level      Int      @default(0)
+  path       String?
+  isActive   Boolean  @default(true) @map("is_active")
+  marginRate Decimal? @default(0.00) @map("margin_rate") @db.Decimal(5, 2)
+  deletedAt  DateTime? @map("deleted_at")
+
   // Relaciones
   companyId String  @map("company_id")
   company   Company @relation(fields: [companyId], references: [id])
@@ -338,6 +345,11 @@ model Category {
   // Relaciones
   articles Article[]
 
+  @@unique([companyId, name, parentId], map: "uniq_categories_company_name_parent", name: "unique_company_name_parent")
+  @@index([parentId], map: "idx_categories_parent_id")
+  @@index([path], map: "idx_categories_path")
+  @@index([isActive], map: "idx_categories_is_active")
+  @@index([companyId, isActive], map: "idx_categories_company_active")
   @@map("categories")
 }
 

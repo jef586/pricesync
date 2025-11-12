@@ -151,10 +151,11 @@ app.use((err, req, res, next) => {
 });
 
 // Iniciar servidor
-app.listen(PORT, '0.0.0.0', () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`ðŸš€ API Server running on http://localhost:${PORT}`);
   console.log(`ðŸ“Š Health check available at http://localhost:${PORT}/api/health`);
   console.log(`ðŸŒ Environment: ${process.env.NODE_ENV || 'development'}`);
 });
 
+export { app, server };
 export default app;

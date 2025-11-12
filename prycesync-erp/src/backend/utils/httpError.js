@@ -1,113 +1,176 @@
-import { Prisma } from '@prisma/client'
+/**
+ * Custom application error class for standardized error handling
+ */
+export class AppError extends Error {
+  constructor(code, message, field = null) {
+    super(message);
+    this.name = 'AppError';
+    this.code = code;
+    this.field = field;
+    
+    // Maintain proper stack trace for where our error was thrown (only available on V8)
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, AppError);
+    }
+  }
+
+  /**
+   * Convert AppError to HTTP response format
+   * @returns {Object} HTTP error response
+   */
+  toHttpResponse() {
+    const response = {
+      error: this.message,
+      code: this.code
+    };
+
+    if (this.field) {
+      response.field = this.field;
+    }
+
+    return response;
+  }
+
+  /**
+   * Get HTTP status code based on error code
+   * @returns {number} HTTP status code
+   */
+  getHttpStatus() {
+    const statusMap = {
+      'VALIDATION_ERROR': 400,
+      'FORBIDDEN': 403,
+      'NOT_FOUND': 404,
+      'CONFLICT': 409,
+      'UNAUTHORIZED': 401,
+      'INTERNAL_ERROR': 500
+    };
+
+    return statusMap[this.code] || 500;
+  }
+}
 
 /**
- * Convierte errores de Prisma/JS en respuestas HTTP legibles para el cliente.
- * Devuelve { status, body } donde body siempre incluye { success: false, message, ... }.
+ * Error handler middleware for Express
+ * @param {Error} err - The error object
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next function
  */
-export function mapErrorToHttp(error, defaultMessage = 'Error interno del servidor') {
-  const unknown = { status: 500, body: { success: false, message: defaultMessage, details: fullMessage(error) } }
-
-  try {
-    if (!error) return unknown
-
-    // Zod (por seguridad; normalmente se maneja antes)
-    if (error?.name === 'ZodError') {
-      const details = Array.isArray(error.issues)
-        ? error.issues.map(i => `${(i.path || []).join('.') || 'campo'}: ${i.message}`).join('; ')
-        : 'Datos inválidos'
-      return { status: 400, body: { success: false, message: 'Datos inválidos', details } }
-    }
-
-    // Prisma: errores de validación del cliente (schema/entrada)
-    if (error instanceof Prisma.PrismaClientValidationError) {
-      const parsed = parsePrismaValidationMessage(error.message)
-      return {
-        status: 400,
-        body: {
-          success: false,
-          message: parsed?.message || 'Datos inválidos para la operación',
-          field: parsed?.field,
-          hint: parsed?.hint,
-          details: fullMessage(error)
-        }
-      }
-    }
-
-    // Prisma: errores conocidos del motor
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      const code = error.code
-      switch (code) {
-        case 'P2002': // Unique constraint failed
-          return { status: 409, body: { success: false, message: 'Valor duplicado en un campo único', code } }
-        case 'P2003': // Foreign key constraint failed
-          return { status: 400, body: { success: false, message: `Referencia no válida (${error.meta?.field_name || error.meta?.target || 'campo desconocido'})`, code } }
-        case 'P2025': // Record not found
-          return { status: 404, body: { success: false, message: 'Registro no encontrado o ya eliminado', code } }
-        case 'P2011':
-        case 'P2012':
-        case 'P2013':
-        case 'P2009': // Data validation error
-          return { status: 400, body: { success: false, message: 'Validación de datos fallida', code, details: fullMessage(error) } }
-        case 'P2033': // Number out of range
-          return { status: 400, body: { success: false, message: 'Número fuera de rango para el tipo de dato', code } }
-        default:
-          return { status: 500, body: { success: false, message: defaultMessage, code, details: fullMessage(error) } }
-      }
-    }
-
-    // Errores genéricos de JS
-    const name = error.name || 'Error'
-    if (name === 'TypeError' || name === 'RangeError' || name === 'SyntaxError') {
-      return { status: 500, body: { success: false, message: defaultMessage, details: fullMessage(error) } }
-    }
-
-    // Fallback
-    return unknown
-  } catch (e) {
-    return unknown
+export function errorHandler(err, req, res, next) {
+  // If it's our custom AppError, handle it properly
+  if (err instanceof AppError) {
+    return res.status(err.getHttpStatus()).json(err.toHttpResponse());
   }
+
+  // Handle Prisma errors
+  if (err.code === 'P2002') {
+    return res.status(409).json({
+      error: 'Ya existe un registro con estos datos',
+      code: 'DUPLICATE_ENTRY',
+      field: err.meta?.target
+    });
+  }
+
+  if (err.code === 'P2025') {
+    return res.status(404).json({
+      error: 'Registro no encontrado',
+      code: 'NOT_FOUND'
+    });
+  }
+
+  if (err.code === 'P2003') {
+    return res.status(409).json({
+      error: 'No se puede eliminar porque tiene registros relacionados',
+      code: 'FOREIGN_KEY_CONSTRAINT',
+      field: err.meta?.field_name
+    });
+  }
+
+  // Handle JWT errors
+  if (err.name === 'JsonWebTokenError') {
+    return res.status(401).json({
+      error: 'Token inválido',
+      code: 'INVALID_TOKEN'
+    });
+  }
+
+  if (err.name === 'TokenExpiredError') {
+    return res.status(401).json({
+      error: 'Token expirado',
+      code: 'TOKEN_EXPIRED'
+    });
+  }
+
+  // Default error handler
+  console.error('Unhandled error:', err);
+  
+  // Don't leak error details in production
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  
+  return res.status(500).json({
+    error: 'Error interno del servidor',
+    code: 'INTERNAL_ERROR',
+    ...(isDevelopment && { 
+      message: err.message,
+      stack: err.stack 
+    })
+  });
 }
 
-function parsePrismaValidationMessage(message) {
-  if (!message || typeof message !== 'string') return null
-
-  // Unknown arg `field` in data
-  const m1 = message.match(/Unknown arg `([^`]+)` in data/i)
-  if (m1) {
-    const field = m1[1]
-    return {
-      field,
-      message: `Campo desconocido en datos: ${field}`,
-      hint: 'Verifique el nombre del campo y el modelo Prisma'
-    }
-  }
-
-  // Argument field: Got invalid value ... (e.g., null vs enum/string/number)
-  const m2 = message.match(/Argument\s+(\w+):\s+Got invalid value[^\n]*\n/i)
-  if (m2) {
-    const field = m2[1]
-    return {
-      field,
-      message: `Valor inválido para campo: ${field}`,
-      hint: 'Revise tipo y si admite null según el esquema'
-    }
-  }
-
-  // Missing required arg: Argument field is missing.
-  const m3 = message.match(/Argument\s+(\w+)\s+is missing/i)
-  if (m3) {
-    const field = m3[1]
-    return {
-      field,
-      message: `Falta un argumento requerido: ${field}`,
-      hint: 'Incluya el campo requerido en la creación/actualización'
-    }
-  }
-
-  return null
+/**
+ * Async error wrapper for route handlers
+ * @param {Function} fn - Async function to wrap
+ * @returns {Function} Wrapped function
+ */
+export function asyncHandler(fn) {
+  return (req, res, next) => {
+    Promise.resolve(fn(req, res, next)).catch(next);
+  };
 }
 
-function fullMessage(err) {
-  const msg = err?.message || String(err)
-  return typeof msg === 'string' ? msg.slice(0, 2000) : undefined
+/**
+ * Create a validation error
+ * @param {string} message - Error message
+ * @param {string} field - Field that failed validation
+ * @returns {AppError} Validation error
+ */
+export function validationError(message, field = null) {
+  return new AppError('VALIDATION_ERROR', message, field);
+}
+
+/**
+ * Create a not found error
+ * @param {string} message - Error message
+ * @returns {AppError} Not found error
+ */
+export function notFoundError(message = 'Recurso no encontrado') {
+  return new AppError('NOT_FOUND', message);
+}
+
+/**
+ * Create a conflict error
+ * @param {string} message - Error message
+ * @param {string} field - Field that caused the conflict
+ * @returns {AppError} Conflict error
+ */
+export function conflictError(message, field = null) {
+  return new AppError('CONFLICT', message, field);
+}
+
+/**
+ * Create a forbidden error
+ * @param {string} message - Error message
+ * @returns {AppError} Forbidden error
+ */
+export function forbiddenError(message = 'Acceso denegado') {
+  return new AppError('FORBIDDEN', message);
+}
+
+/**
+ * Create an unauthorized error
+ * @param {string} message - Error message
+ * @returns {AppError} Unauthorized error
+ */
+export function unauthorizedError(message = 'No autorizado') {
+  return new AppError('UNAUTHORIZED', message);
 }
