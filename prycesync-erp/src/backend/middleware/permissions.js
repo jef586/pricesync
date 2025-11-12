@@ -12,6 +12,11 @@ export const PERMISSIONS = {
   'stock:view': { label: 'Ver stock', group: 'Stock' },
   'config:view': { label: 'Ver configuración', group: 'Configuración' },
   'config:write': { label: 'Editar configuración', group: 'Configuración' },
+  // Permisos para Rubros (inventory)
+  'inventory:rubros:create': { label: 'Crear rubros', group: 'Inventario' },
+  'inventory:rubros:read': { label: 'Ver rubros', group: 'Inventario' },
+  'inventory:rubros:update': { label: 'Editar rubros', group: 'Inventario' },
+  'inventory:rubros:delete': { label: 'Eliminar rubros', group: 'Inventario' },
 }
 
 // Normalize legacy roles to new RBAC roles for backward compatibility
@@ -27,11 +32,11 @@ function normalizeRole(role) {
 }
 
 export const ROLE_PERMISSIONS = {
-  SUPERADMIN: ['admin:users','admin:roles','admin:roles:write','admin:audit','reports:view','stock:view','config:view','config:write','sales:create','sales:update','sales:refund'],
-  ADMIN:      ['admin:users','admin:roles','admin:audit','reports:view','stock:view','config:view','config:write','sales:create','sales:update','sales:refund'],
-  SUPERVISOR: ['reports:view','stock:view','sales:create','sales:update','sales:refund'],
-  SELLER:     ['sales:create'],
-  TECHNICIAN: ['config:view'],
+  SUPERADMIN: ['admin:users','admin:roles','admin:roles:write','admin:audit','reports:view','stock:view','config:view','config:write','sales:create','sales:update','sales:refund','inventory:rubros:create','inventory:rubros:read','inventory:rubros:update','inventory:rubros:delete'],
+  ADMIN:      ['admin:users','admin:roles','admin:audit','reports:view','stock:view','config:view','config:write','sales:create','sales:update','sales:refund','inventory:rubros:create','inventory:rubros:read','inventory:rubros:update','inventory:rubros:delete'],
+  SUPERVISOR: ['reports:view','stock:view','sales:create','sales:update','sales:refund','inventory:rubros:create','inventory:rubros:read','inventory:rubros:update'],
+  SELLER:     ['sales:create','inventory:rubros:read'],
+  TECHNICIAN: ['config:view','inventory:rubros:read'],
 }
 
 // Internal helper to permit updating matrix in-memory (for dev only)
@@ -68,4 +73,9 @@ export function requirePermission(...required) {
       return res.status(500).json({ error: 'Error en autorización', code: 'AUTHZ_ERROR', message: err.message })
     }
   }
+}
+
+// Middleware: authorize(permission) - alias para requirePermission con un solo permiso
+export function authorize(permission) {
+  return requirePermission(permission)
 }

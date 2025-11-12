@@ -27,6 +27,7 @@ import auditRoutes from './routes/audit.js';
 import salesRoutes from './routes/sales.js';
 import stockRoutes from './routes/stock.js';
 import stockEstimatorRoutes from './routes/stock-estimator.js';
+import rubrosRoutes from './routes/rubros.js';
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -77,6 +78,7 @@ app.use('/api/customers', customerRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/articles', articlesRoutes);
 app.use('/api/categories', categoryRoutes);
+app.use('/api/rubros', rubrosRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/suppliers', supplierRoutes);
 app.use('/api/sales', salesRoutes);
