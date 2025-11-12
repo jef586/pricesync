@@ -108,6 +108,33 @@ class RubroController {
   });
 
   /**
+   * Move rubro in hierarchy
+   * PUT /api/rubros/:id/move
+   */
+  static moveRubro = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { new_parent_id } = req.body;
+
+    if (new_parent_id !== null && new_parent_id !== undefined && typeof new_parent_id !== 'string') {
+      return res.status(400).json({
+        error: 'new_parent_id inválido',
+        code: 'VALIDATION_ERROR',
+        field: 'new_parent_id'
+      });
+    }
+
+    const updated = await RubroService.moveRubro(id, new_parent_id ?? null, req.user, {
+      ip: req.ip,
+      userAgent: req.headers['user-agent']
+    });
+
+    res.status(200).json({
+      success: true,
+      data: updated
+    });
+  });
+
+  /**
    * Soft delete rubro
    * DELETE /api/rubros/:id
    */

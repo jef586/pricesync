@@ -434,6 +434,97 @@ describe('Rubros API E2E Tests', () => {
     });
   });
 
+  describe('PUT /api/rubros/:id/move', () => {
+    it('should move subrubro to root', async () => {
+      const rootResp = await request(app)
+        .post('/api/rubros')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ name: 'Root A', marginRate: 10 });
+
+      const childResp = await request(app)
+        .post('/api/rubros')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ name: 'Child A1', parentId: rootResp.body.data.id });
+
+      const moveResp = await request(app)
+        .put(`/api/rubros/${childResp.body.data.id}/move`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ new_parent_id: null });
+
+      expect(moveResp.status).toBe(200);
+      expect(moveResp.body.success).toBe(true);
+      expect(moveResp.body.data.parentId).toBeNull();
+      expect(moveResp.body.data.level).toBe(0);
+      expect(moveResp.body.data.path).toBe(moveResp.body.data.id);
+    });
+
+    it('should move rubro under another parent and update path/level', async () => {
+      const parentA = await request(app)
+        .post('/api/rubros')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ name: 'Parent B' });
+
+      const nodeX = await request(app)
+        .post('/api/rubros')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ name: 'Node X' });
+
+      const moveResp = await request(app)
+        .put(`/api/rubros/${nodeX.body.data.id}/move`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ new_parent_id: parentA.body.data.id });
+
+      expect(moveResp.status).toBe(200);
+      expect(moveResp.body.data.parentId).toBe(parentA.body.data.id);
+      expect(moveResp.body.data.level).toBe(1);
+      expect(moveResp.body.data.path).toContain(parentA.body.data.id);
+    });
+
+    it('should reject cycle when moving ancestor under descendant', async () => {
+      const a = await request(app)
+        .post('/api/rubros')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ name: 'A' });
+
+      const b = await request(app)
+        .post('/api/rubros')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ name: 'B', parentId: a.body.data.id });
+
+      const c = await request(app)
+        .post('/api/rubros')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ name: 'C', parentId: b.body.data.id });
+
+      const resp = await request(app)
+        .put(`/api/rubros/${a.body.data.id}/move`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ new_parent_id: c.body.data.id });
+
+      expect(resp.status).toBe(409);
+      expect(resp.body.code).toBe('CONFLICT');
+      expect(resp.body.field).toBe('parent_id');
+    });
+
+    it('should return 404 when parent belongs to another company', async () => {
+      const otherCompany = await prisma.company.create({ data: { name: 'Co Y', taxId: 'COY-999' } });
+      const otherParent = await prisma.category.create({ data: { name: 'Other P', companyId: otherCompany.id, level: 0, path: 'other-p' } });
+
+      const node = await request(app)
+        .post('/api/rubros')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ name: 'Cross Node' });
+
+      const resp = await request(app)
+        .put(`/api/rubros/${node.body.data.id}/move`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ new_parent_id: otherParent.id });
+
+      expect(resp.status).toBe(404);
+      expect(resp.body.code).toBe('NOT_FOUND');
+    });
+  });
+
   describe('Authorization Tests', () => {
     let sellerToken;
     let viewerToken;

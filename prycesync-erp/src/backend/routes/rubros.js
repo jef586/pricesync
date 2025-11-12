@@ -27,6 +27,9 @@ router.post('/', authorize('inventory:rubros:create'), RubroController.createRub
 // PUT /api/rubros/:id - Actualizar rubro (requiere permiso: inventory:rubros:update)
 router.put('/:id', authorize('inventory:rubros:update'), RubroController.updateRubro);
 
+// PUT /api/rubros/:id/move - Mover rubro dentro de la jerarquía (requiere permiso: inventory:rubros:update)
+router.put('/:id/move', authorize('inventory:rubros:update'), RubroController.moveRubro);
+
 // DELETE /api/rubros/:id - Eliminar rubro (requiere permiso: inventory:rubros:delete)
 router.delete('/:id', authorize('inventory:rubros:delete'), RubroController.deleteRubro);
 

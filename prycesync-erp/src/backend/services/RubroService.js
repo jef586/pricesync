@@ -1,6 +1,7 @@
 import prisma from '../config/database.js';
 import RubroValidationService from './RubroValidationService.js';
 import { AppError } from '../utils/httpError.js';
+import AuditService from './AuditService.js';
 import crypto from 'crypto';
 
 class RubroService {
@@ -468,6 +469,104 @@ class RubroService {
     });
 
     return restoredRubro;
+  }
+
+  /**
+   * Move rubro to a new parent, updating level/path and cascading to descendants
+   * @param {string} id
+   * @param {string|null} newParentId
+   * @param {Object} user
+   * @param {{ip?: string, userAgent?: string}} meta
+   * @returns {Promise<Object>}
+   */
+  static async moveRubro(id, newParentId, user, meta = {}) {
+    const companyId = user.companyId || user.company?.id;
+
+    const rubro = await prisma.category.findFirst({
+      where: { id, companyId, deletedAt: null },
+      select: { id: true, name: true, parentId: true, level: true, path: true }
+    });
+
+    if (!rubro) {
+      throw new AppError('NOT_FOUND', 'Rubro no encontrado');
+    }
+
+    const oldParentId = rubro.parentId || null;
+    const oldPath = rubro.path || rubro.id;
+    const oldLevel = rubro.level || 0;
+
+    if (newParentId && newParentId === id) {
+      throw new AppError('CONFLICT', 'Un rubro no puede ser padre de sí mismo', 'parent_id');
+    }
+
+    let parent = null;
+    if (newParentId) {
+      parent = await prisma.category.findFirst({
+        where: { id: newParentId, companyId, deletedAt: null },
+        select: { id: true, level: true, path: true }
+      });
+
+      if (!parent) {
+        throw new AppError('NOT_FOUND', 'Rubro padre no encontrado', 'parent_id');
+      }
+
+      const segments = (parent.path || '').split('.').filter(Boolean);
+      if (segments.includes(id)) {
+        throw new AppError('CONFLICT', 'No se puede mover dentro de sus descendientes', 'parent_id');
+      }
+    }
+
+    const { level: newLevel, path: newPath } = await RubroValidationService.calculateLevelAndPath(newParentId || null, id, companyId);
+    const deltaLevel = (newLevel ?? 0) - (oldLevel ?? 0);
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const moved = await tx.category.update({
+        where: { id },
+        data: { parentId: newParentId || null, level: newLevel, path: newPath },
+        include: {
+          parent: { select: { id: true, name: true } }
+        }
+      });
+
+      const descendants = await tx.category.findMany({
+        where: {
+          companyId,
+          deletedAt: null,
+          path: { startsWith: `${oldPath}.` }
+        },
+        select: { id: true, path: true, level: true }
+      });
+
+      if (descendants.length > 0) {
+        await Promise.all(
+          descendants.map((d) => {
+            const suffix = d.path.substring(oldPath.length);
+            const nextPath = `${newPath}${suffix}`;
+            const nextLevel = (d.level ?? 0) + deltaLevel;
+            return tx.category.update({
+              where: { id: d.id },
+              data: { path: nextPath, level: nextLevel }
+            });
+          })
+        );
+      }
+
+      return moved;
+    });
+
+    await AuditService.log({
+      actorId: user.id,
+      actorName: user.name,
+      targetId: id,
+      targetName: updated?.name,
+      actionType: 'RUBRO_MOVE',
+      payloadDiff: { entity: 'rubro', action: 'MOVE', old_parent_id: oldParentId, new_parent_id: newParentId, old_path: oldPath, new_path: newPath },
+      companyId,
+      ip: meta?.ip,
+      userAgent: meta?.userAgent
+    });
+
+    return updated;
   }
 }
 

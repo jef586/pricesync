@@ -386,4 +386,52 @@ describe('RubroService', () => {
         .toThrow(new AppError('CONFLICT', 'Ya existe un rubro con ese nombre en este nivel'));
     });
   });
+
+  describe('moveRubro', () => {
+    it('should move rubro to new parent and update descendants', async () => {
+      prisma.category.findFirst
+        .mockResolvedValueOnce({ id: 'rubro-1', name: 'R1', parentId: null, level: 0, path: 'rubro-1' })
+        .mockResolvedValueOnce({ id: 'parent-2', level: 1, path: 'root.parent-2' });
+
+      RubroValidationService.calculateLevelAndPath.mockResolvedValue({ level: 2, path: 'root.parent-2.rubro-1' });
+
+      prisma.$transaction.mockImplementation(async (cb) => cb(prisma));
+
+      prisma.category.update
+        .mockResolvedValueOnce({ id: 'rubro-1', name: 'R1', parentId: 'parent-2', level: 2, path: 'root.parent-2.rubro-1' })
+        .mockResolvedValueOnce({ id: 'child-a', level: 3, path: 'root.parent-2.rubro-1.child-a' });
+
+      prisma.category.findMany.mockResolvedValue([
+        { id: 'child-a', path: 'rubro-1.child-a', level: 1 }
+      ]);
+
+      const result = await RubroService.moveRubro('rubro-1', 'parent-2', mockUser, {});
+
+      expect(result.parentId).toBe('parent-2');
+      expect(prisma.category.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ path: expect.objectContaining({ startsWith: 'rubro-1.' }) })
+      }));
+      expect(prisma.category.update).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({ path: 'root.parent-2.rubro-1.child-a', level: 3 })
+      }));
+    });
+
+    it('should reject moving into itself', async () => {
+      prisma.category.findFirst.mockResolvedValueOnce({ id: 'rubro-1', name: 'R1', parentId: null, level: 0, path: 'rubro-1' });
+
+      await expect(RubroService.moveRubro('rubro-1', 'rubro-1', mockUser)).rejects.toThrow(
+        new AppError('CONFLICT', 'Un rubro no puede ser padre de sí mismo', 'parent_id')
+      );
+    });
+
+    it('should reject cycle when parent path contains id', async () => {
+      prisma.category.findFirst
+        .mockResolvedValueOnce({ id: 'rubro-1', name: 'R1', parentId: null, level: 0, path: 'rubro-1' })
+        .mockResolvedValueOnce({ id: 'child-a', level: 1, path: 'rubro-1.child-a' });
+
+      await expect(RubroService.moveRubro('rubro-1', 'child-a', mockUser)).rejects.toThrow(
+        new AppError('CONFLICT', 'No se puede mover dentro de sus descendientes', 'parent_id')
+      );
+    });
+  });
 });
