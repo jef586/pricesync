@@ -85,14 +85,14 @@
 
          
           <li class="nav-item">
-            <router-link to="/categories" class="nav-link" :class="{ active: $route.path.startsWith('/categories') }" :title="sidebarCollapsed ? 'Categorías' : ''">
+            <router-link to="/rubros" class="nav-link" :class="{ active: $route.path.startsWith('/rubros') }" :title="sidebarCollapsed ? 'Rubros' : ''">
               <svg class="nav-icon" :title="sidebarCollapsed ? 'Categorías' : ''" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M7 7H17V17H7V7Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 <path d="M3 3H21V21H3V3Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 <path d="M16 3L21 8L16 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 <path d="M8 21L3 16L8 11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
-              <span v-if="!sidebarCollapsed" class="nav-text">Categorías</span>
+              <span v-if="!sidebarCollapsed" class="nav-text">Rubros</span>
             </router-link>
           </li>
 

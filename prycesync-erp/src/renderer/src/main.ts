@@ -14,6 +14,12 @@ const pinia = createPinia()
 
 app.use(pinia)
 app.use(router)
+router.addRoute({
+  path: '/rubros',
+  name: 'Rubros',
+  component: () => import('./views/RubrosView.vue'),
+  meta: { requiresAuth: true, permissions: 'inventory:rubros:read' }
+})
 
 // Inicializar autenticación
 const authStore = useAuthStore()

@@ -62,7 +62,8 @@ export const useAuthStore = defineStore('auth', () => {
     admin: new Set([
       'article:read', 'article:write', 'stock:read', 'stock:write', 'stock:override', 'stock:kardex', 'stock:export',
       'imports:read', 'imports:write', 'purchases:resolve',
-      'admin:users', 'admin:roles'
+      'admin:users', 'admin:roles',
+      'inventory:rubros:create', 'inventory:rubros:read', 'inventory:rubros:update', 'inventory:rubros:delete'
     ]),
     manager: new Set([
       'article:read', 'article:write', 'stock:read', 'stock:write', 'stock:kardex', 'stock:export',
@@ -75,12 +76,14 @@ export const useAuthStore = defineStore('auth', () => {
     SUPERADMIN: new Set([
       'article:read', 'article:write', 'stock:read', 'stock:write', 'stock:override', 'stock:kardex', 'stock:export',
       'imports:read', 'imports:write', 'purchases:resolve',
-      'admin:users', 'admin:roles', 'admin:roles:write', 'admin:audit'
+      'admin:users', 'admin:roles', 'admin:roles:write', 'admin:audit',
+      'inventory:rubros:create', 'inventory:rubros:read', 'inventory:rubros:update', 'inventory:rubros:delete'
     ]),
     ADMIN: new Set([
       'article:read', 'article:write', 'stock:read', 'stock:write', 'stock:kardex', 'stock:export',
       'imports:read', 'imports:write', 'purchases:resolve',
-      'admin:users', 'admin:roles', 'admin:audit'
+      'admin:users', 'admin:roles', 'admin:audit',
+      'inventory:rubros:create', 'inventory:rubros:read', 'inventory:rubros:update', 'inventory:rubros:delete'
     ]),
     SUPERVISOR: new Set([
       'article:read', 'article:write', 'stock:read', 'stock:kardex', 'stock:export',
@@ -98,12 +101,13 @@ export const useAuthStore = defineStore('auth', () => {
   // Nuevo: permisos provenientes del backend/JWT
   const hasPermission = (perm: string): boolean => {
     const list = user.value?.permissions || []
-    if (Array.isArray(list) && list.length) {
-      return list.includes(perm)
-    }
-    // Fallback a scopes por rol legado
     const role = userRole.value || 'viewer'
     const scopes = ROLE_SCOPES[role] || new Set()
+    if (Array.isArray(list) && list.length) {
+      if (list.includes(perm)) return true
+      // También permitir por rol si el permiso no está explícito en el JWT
+      return scopes.has(perm)
+    }
     return scopes.has(perm)
   }
 
