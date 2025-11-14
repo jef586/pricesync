@@ -174,3 +174,87 @@ export function forbiddenError(message = 'Acceso denegado') {
 export function unauthorizedError(message = 'No autorizado') {
   return new AppError('UNAUTHORIZED', message);
 }
+
+/**
+ * Map any error to HTTP response format
+ * @param {Error} err - The error object
+ * @returns {Object} HTTP error response
+ */
+export function mapErrorToHttp(err) {
+  // If it's our custom AppError, use its built-in method
+  if (err instanceof AppError) {
+    return {
+      status: err.getHttpStatus(),
+      body: err.toHttpResponse()
+    };
+  }
+
+  // Handle Prisma errors
+  if (err.code === 'P2002') {
+    return {
+      status: 409,
+      body: {
+        error: 'Ya existe un registro con estos datos',
+        code: 'DUPLICATE_ENTRY',
+        field: err.meta?.target
+      }
+    };
+  }
+
+  if (err.code === 'P2025') {
+    return {
+      status: 404,
+      body: {
+        error: 'Registro no encontrado',
+        code: 'NOT_FOUND'
+      }
+    };
+  }
+
+  if (err.code === 'P2003') {
+    return {
+      status: 409,
+      body: {
+        error: 'No se puede eliminar porque tiene registros relacionados',
+        code: 'FOREIGN_KEY_CONSTRAINT',
+        field: err.meta?.field_name
+      }
+    };
+  }
+
+  // Handle JWT errors
+  if (err.name === 'JsonWebTokenError') {
+    return {
+      status: 401,
+      body: {
+        error: 'Token inválido',
+        code: 'INVALID_TOKEN'
+      }
+    };
+  }
+
+  if (err.name === 'TokenExpiredError') {
+    return {
+      status: 401,
+      body: {
+        error: 'Token expirado',
+        code: 'TOKEN_EXPIRED'
+      }
+    };
+  }
+
+  // Default error
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  
+  return {
+    status: 500,
+    body: {
+      error: 'Error interno del servidor',
+      code: 'INTERNAL_ERROR',
+      ...(isDevelopment && { 
+        message: err.message,
+        stack: err.stack 
+      })
+    }
+  };
+}

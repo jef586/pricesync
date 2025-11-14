@@ -12,16 +12,12 @@ class RubroService {
    * @returns {Promise<Object>} - Created rubro
    */
   static async createRubro(data, user) {
-    const { name, parentId, marginRate = 0, isActive = true } = data;
+    const { name, parentId } = data;
     const companyId = user.companyId || user.company?.id;
 
     // Validations
     if (!RubroValidationService.validateNameLength(name)) {
       throw new AppError('VALIDATION_ERROR', 'El nombre debe tener entre 2 y 100 caracteres', 'name');
-    }
-
-    if (!RubroValidationService.validateMarginRate(marginRate)) {
-      throw new AppError('VALIDATION_ERROR', 'El margen debe estar entre 0 y 100', 'margin_rate');
     }
 
     const isUnique = await RubroValidationService.validateUniqueSiblingName(name, companyId, parentId);
@@ -49,8 +45,8 @@ class RubroService {
           parentId: parentId || null,
           level,
           path,
-          isActive,
-          marginRate,
+          isActive: true, // Default to active
+          marginRate: 0,  // Default margin rate
           companyId
         },
         include: {
@@ -260,7 +256,7 @@ class RubroService {
    * @returns {Promise<Object>} - Updated rubro
    */
   static async updateRubro(id, data, user) {
-    const { name, parentId, marginRate, isActive } = data;
+    const { name, parentId } = data;
     const companyId = user.companyId || user.company?.id;
 
     // Check if rubro exists and belongs to company
@@ -293,12 +289,6 @@ class RubroService {
       }
     }
 
-    if (marginRate !== undefined) {
-      if (!RubroValidationService.validateMarginRate(marginRate)) {
-        throw new AppError('VALIDATION_ERROR', 'El margen debe estar entre 0 y 100', 'margin_rate');
-      }
-    }
-
     // Check for circular reference if parent is being changed
     if (parentId !== undefined && parentId !== existingRubro.parentId) {
       if (parentId && parentId === id) {
@@ -321,8 +311,6 @@ class RubroService {
     // Prepare update data
     const updateData = {};
     if (name !== undefined) updateData.name = name.trim();
-    if (marginRate !== undefined) updateData.marginRate = marginRate;
-    if (isActive !== undefined) updateData.isActive = isActive;
 
     // Handle parent change with level/path recalculation
     let level = existingRubro.level;

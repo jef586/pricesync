@@ -7,7 +7,7 @@ class RubroController {
    * POST /api/rubros
    */
   static createRubro = asyncHandler(async (req, res) => {
-    const { name, parentId, marginRate = 0, isActive = true } = req.body;
+    const { name, parentId } = req.body;
     
     // Validate required fields
     if (!name || typeof name !== 'string') {
@@ -20,9 +20,7 @@ class RubroController {
 
     const rubro = await RubroService.createRubro({
       name,
-      parentId,
-      marginRate,
-      isActive
+      parentId
     }, req.user);
 
     res.status(201).json({
@@ -83,10 +81,10 @@ class RubroController {
    */
   static updateRubro = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { name, parentId, marginRate, isActive } = req.body;
+    const { name, parentId } = req.body;
 
     // Validate at least one field is provided
-    if (name === undefined && parentId === undefined && marginRate === undefined && isActive === undefined) {
+    if (name === undefined && parentId === undefined) {
       return res.status(400).json({
         error: 'Debe proporcionar al menos un campo para actualizar',
         code: 'VALIDATION_ERROR'
@@ -95,9 +93,7 @@ class RubroController {
 
     const rubro = await RubroService.updateRubro(id, {
       name,
-      parentId,
-      marginRate,
-      isActive
+      parentId
     }, req.user);
 
     res.json({

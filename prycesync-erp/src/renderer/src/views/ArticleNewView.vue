@@ -81,18 +81,20 @@
               <!-- Fila 2: 33% / 33% / 33% -->
               <div class="col-span-4">
                 <label class="text-xs font-semibold">Rubro *</label>
-                <select v-model="form.categoryId" class="w-full mt-1 px-2 py-1 text-xs rounded-md border-default">
-                  <option value="">Seleccionar</option>
-                  <option value="alimentos">Alimentos</option>
-                  <option value="hogar">Hogar</option>
+                <select v-model="form.categoryId" class="w-full mt-1 px-2 py-1 text-xs rounded-md border-default" :disabled="loadingRubros">
+                  <option value="">{{ loadingRubros ? 'Cargando...' : 'Seleccionar' }}</option>
+                  <option v-for="rubro in rubros" :key="rubro.id" :value="rubro.id">
+                    {{ rubro.name }}
+                  </option>
                 </select>
               </div>
               <div class="col-span-4">
                 <label class="text-xs font-semibold">Sub-rubro *</label>
-                <select v-model="form.subCategoryId" class="w-full mt-1 px-2 py-1 text-xs rounded-md border-default">
-                  <option value="">Seleccionar</option>
-                  <option value="enlatados">Enlatados</option>
-                  <option value="limpieza">Limpieza</option>
+                <select v-model="form.subCategoryId" class="w-full mt-1 px-2 py-1 text-xs rounded-md border-default" :disabled="!form.categoryId || subrubros.length === 0">
+                  <option value="">{{ !form.categoryId ? 'Seleccione rubro primero' : subrubros.length === 0 ? 'Sin subrubros' : 'Seleccionar' }}</option>
+                  <option v-for="subrubro in subrubros" :key="subrubro.id" :value="subrubro.id">
+                    {{ subrubro.name }}
+                  </option>
                 </select>
               </div>
               <div class="col-span-4">
@@ -526,10 +528,17 @@ import { useRouter } from 'vue-router';
 import { createArticle, resolveArticle } from '@/services/articles';
 import { apiClient } from '@/services/api';
 import { createPromotion, getPromotion, createTier } from '@/services/quantityPromotionService';
+import { listRubros } from '@/services/rubros';
+import type { RubroDTO } from '@/types/rubro';
 
   const router = useRouter();
   const isDirty = ref(false);
   const isSaving = ref(false);
+
+  // Estados para rubros y subrubros
+  const rubros = ref<RubroDTO[]>([]);
+  const subrubros = ref<RubroDTO[]>([]);
+  const loadingRubros = ref(false);
 
 // Header state integrado al formulario
 
@@ -687,6 +696,54 @@ function addComponent() {
 // Validation flags
 const validation = ref({ eanDuplicate: false, stockInvalid: false, uomInvalid: false, aliasDuplicate: false });
 
+// Funciones para cargar rubros y subrubros
+const loadRubros = async () => {
+  loadingRubros.value = true;
+  try {
+    const response = await listRubros({ 
+      page: 1, 
+      size: 100, 
+      status: 'active',
+      level: 0 // Solo rubros padre (level 0)
+    });
+    rubros.value = response.items.filter(rubro => rubro.level === 0);
+  } catch (error) {
+    console.error('Error al cargar rubros:', error);
+  } finally {
+    loadingRubros.value = false;
+  }
+};
+
+const loadSubrubros = async (parentId: string) => {
+  if (!parentId) {
+    subrubros.value = [];
+    return;
+  }
+  
+  try {
+    const response = await listRubros({ 
+      page: 1, 
+      size: 100, 
+      status: 'active',
+      parentId: parentId // Filtrar por parentId
+    });
+    subrubros.value = response.items.filter(rubro => rubro.level === 1 && rubro.parentId === parentId);
+  } catch (error) {
+    console.error('Error al cargar subrubros:', error);
+    subrubros.value = [];
+  }
+};
+
+// Watch para detectar cambios en el rubro seleccionado
+watch(() => form.value.categoryId, (newCategoryId) => {
+  form.value.subCategoryId = ''; // Limpiar subrubro seleccionado
+  if (newCategoryId) {
+    loadSubrubros(newCategoryId);
+  } else {
+    subrubros.value = [];
+  }
+});
+
 // Derived amounts
 const effectiveInternalTax = computed(() => calc.value.internalTaxIsPct ? (calc.value.cost * calc.value.internalTax / 100) : calc.value.internalTax);
 const ivaAmount = computed(() => {
@@ -750,6 +807,8 @@ const save = async () => {
       active: !!form.value.active,
       sku: form.value.sku?.trim() || undefined,
       barcode: form.value.ean?.trim() || undefined,
+      categoryId: form.value.categoryId || undefined,
+      subCategoryId: form.value.subCategoryId || undefined,
       taxRate: Number(calc.value.ivaPct),
       cost: Number(calc.value.cost),
       gainPct: Number(calc.value.marginPct),
@@ -818,6 +877,9 @@ onMounted(() => {
   window.addEventListener('keydown', handleKeyDown);
   // Marcar como 'dirty' cuando el usuario empiece a interactuar
   window.addEventListener('input', () => isDirty.value = true, { once: true });
+  
+  // Cargar rubros al montar el componente
+  loadRubros();
 });
 
 onUnmounted(() => {
