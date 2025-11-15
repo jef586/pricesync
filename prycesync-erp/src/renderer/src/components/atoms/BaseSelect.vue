@@ -1,137 +1,96 @@
 <template>
-  <div :class="['base-select', { 'base-select--dense': dense }]">
-    <label v-if="label" :for="id" class="base-select__label">
-      {{ label }}
-      <span v-if="required" class="base-select__required">*</span>
-    </label>
+  <div class="base-select">
     <select
-      :id="id"
-      :value="normalizedModelValue"
-      :required="required"
+      :value="modelValue"
       :disabled="disabled"
-      :aria-invalid="hasError ? 'true' : undefined"
       :class="[
         'base-select__field',
-        dense ? 'base-select__field--dense' : '',
         {
-          'base-select__field--error': hasError,
-          'base-select__field--disabled': disabled
+          'base-select__field--disabled': disabled,
+          'base-select__field--error': error
         }
       ]"
-      v-bind="$attrs"
-      @change="onChange($event)"
-      @blur="$emit('blur')"
-      @focus="$emit('focus')"
+      @change="handleChange"
     >
       <option v-if="placeholder" value="" disabled>{{ placeholder }}</option>
-      <option
-        v-for="option in options"
-        :key="option.value"
-        :value="option.value ?? ''"
-      >
-        {{ option.label }}
-      </option>
+      <slot />
     </select>
-    <span v-if="hasError && errorMessage" class="base-select__error">
-      {{ errorMessage }}
-    </span>
+    <div v-if="error" class="base-select__error">
+      {{ error }}
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-
-interface Option {
-  value: string | null
-  label: string
-}
-
 interface Props {
-  modelValue: string | null
-  label?: string
+  modelValue?: string | number
   placeholder?: string
-  options: Option[]
-  required?: boolean
   disabled?: boolean
-  hasError?: boolean
-  errorMessage?: string
-  id?: string
-  dense?: boolean
+  error?: string
 }
 
 interface Emits {
-  (e: 'update:modelValue', value: string | null): void
-  (e: 'blur'): void
-  (e: 'focus'): void
+  (e: 'update:modelValue', value: string): void
+  (e: 'change', value: string): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  required: false,
+  modelValue: '',
+  placeholder: '',
   disabled: false,
-  hasError: false,
-  id: () => `select-${Math.random().toString(36).substr(2, 9)}`,
-  dense: false
+  error: ''
 })
 
 const emit = defineEmits<Emits>()
 
-const normalizedModelValue = computed(() => props.modelValue ?? '')
-
-function onChange(event: Event) {
-  const value = (event.target as HTMLSelectElement).value
-  emit('update:modelValue', value === '' ? null : value)
+const handleChange = (event: Event) => {
+  const target = event.target as HTMLSelectElement
+  const value = target.value
+  emit('update:modelValue', value)
+  emit('change', value)
 }
 </script>
 
 <style scoped>
 .base-select {
-  @apply w-full mb-4;
-}
-.base-select--dense { @apply mb-2; }
-
-.base-select__label {
-  @apply block text-sm font-semibold mb-2;
-  color: var(--ps-text-secondary);
-}
-.base-select--dense .base-select__label { @apply text-xs mb-1; }
-
-.base-select__required {
-  @apply text-red-500;
+  @apply w-full;
 }
 
 .base-select__field {
-  @apply w-full px-4 py-3 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 cursor-pointer;
-  background: var(--ps-input-bg);
-  color: var(--ps-text-primary);
-  border-color: var(--ps-border);
-}
-
-.base-select__field--dense { @apply px-3 py-2 text-sm; }
-
-.base-select__field--error {
-  @apply border-red-300 focus:ring-red-500 focus:border-red-500 bg-red-50;
+  @apply w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200;
 }
 
 .base-select__field--disabled {
-  @apply cursor-not-allowed;
+  @apply bg-gray-100 text-gray-500 cursor-not-allowed;
+}
+
+.base-select__field--error {
+  @apply border-red-500 focus:ring-red-500 focus:border-red-500;
+}
+
+.base-select__error {
+  @apply mt-1 text-sm text-red-600;
+}
+
+/* Dark mode support using design tokens */
+.base-select__field {
   background: var(--ps-card);
+  border: var(--ps-border-width) solid var(--ps-border);
+  color: var(--ps-text-primary);
+  border-radius: var(--ps-radius-md);
+}
+
+.base-select__field:focus {
+  border-color: var(--ps-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ps-primary) 30%, transparent);
+}
+
+.base-select__field--disabled {
+  background: color-mix(in srgb, var(--ps-bg) 5%, var(--ps-card));
   color: var(--ps-text-secondary);
 }
 
 .base-select__error {
-  @apply mt-2 text-sm text-red-600 font-medium;
-}
-.base-select--dense .base-select__error { @apply mt-1 text-xs; }
-
-/* Custom arrow styling */
-.base-select__field {
-  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
-  background-position: right 0.75rem center;
-  background-repeat: no-repeat;
-  background-size: 1.5em 1.5em;
-  padding-right: 2.5rem;
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  appearance: none;
+  color: var(--ps-danger);
 }
 </style>

@@ -1,18 +1,76 @@
 <template>
-  <div class="base-spinner" :class="sizeClass" role="status" aria-live="polite" aria-busy="true"></div>
+  <div class="base-spinner" :class="{ 'base-spinner--inline': inline }">
+    <div class="base-spinner__circle"></div>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-interface Props { size?: 'sm' | 'md' | 'lg' }
-const props = withDefaults(defineProps<Props>(), { size: 'md' })
-const sizeClass = computed(() => (props.size === 'sm' ? 'base-spinner--sm' : props.size === 'lg' ? 'base-spinner--lg' : 'base-spinner--md'))
+interface Props {
+  inline?: boolean
+  size?: 'sm' | 'md' | 'lg'
+  color?: 'primary' | 'secondary' | 'white'
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  inline: false,
+  size: 'md',
+  color: 'primary'
+})
 </script>
 
 <style scoped>
-.base-spinner { border: 3px solid var(--ps-border); border-top-color: var(--ps-primary); border-radius: 9999px; animation: spin 1s linear infinite; }
-.base-spinner--sm { width: 16px; height: 16px; }
-.base-spinner--md { width: 24px; height: 24px; }
-.base-spinner--lg { width: 32px; height: 32px; }
-@keyframes spin { to { transform: rotate(360deg); } }
+.base-spinner {
+  @apply flex justify-center items-center;
+}
+
+.base-spinner--inline {
+  @apply inline-flex;
+}
+
+.base-spinner__circle {
+  @apply border-2 border-current border-t-transparent rounded-full animate-spin;
+}
+
+/* Sizes */
+.base-spinner__circle {
+  width: 1.25rem;
+  height: 1.25rem;
+  border-width: 2px;
+}
+
+.base-spinner__circle:where([data-size='sm']) {
+  width: 1rem;
+  height: 1rem;
+  border-width: 1px;
+}
+
+.base-spinner__circle:where([data-size='lg']) {
+  width: 2rem;
+  height: 2rem;
+  border-width: 3px;
+}
+
+/* Colors using design tokens */
+.base-spinner {
+  color: var(--ps-primary);
+}
+
+.base-spinner:where([data-color='secondary']) {
+  color: var(--ps-text-secondary);
+}
+
+.base-spinner:where([data-color='white']) {
+  color: white;
+}
+
+/* Apply data attributes based on props */
+.base-spinner__circle {
+  width: v-bind("size === 'sm' ? '1rem' : size === 'lg' ? '2rem' : '1.25rem'");
+  height: v-bind("size === 'sm' ? '1rem' : size === 'lg' ? '2rem' : '1.25rem'");
+  border-width: v-bind("size === 'sm' ? '1px' : size === 'lg' ? '3px' : '2px'");
+}
+
+.base-spinner {
+  color: v-bind("color === 'secondary' ? 'var(--ps-text-secondary)' : color === 'white' ? 'white' : 'var(--ps-primary)'");
+}
 </style>
