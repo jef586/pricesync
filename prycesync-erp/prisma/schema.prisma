@@ -350,6 +350,8 @@ model Category {
   @@index([path], map: "idx_categories_path")
   @@index([isActive], map: "idx_categories_is_active")
   @@index([companyId, isActive], map: "idx_categories_company_active")
+  @@index([companyId, parentId, deletedAt], map: "idx_categories_company_parent_deleted")
+  @@index([name], map: "idx_categories_name")
   @@map("categories")
 }
 

@@ -78,29 +78,40 @@ class RubroService {
       q,
       parentId,
       status = 'active',
-      includeDeleted = false
+      includeDeleted = false,
+      sort = 'name',
+      order = 'asc'
     } = params;
 
     const companyId = user.companyId || user.company?.id;
-    const skip = (page - 1) * size;
+    
+    // Sanitize page and size to valid ranges
+    const sanitizedPage = Math.max(1, parseInt(page));
+    const sanitizedSize = Math.max(10, Math.min(100, parseInt(size)));
+    const skip = (sanitizedPage - 1) * sanitizedSize;
 
     // Build where clause
     const where = {
       companyId
     };
 
-    // Handle soft delete filtering
-    if (!includeDeleted && status !== 'deleted') {
-      where.deletedAt = null;
-    }
-
-    // Handle status filtering
+    // Handle status filtering according to requirements
+    let sanitizedStatus = status;
     if (status === 'active') {
+      where.deletedAt = null;
       where.isActive = true;
     } else if (status === 'inactive') {
+      where.deletedAt = null;
       where.isActive = false;
     } else if (status === 'deleted') {
       where.deletedAt = { not: null };
+    } else if (status === 'all') {
+      // No deletedAt filter for 'all' status
+    } else {
+      // Default to active if invalid status
+      sanitizedStatus = 'active';
+      where.deletedAt = null;
+      where.isActive = true;
     }
 
     // Handle parent filtering
@@ -108,23 +119,39 @@ class RubroService {
       where.parentId = parentId || null;
     }
 
-    // Handle search
+    // Handle search - normalize query and use ILIKE equivalent
     if (q) {
+      const normalizedQuery = q.trim().toLowerCase();
       where.OR = [
         {
           name: {
-            contains: q,
+            contains: normalizedQuery,
             mode: 'insensitive'
           }
         },
         {
           description: {
-            contains: q,
+            contains: normalizedQuery,
             mode: 'insensitive'
           }
         }
       ];
     }
+
+    // Build order by clause with stable ordering
+    const orderBy = [];
+    const validSortFields = ['name', 'level', 'createdAt'];
+    const sortField = validSortFields.includes(sort) ? sort : 'name';
+    const sortOrder = order === 'desc' ? 'desc' : 'asc';
+    
+    // Always prioritize by level first (parents before children)
+    orderBy.push({ level: 'asc' });
+    
+    // Then apply the selected sort field
+    orderBy.push({ [sortField]: sortOrder });
+    
+    // Add id as tiebreaker for stable pagination
+    orderBy.push({ id: 'asc' });
 
     const [rubros, total] = await Promise.all([
       prisma.category.findMany({
@@ -162,21 +189,28 @@ class RubroService {
             }
           }
         },
-        skip: parseInt(skip),
-        take: parseInt(size),
-        orderBy: {
-          name: 'asc'
-        }
+        skip: skip,
+        take: sanitizedSize,
+        orderBy
       }),
       prisma.category.count({ where })
     ]);
 
+    const calculatedPages = Math.ceil(total / sanitizedSize);
+    
     return {
       items: rubros,
       total,
-      page: parseInt(page),
-      size: parseInt(size),
-      pages: Math.ceil(total / size)
+      page: sanitizedPage,
+      size: sanitizedSize,
+      pages: calculatedPages,
+      filters: {
+        q: q || '',
+        parentId: parentId || null,
+        status: sanitizedStatus,
+        sort: sortField,
+        order: sortOrder
+      }
     };
   }
 

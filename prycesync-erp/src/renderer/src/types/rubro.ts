@@ -24,13 +24,15 @@ export interface RubroNode extends RubroDTO {
 
 export interface RubroFilters {
   q?: string
-  status?: 'active' | 'inactive' | 'deleted'
+  status?: 'active' | 'inactive' | 'deleted' | 'all'
+  parentId?: string | null
+  sort?: 'name' | 'level' | 'createdAt'
+  order?: 'asc' | 'desc'
 }
 
 export interface RubroListParams extends RubroFilters {
   page?: number
   size?: number
-  parentId?: string | null
 }
 
 export interface Paginated<T> {
@@ -39,4 +41,5 @@ export interface Paginated<T> {
   page: number
   size: number
   pages: number
+  filters?: RubroFilters
 }

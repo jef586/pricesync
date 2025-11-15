@@ -28,6 +28,11 @@ export async function listRubros(params: RubroListParams = {}): Promise<Paginate
   return data.data
 }
 
+export async function getRubroTree(): Promise<RubroDTO[]> {
+  const { data } = await api.get('/rubros/tree')
+  return data.data
+}
+
 export async function getRubro(id: string): Promise<RubroDTO> {
   const { data } = await api.get(`/rubros/${id}`)
   return data.data
@@ -36,6 +41,11 @@ export async function getRubro(id: string): Promise<RubroDTO> {
 export async function getRubroChildren(parentId: string | null, params: RubroListParams = {}): Promise<Paginated<RubroDTO>> {
   const query = { ...params, parentId }
   const { data } = await api.get('/rubros', { params: query })
+  return data.data
+}
+
+export async function fetchRubrosList(params: RubroListParams = {}): Promise<Paginated<RubroDTO>> {
+  const { data } = await api.get('/rubros', { params })
   return data.data
 }
 

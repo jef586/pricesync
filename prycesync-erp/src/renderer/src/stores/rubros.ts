@@ -1,14 +1,14 @@
 import { defineStore } from 'pinia'
-import type { RubroDTO, RubroNode, RubroFilters, Paginated } from '@/types/rubro'
-import { listRubros, getRubroChildren, createRubro, updateRubro, deleteRubro, restoreRubro, moveRubro } from '@/services/rubros'
+import type { RubroDTO, RubroNode, RubroFilters, Paginated, RubroListParams } from '@/types/rubro'
+import { listRubros, getRubroChildren, createRubro, updateRubro, deleteRubro, restoreRubro, moveRubro, fetchRubrosList, getRubroTree } from '@/services/rubros'
 
 export const useRubrosStore = defineStore('rubros', {
   state: () => ({
     tree: [] as RubroNode[],
     selectedNode: null as RubroNode | null,
     items: [] as RubroDTO[],
-    filters: { q: '', status: 'active' } as RubroFilters,
-    pagination: { page: 1, size: 10, total: 0, pages: 0 },
+    filters: { q: '', status: 'active', sort: 'name', order: 'asc' } as RubroFilters,
+    pagination: { page: 1, size: 20, total: 0, pages: 0 },
     loading: false,
     error: null as string | null
   }),
@@ -39,11 +39,50 @@ export const useRubrosStore = defineStore('rubros', {
       try {
         this.loading = true
         this.error = null
-        const res: Paginated<RubroDTO> = await listRubros({ parentId: null, page: 1, size: 50, status: this.filters.status })
-        this.tree = res.items.map((it) => ({ ...it, children: [], loaded: false, loading: false }))
+        const treeData = await getRubroTree()
+        this.tree = treeData.map((it) => ({ ...it, loaded: true, loading: false }))
       } catch (err: any) {
         this.error = err?.response?.data?.message || err?.message || 'Error al cargar rubros raíz'
         this.tree = []
+      } finally {
+        this.loading = false
+      }
+    },
+
+    async fetchList(params: RubroListParams = {}) {
+      try {
+        this.loading = true
+        this.error = null
+        
+        // Merge with current filters and pagination
+        const mergedParams: RubroListParams = {
+          page: params.page ?? this.pagination.page,
+          size: params.size ?? this.pagination.size,
+          q: params.q ?? this.filters.q,
+          parentId: params.parentId ?? this.filters.parentId,
+          status: params.status ?? this.filters.status,
+          sort: params.sort ?? this.filters.sort,
+          order: params.order ?? this.filters.order
+        }
+        
+        const res: Paginated<RubroDTO> = await fetchRubrosList(mergedParams)
+        this.items = res.items
+        this.pagination.total = res.total
+        this.pagination.pages = res.pages
+        this.pagination.page = res.page
+        this.pagination.size = res.size
+        
+        // Update filters from response if available
+        if (res.filters) {
+          this.filters = { ...this.filters, ...res.filters }
+        }
+        
+        return res
+      } catch (err: any) {
+        this.error = err?.response?.data?.message || err?.message || 'Error al cargar rubros'
+        this.items = []
+        this.pagination = { page: 1, size: this.pagination.size, total: 0, pages: 0 }
+        throw err
       } finally {
         this.loading = false
       }
@@ -54,7 +93,14 @@ export const useRubrosStore = defineStore('rubros', {
         this.loading = true
         this.error = null
         if (filters) this.setFilters(filters)
-        const res: Paginated<RubroDTO> = await getRubroChildren(parentId, { page: this.pagination.page, size: this.pagination.size, q: this.filters.q, status: this.filters.status })
+        const res: Paginated<RubroDTO> = await getRubroChildren(parentId, { 
+          page: this.pagination.page, 
+          size: this.pagination.size, 
+          q: this.filters.q, 
+          status: this.filters.status,
+          sort: this.filters.sort,
+          order: this.filters.order
+        })
         this.items = res.items
         this.pagination.total = res.total
         this.pagination.pages = res.pages
@@ -100,6 +146,12 @@ export const useRubrosStore = defineStore('rubros', {
 
     setFilters(filters: RubroFilters) {
       this.filters = { ...this.filters, ...filters }
+      this.pagination.page = 1
+    },
+
+    setSort(sort: 'name' | 'level' | 'createdAt', order: 'asc' | 'desc') {
+      this.filters.sort = sort
+      this.filters.order = order
       this.pagination.page = 1
     },
 

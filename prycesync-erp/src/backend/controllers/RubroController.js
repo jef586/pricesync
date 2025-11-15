@@ -41,7 +41,9 @@ class RubroController {
       q,
       parentId,
       status = 'active',
-      includeDeleted = false
+      includeDeleted = false,
+      sort = 'name',
+      order = 'asc'
     } = req.query;
 
     const result = await RubroService.listRubros({
@@ -50,7 +52,9 @@ class RubroController {
       q,
       parentId,
       status,
-      includeDeleted
+      includeDeleted,
+      sort,
+      order
     }, req.user);
 
     res.json({
@@ -182,17 +186,20 @@ class RubroController {
    */
   static getRubroTree = asyncHandler(async (req, res) => {
     const companyId = req.user.companyId || req.user.company?.id;
+    const { status = 'active' } = req.query;
     
+    // Get all rubros for tree with proper status filtering
     const rubros = await RubroService.listRubros({
       page: 1,
-      size: 1000 // Get all rubros for tree
+      size: 1000, // Get all rubros for tree
+      status: status
     }, req.user);
 
-    // Build hierarchical tree
+    // Build hierarchical tree with proper ordering
     const rubroMap = new Map();
     const rootRubros = [];
 
-    // Create map of rubros
+    // Create map of rubros and filter out inactive/deleted ones
     rubros.items.forEach(rubro => {
       rubroMap.set(rubro.id, {
         ...rubro,
@@ -200,16 +207,31 @@ class RubroController {
       });
     });
 
-    // Build hierarchy
-    rubros.items.forEach(rubro => {
+    // Build hierarchy - process in order to maintain hierarchical structure
+    // First process root rubros, then their children
+    const processedRubros = new Set();
+    
+    // Helper function to add rubro to tree
+    const addToTree = (rubro) => {
+      if (processedRubros.has(rubro.id)) return;
+      processedRubros.add(rubro.id);
+      
+      const treeNode = rubroMap.get(rubro.id);
+      if (!treeNode) return;
+      
       if (rubro.parentId) {
         const parent = rubroMap.get(rubro.parentId);
         if (parent) {
-          parent.children.push(rubroMap.get(rubro.id));
+          parent.children.push(treeNode);
         }
       } else {
-        rootRubros.push(rubroMap.get(rubro.id));
+        rootRubros.push(treeNode);
       }
+    };
+
+    // Process rubros in order (parents before children due to level sorting)
+    rubros.items.forEach(rubro => {
+      addToTree(rubro);
     });
 
     res.json({

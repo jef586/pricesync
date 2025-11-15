@@ -10,25 +10,49 @@
           <BaseButton variant="primary" @click="openCreateRoot">Nuevo Rubro</BaseButton>
         </div>
       </div>
-    <div class="panel">
       
-      <div class="panel__body space-y-3">
-        <FilterBar
-          :model-value="filterModel"
-          :status-options="filterStatusOptions"
-          :show-date-range="false"
-          @update:modelValue="onFilterUpdate"
-          @filter-change="onFilterChange"
-          @search="onSearch"
-        />
-        <DataTable
-          :data="hierarchicalItems"
-          :columns="columns"
-          :paginated="false"
-          :loading="loading"
-          :show-header="false"
-          class="mb-6"
-        >
+      <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <!-- Tree Panel (RUB-6) -->
+        <div class="lg:col-span-1">
+          <div class="panel">
+            <div class="panel__header">
+              <h2 class="panel__title">Árbol de Rubros</h2>
+            </div>
+            <div class="panel__body">
+              <RubroTree
+                :selected-node-id="selectedNodeId"
+                @select="onTreeSelect"
+              />
+            </div>
+          </div>
+        </div>
+        
+        <!-- Listing Panel -->
+        <div class="lg:col-span-3">
+          <div class="panel">
+            <div class="panel__header">
+              <h2 class="panel__title">Listado de Rubros</h2>
+              <div class="text-sm text-gray-500">
+                Mostrando {{ items.length }} de {{ pagination.total }} rubros
+              </div>
+            </div>
+            <div class="panel__body space-y-3">
+              <FilterBar
+                :model-value="filterModel"
+                :status-options="filterStatusOptions"
+                :show-date-range="false"
+                @update:modelValue="onFilterUpdate"
+                @filter-change="onFilterChange"
+                @search="onSearch"
+              />
+              <DataTable
+                :data="items"
+                :columns="columns"
+                :paginated="false"
+                :loading="loading"
+                :show-header="true"
+                class="mb-6"
+              >
           <template #cell-status="{ item }">
             <BaseBadge :variant="item?.deletedAt ? 'danger' : item?.isActive ? 'success' : 'warning'">
               {{ item?.deletedAt ? 'Eliminado' : item?.isActive ? 'Activo' : 'Inactivo' }}
@@ -58,23 +82,25 @@
               <BaseButton v-if="!item?.deletedAt" variant="ghost" size="sm" @click="remove(item)" title="Eliminar">Eliminar</BaseButton>
               <BaseButton v-else variant="ghost" size="sm" @click="restore(item)" title="Restaurar">Restaurar</BaseButton>
               <BaseButton variant="ghost" size="sm" @click="move(item)" title="Mover">Mover</BaseButton>
-            </div>
-          </template>
-          <template #empty>
-            <div class="text-center py-8 text-sm">No hay rubros creados</div>
-          </template>
-        </DataTable>
-        <div class="mt-4">
-          <Pagination
-            :current-page="pagination.page"
-            :total-pages="pagination.pages"
-            :total-items="pagination.total"
-            :items-per-page="pagination.size"
-            @pageChange="onPageChange"
-          />
+              </div>
+            </template>
+            <template #empty>
+              <div class="text-center py-8 text-sm">No hay rubros creados</div>
+            </template>
+          </DataTable>
+          <div class="mt-4">
+            <Pagination
+              :current-page="pagination.page"
+              :total-pages="pagination.pages"
+              :total-items="pagination.total"
+              :items-per-page="pagination.size"
+              @pageChange="onPageChange"
+            />
+          </div>
         </div>
       </div>
     </div>
+  </div>
 
     <!-- New RubroFormModal -->
     <RubroFormModal
@@ -111,7 +137,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useRubrosStore } from '@/stores/rubros'
 import DashboardLayout from '@/components/organisms/DashboardLayout.vue'
 import BaseModal from '@/components/atoms/BaseModal.vue'
@@ -122,9 +149,13 @@ import BaseBadge from '@/components/atoms/BaseBadge.vue'
 import Pagination from '@/components/atoms/Pagination.vue'
 import BaseInput from '@/components/atoms/BaseInput.vue'
 import RubroFormModal from '@/components/rubros/RubroFormModal.vue'
-import type { RubroDTO } from '@/types/rubro'
+import RubroTree from '@/components/rubros/RubroTree.vue'
+import type { RubroDTO, RubroFilters } from '@/types/rubro'
 
 const store = useRubrosStore()
+const route = useRoute()
+const router = useRouter()
+
 const filterModel = ref<{ search?: string; status?: string }>({ search: '', status: 'active' })
 const newRootName = ref('')
 const newChildName = ref('')
@@ -137,14 +168,29 @@ const showModal = ref(false)
 const modalMode = ref<'create' | 'edit'>('create')
 const currentRubro = ref<RubroDTO | null>(null)
 const defaultParentId = ref<string | null>(null)
+const selectedNodeId = ref<string | null>(null)
 
 const tree = computed(() => store.tree)
-const items = computed(() => store.filteredItems)
+const items = computed(() => store.items) // Use server-side filtered items instead of local filtering
 const loading = computed(() => store.loading)
 const pagination = computed(() => store.pagination)
 const totalActive = computed(() => store.totalActive)
 const totalInactive = computed(() => store.totalInactive)
 const totalDeleted = computed(() => store.totalDeleted)
+
+// Tree selection handler
+const onTreeSelect = async (rubro: any) => {
+  if (rubro) {
+    selectedNodeId.value = rubro.id
+    store.filters.parentId = rubro.id
+  } else {
+    selectedNodeId.value = null
+    store.filters.parentId = null
+  }
+  
+  syncUrlWithFilters()
+  await store.fetchList()
+}
 
 // Organizar rubros jerárquicamente para mostrar padres e hijos juntos
 const hierarchicalItems = computed(() => {
@@ -198,21 +244,85 @@ const columns = [
 const filterStatusOptions = [
   { label: 'Activos', value: 'active' },
   { label: 'Inactivos', value: 'inactive' },
-  { label: 'Eliminados', value: 'deleted' }
+  { label: 'Eliminados', value: 'deleted' },
+  { label: 'Todos', value: 'all' }
 ]
 
+// URL query params synchronization
+const syncUrlWithFilters = () => {
+  const query: any = {}
+  
+  if (store.filters.q) query.q = store.filters.q
+  if (store.filters.status !== 'active') query.status = store.filters.status
+  if (store.filters.parentId) query.parentId = store.filters.parentId
+  if (store.filters.sort !== 'name') query.sort = store.filters.sort
+  if (store.filters.order !== 'asc') query.order = store.filters.order
+  if (store.pagination.page !== 1) query.page = store.pagination.page
+  if (store.pagination.size !== 20) query.size = store.pagination.size
+  
+  router.replace({ query })
+}
+
+const loadFiltersFromUrl = () => {
+  const query = route.query
+  
+  const filters: RubroFilters = {
+    q: (query.q as string) || '',
+    status: (query.status as RubroFilters['status']) || 'active',
+    parentId: (query.parentId as string) || null,
+    sort: (query.sort as RubroFilters['sort']) || 'name',
+    order: (query.order as RubroFilters['order']) || 'asc'
+  }
+  
+  store.setFilters(filters)
+  filterModel.value.search = filters.q
+  filterModel.value.status = filters.status
+  
+  if (query.page) {
+    store.pagination.page = parseInt(query.page as string)
+  }
+  if (query.size) {
+    store.pagination.size = parseInt(query.size as string)
+  }
+}
+
 onMounted(async () => {
-  await store.fetchTree()
-  await store.fetchChildren(null)
+  loadFiltersFromUrl()
+  await store.fetchList()
 })
 
-const onFilterUpdate = async (filters: any) => { filterModel.value = filters }
-const onFilterChange = async () => {
-  store.setFilters({ q: filterModel.value.search || '', status: (filterModel.value.status as any) || 'active' })
-  await store.fetchChildren(store.selectedNode?.id ?? null)
+// Watch for URL changes
+watch(() => route.query, () => {
+  loadFiltersFromUrl()
+  store.fetchList()
+})
+
+const onFilterUpdate = async (filters: any) => { 
+  filterModel.value = filters 
 }
-const onSearch = async (q: string) => { store.setFilters({ q }); await store.fetchChildren(store.selectedNode?.id ?? null) }
-const onPageChange = async (page: number) => { await store.setPage(page) }
+
+const onFilterChange = async () => {
+  const newFilters: RubroFilters = {
+    q: filterModel.value.search || '',
+    status: (filterModel.value.status as RubroFilters['status']) || 'active'
+  }
+  
+  store.setFilters(newFilters)
+  syncUrlWithFilters()
+  await store.fetchList()
+}
+
+const onSearch = async (q: string) => { 
+  store.setFilters({ q })
+  syncUrlWithFilters()
+  await store.fetchList()
+}
+
+const onPageChange = async (page: number) => { 
+  store.pagination.page = page
+  syncUrlWithFilters()
+  await store.fetchList()
+}
 
 const formatDate = (iso: string) => (iso ? new Date(iso).toLocaleDateString() : '')
 
