@@ -44,11 +44,12 @@ export interface Paginated<T> {
 export interface SupplierCreateDTO {
   code: string
   name: string
-  email: string
-  phone: string
-  taxId: string
-  address: string
-  status: 'active' | 'inactive'
+  email?: string
+  phone?: string
+  taxId?: string
+  address?: string
+  status?: 'active' | 'inactive'
+  paymentTerms?: number
   contactEmail?: string
   contactPhone?: string
 }
@@ -61,6 +62,7 @@ export interface SupplierUpdateDTO {
   taxId?: string
   address?: string
   status?: 'active' | 'inactive'
+  paymentTerms?: number
   contactEmail?: string
   contactPhone?: string
 }

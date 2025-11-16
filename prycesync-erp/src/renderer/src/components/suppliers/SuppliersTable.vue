@@ -111,7 +111,7 @@
             </svg>
             <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No hay proveedores</h3>
             <p class="text-gray-500 dark:text-gray-400 mb-4">Comienza creando tu primer proveedor</p>
-            <BaseButton variant="primary" @click="createSupplier">
+            <BaseButton variant="primary" @click="$emit('edit-supplier', 'new')">
               Nuevo Proveedor
             </BaseButton>
           </div>
@@ -131,7 +131,7 @@
         </svg>
         <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No hay proveedores</h3>
         <p class="text-gray-500 dark:text-gray-400 mb-4">Comienza creando tu primer proveedor</p>
-        <BaseButton variant="primary" @click="createSupplier">
+        <BaseButton variant="primary" @click="$emit('edit-supplier', 'new')">
           Nuevo Proveedor
         </BaseButton>
       </div>
@@ -284,6 +284,7 @@ interface Emits {
   (e: 'page-change', page: number): void
   (e: 'sort', sort: string, order: 'asc' | 'desc'): void
   (e: 'refresh'): void
+  (e: 'edit-supplier', id: string): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -296,8 +297,8 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const emit = defineEmits<Emits>()
-const router = useRouter()
 const suppliersStore = useSuppliersStore()
+const router = useRouter()
 
 // Estado para modales
 const showDeleteModal = ref(false)
@@ -329,11 +330,12 @@ const viewSupplier = (id: string) => {
 }
 
 const editSupplier = (id: string) => {
-  router.push(`/suppliers/${id}/edit`)
+  emit('edit-supplier', id)
 }
 
 const createSupplier = () => {
-  router.push('/suppliers/new')
+  // This is handled by the parent component now
+  // router.push('/suppliers/new')
 }
 
 const confirmDelete = (supplier: Supplier) => {

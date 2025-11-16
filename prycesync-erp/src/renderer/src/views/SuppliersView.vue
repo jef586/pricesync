@@ -5,7 +5,22 @@
       <PageHeader
         title="Gestión de Proveedores"
         subtitle="Administra tus proveedores y sus listas de precios"
-      />
+      >
+        <template #actions>
+          <BaseButton variant="primary" size="sm" @click="handleNewSupplier">
+            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Nuevo Proveedor
+          </BaseButton>
+          <BaseButton variant="secondary" size="sm" @click="handleImport">
+            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+            </svg>
+            Importar Excel
+          </BaseButton>
+        </template>
+      </PageHeader>
 
       <!-- Estadísticas -->
       <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
@@ -46,22 +61,6 @@
         @search="handleSearch"
         class="mb-6"
       >
-        <template #custom-filters>
-          <div class="flex gap-2">
-            <BaseButton variant="primary" size="sm" @click="handleNewSupplier">
-              <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-              </svg>
-              Nuevo Proveedor
-            </BaseButton>
-            <BaseButton variant="secondary" size="sm" @click="handleImport">
-              <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
-              </svg>
-              Importar Excel
-            </BaseButton>
-          </div>
-        </template>
       </FilterBar>
 
       <!-- Tabla de proveedores -->
@@ -75,6 +74,7 @@
         @page-change="handlePageChange"
         @sort="handleSort"
         @refresh="refreshData"
+        @edit-supplier="handleEditSupplier"
       />
 
       <!-- Modal de importación general -->
@@ -83,6 +83,13 @@
         type="suppliers"
         @close="closeImportModal"
         @success="handleImportSuccess"
+      />
+
+      <!-- Modal de formulario de proveedor -->
+      <SupplierFormModal
+        v-model="showSupplierModal"
+        :supplier-id="selectedSupplierId"
+        @supplier-saved="handleSupplierSaved"
       />
     </div>
   </DashboardLayout>
@@ -103,6 +110,7 @@ import FilterBar from '@/components/molecules/FilterBar.vue'
 import BaseButton from '@/components/atoms/BaseButton.vue'
 import SuppliersTable from '@/components/suppliers/SuppliersTable.vue'
 import UniversalImportModal from '@/components/suppliers/UniversalImportModal.vue'
+import SupplierFormModal from '@/components/suppliers/SupplierFormModal.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -123,6 +131,8 @@ const filters = ref<{
   status: ''
 })
 const showImportModal = ref(false)
+const showSupplierModal = ref(false)
+const selectedSupplierId = ref<string | null>(null)
 
 // Computed
 const totalPages = computed(() => Math.ceil(totalItems.value / pageSize.value))
@@ -196,7 +206,17 @@ const handleSort = async (sort: 'name' | 'code' | 'updated_at', order: 'asc' | '
 }
 
 const handleNewSupplier = () => {
-  router.push('/suppliers/new')
+  selectedSupplierId.value = null
+  showSupplierModal.value = true
+}
+
+const handleEditSupplier = (id: string) => {
+  if (id === 'new') {
+    selectedSupplierId.value = null
+  } else {
+    selectedSupplierId.value = id
+  }
+  showSupplierModal.value = true
 }
 
 const handleImport = () => {
@@ -210,6 +230,11 @@ const closeImportModal = () => {
 const handleImportSuccess = () => {
   closeImportModal()
   showSuccess('Importación completada exitosamente')
+  refreshData()
+}
+
+const handleSupplierSaved = () => {
+  showSuccess(selectedSupplierId.value ? 'Proveedor actualizado correctamente' : 'Proveedor creado correctamente')
   refreshData()
 }
 

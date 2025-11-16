@@ -120,9 +120,10 @@ class SupplierController {
               product: {
                 select: {
                   id: true,
-                  code: true,
+                  sku: true,
+                  barcode: true,
                   name: true,
-                  salePrice: true
+                  pricePublic: true
                 }
               }
             },
@@ -386,9 +387,10 @@ class SupplierController {
             product: {
               select: {
                 id: true,
-                code: true,
+                sku: true,
+                barcode: true,
                 name: true,
-                salePrice: true
+                pricePublic: true
               }
             }
           },
@@ -493,9 +495,10 @@ class SupplierController {
           product: {
             select: {
               id: true,
-              code: true,
+              sku: true,
+              barcode: true,
               name: true,
-              salePrice: true
+              pricePublic: true
             }
           }
         }
