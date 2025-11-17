@@ -65,27 +65,25 @@ const iconComponent = computed(() => {
 
 const cardClasses = computed(() => {
   const colorClasses = {
-    blue: 'border-blue-200 bg-blue-50',
-    green: 'border-green-200 bg-green-50',
-    yellow: 'border-yellow-200 bg-yellow-50',
-    red: 'border-red-200 bg-red-50',
-    purple: 'border-purple-200 bg-purple-50',
-    indigo: 'border-indigo-200 bg-indigo-50'
+    blue: 'border-blue-300 dark:border-blue-800',
+    green: 'border-green-300 dark:border-green-800',
+    yellow: 'border-yellow-300 dark:border-yellow-800',
+    red: 'border-red-300 dark:border-red-800',
+    purple: 'border-purple-300 dark:border-purple-800',
+    indigo: 'border-indigo-300 dark:border-indigo-800'
   }
-  
   return colorClasses[props.color]
 })
 
 const iconClasses = computed(() => {
   const colorClasses = {
-    blue: 'bg-blue-100 text-blue-600',
-    green: 'bg-green-100 text-green-600',
-    yellow: 'bg-yellow-100 text-yellow-600',
-    red: 'bg-red-100 text-red-600',
-    purple: 'bg-purple-100 text-purple-600',
-    indigo: 'bg-indigo-100 text-indigo-600'
+    blue: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300',
+    green: 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-300',
+    yellow: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-300',
+    red: 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-300',
+    purple: 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-300',
+    indigo: 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300'
   }
-  
   return colorClasses[props.color]
 })
 
@@ -109,8 +107,8 @@ const changeClasses = computed(() => {
   if (props.change === undefined) return ''
   
   return props.change >= 0 
-    ? 'text-green-600' 
-    : 'text-red-600'
+    ? 'text-green-600 dark:text-green-300' 
+    : 'text-red-600 dark:text-red-300'
 })
 
 const changeIcon = computed(() => {
@@ -122,7 +120,11 @@ const changeIcon = computed(() => {
 
 <style scoped>
 .stats-card {
-  @apply bg-white border rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200;
+  background: var(--ps-card);
+  border: var(--ps-border-width) solid var(--ps-border);
+  border-radius: var(--ps-radius-lg);
+  box-shadow: var(--ps-shadow-sm);
+  transition: box-shadow 0.2s ease;
 }
 
 .stats-card-content {
@@ -138,11 +140,17 @@ const changeIcon = computed(() => {
 }
 
 .stats-card-title {
-  @apply text-sm font-medium text-gray-600 mb-1;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--ps-text-secondary);
+  margin-bottom: 0.25rem;
 }
 
 .stats-card-value {
-  @apply text-2xl font-bold text-gray-900 mb-2;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--ps-text-primary);
+  margin-bottom: 0.5rem;
 }
 
 .stats-card-change {

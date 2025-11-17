@@ -1,5 +1,6 @@
 import prisma from '../config/database.js';
 import ExcelJS from 'exceljs';
+import XLSX from 'xlsx';
 import { Readable } from 'stream';
 import { getCompanyPricing, computeSalePrice } from '../services/PricingService.js'
 
@@ -1189,6 +1190,11 @@ class SupplierController {
 
       const { id: supplierId } = req.params;
       const companyId = req.user.company.id;
+      const rawMapping = req.body?.mapping;
+      let mapping = null;
+      try {
+        mapping = rawMapping ? JSON.parse(rawMapping) : null;
+      } catch {}
 
       // Verificar que el proveedor existe
       const supplier = await prisma.supplier.findFirst({
@@ -1223,18 +1229,34 @@ class SupplierController {
         });
       }
 
-      const workbook = new ExcelJS.Workbook();
-      
-      try {
-        await workbook.xlsx.load(req.file.buffer);
-      } catch (loadError) {
-        console.error('Error loading Excel file:', loadError);
-        return res.status(400).json({ 
-          error: 'El archivo no es un Excel válido o está corrupto. Por favor, verifica que sea un archivo .xlsx válido.' 
-        });
+      let worksheet = null;
+      // Soporte CSV y XLSX
+      if (req.file.mimetype === 'text/csv') {
+        try {
+          const csvWb = XLSX.read(req.file.buffer, { type: 'buffer' });
+          const sheetName = csvWb.SheetNames[0];
+          const wsObj = csvWb.Sheets[sheetName];
+          const rows = XLSX.utils.sheet_to_json(wsObj, { header: 1 });
+          // Crear worksheet virtual en ExcelJS para reutilizar lógica
+          const wb2 = new ExcelJS.Workbook();
+          worksheet = wb2.addWorksheet('CSV');
+          rows.forEach(r => worksheet.addRow(r));
+        } catch (e) {
+          console.error('Error reading CSV:', e);
+          return res.status(400).json({ error: 'CSV inválido. Verifica el archivo.' });
+        }
+      } else {
+        const workbook = new ExcelJS.Workbook();
+        try {
+          await workbook.xlsx.load(req.file.buffer);
+          worksheet = workbook.getWorksheet(1);
+        } catch (loadError) {
+          console.error('Error loading Excel file:', loadError);
+          return res.status(400).json({ 
+            error: 'El archivo no es un Excel válido o está corrupto. Por favor, verifica que sea un archivo .xlsx válido.' 
+          });
+        }
       }
-
-      const worksheet = workbook.getWorksheet(1);
 
       if (!worksheet) {
         return res.status(400).json({ error: 'El archivo Excel no contiene hojas de trabajo' });
@@ -1260,6 +1282,16 @@ class SupplierController {
         console.warn('Pricing warning (previewProductsImport):', e?.message || e);
       }
 
+      // Construir índice de encabezados si hay mapeo
+      let headerIndex = {};
+      if (mapping) {
+        const headerRow = worksheet.getRow(1);
+        headerRow.eachCell((cell, colNumber) => {
+          const val = (cell.value?.toString?.() || '').trim();
+          if (val) headerIndex[val] = colNumber;
+        });
+      }
+
       worksheet.eachRow((row, rowNumber) => {
         rowIndex++;
         
@@ -1268,8 +1300,33 @@ class SupplierController {
         
         // Limitar la vista previa a 50 filas
         if (preview.length >= 50) return;
+        const getByHeader = (key) => {
+          const headerName = mapping?.[key];
+          if (!headerName || !(headerName in headerIndex)) return '';
+          const col = headerIndex[headerName];
+          const val = row.getCell(col).value;
+          return typeof val === 'string' ? val.trim() : (val ?? '');
+        };
 
-        const rowData = {
+        const hasMapping = !!mapping;
+        const rowData = hasMapping ? {
+          row: rowNumber,
+          supplierCode: getByHeader('supplier_sku') || '',
+          supplierName: getByHeader('name') || '',
+          description: getByHeader('description') || '',
+          costPrice: getByHeader('cost_price') || '',
+          listPrice: getByHeader('list_price') || '',
+          brand: getByHeader('brand') || '',
+          model: getByHeader('model') || '',
+          year: getByHeader('year') || '',
+          oem: getByHeader('oem') || '',
+          minQuantity: getByHeader('min_quantity') || '',
+          leadTime: getByHeader('lead_time') || '',
+          currency: getByHeader('currency') || 'ARS',
+          categoryName: getByHeader('category_name') || '',
+          taxRate: getByHeader('tax_rate') || '',
+          unit: getByHeader('unit') || ''
+        } : {
           row: rowNumber,
           supplierCode: row.getCell(1).value?.toString()?.trim() || '',
           supplierName: row.getCell(2).value?.toString()?.trim() || '',
@@ -1326,7 +1383,8 @@ class SupplierController {
 
         // Calcular precio de venta sugerido si es válido y se puede aplicar pricing
         let computedSalePrice = null;
-        if (rowErrors.length === 0 && pricing && pricing.applyOnImport) {
+        const allowPricing = (req.body?.applyOnImport === 'true') ? true : (pricing && pricing.applyOnImport);
+        if (rowErrors.length === 0 && allowPricing) {
           try {
               
             const cost = parseFloat(rowData.costPrice);
@@ -1389,6 +1447,11 @@ class SupplierController {
       const { id: supplierId } = req.params;
       const companyId = req.user.company.id;
       const { updateExisting = false } = req.body;
+      const rawMapping = req.body?.mapping;
+      let mapping = null;
+      try { mapping = rawMapping ? JSON.parse(rawMapping) : null; } catch {}
+      const applyOnImport = req.body?.applyOnImport === 'true';
+      const overwriteSalePrice = req.body?.overwriteSalePrice === 'true';
 
       // Verificar que el proveedor existe
       const supplier = await prisma.supplier.findFirst({
@@ -1403,9 +1466,25 @@ class SupplierController {
         return res.status(404).json({ error: 'Proveedor no encontrado' });
       }
 
-      const workbook = new ExcelJS.Workbook();
-      await workbook.xlsx.load(req.file.buffer);
-      const worksheet = workbook.getWorksheet(1);
+      let worksheet = null;
+      if (req.file.mimetype === 'text/csv') {
+        try {
+          const csvWb = XLSX.read(req.file.buffer, { type: 'buffer' });
+          const sheetName = csvWb.SheetNames[0];
+          const wsObj = csvWb.Sheets[sheetName];
+          const rows = XLSX.utils.sheet_to_json(wsObj, { header: 1 });
+          const wb2 = new ExcelJS.Workbook();
+          worksheet = wb2.addWorksheet('CSV');
+          rows.forEach(r => worksheet.addRow(r));
+        } catch (e) {
+          console.error('Error reading CSV:', e);
+          return res.status(400).json({ error: 'CSV inválido. Verifica el archivo.' });
+        }
+      } else {
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(req.file.buffer);
+        worksheet = workbook.getWorksheet(1);
+      }
 
       if (!worksheet) {
         return res.status(400).json({ error: 'El archivo Excel no contiene hojas de trabajo' });
@@ -1418,12 +1497,45 @@ class SupplierController {
         errors: []
       };
 
+      // Índice de encabezados si hay mapeo
+      let headerIndex = {};
+      if (mapping) {
+        const headerRow = worksheet.getRow(1);
+        headerRow.eachCell((cell, colNumber) => {
+          const val = (cell.value?.toString?.() || '').trim();
+          if (val) headerIndex[val] = colNumber;
+        });
+      }
+
       // Procesar cada fila
       for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber++) {
         const row = worksheet.getRow(rowNumber);
         
         try {
-          const rowData = {
+          const getByHeader = (key) => {
+            const headerName = mapping?.[key];
+            if (!headerName || !(headerName in headerIndex)) return '';
+            const col = headerIndex[headerName];
+            const val = row.getCell(col).value;
+            return typeof val === 'string' ? val.trim() : (val ?? '');
+          };
+
+          const rowData = mapping ? {
+            supplierCode: getByHeader('supplier_sku')?.toString()?.trim(),
+            supplierName: getByHeader('name')?.toString()?.trim(),
+            description: getByHeader('description')?.toString()?.trim() || null,
+            costPrice: parseFloat(getByHeader('cost_price')) || 0,
+            listPrice: getByHeader('list_price') ? parseFloat(getByHeader('list_price')) : null,
+            brand: getByHeader('brand')?.toString()?.trim() || null,
+            model: getByHeader('model')?.toString()?.trim() || null,
+            year: getByHeader('year')?.toString()?.trim() || null,
+            oem: getByHeader('oem')?.toString()?.trim() || null,
+            minQuantity: getByHeader('min_quantity') ? parseInt(getByHeader('min_quantity')) : null,
+            leadTime: getByHeader('lead_time') ? parseInt(getByHeader('lead_time')) : null,
+            currency: getByHeader('currency')?.toString()?.trim() || 'ARS',
+            isActive: true,
+            isAvailable: true
+          } : {
             supplierCode: row.getCell(1).value?.toString()?.trim(),
             supplierName: row.getCell(2).value?.toString()?.trim(),
             description: row.getCell(3).value?.toString()?.trim() || null,
@@ -1483,6 +1595,19 @@ class SupplierController {
             results.created++;
           }
 
+          // Aplicar pricing si corresponde
+          try {
+            const pricing = await getCompanyPricing(companyId);
+            if ((applyOnImport || pricing.applyOnImport) && (overwriteSalePrice || pricing.overwriteSalePrice)) {
+              const sale = computeSalePrice({ costPrice: rowData.costPrice, listPrice: rowData.listPrice, pricing, supplierId });
+              if (existingProduct?.productId) {
+                await prisma.product.update({ where: { id: existingProduct.productId }, data: { salePrice: sale } });
+              }
+            }
+          } catch (e) {
+            console.warn('Pricing apply warning (executeProductsImport):', e?.message || e);
+          }
+
         } catch (error) {
           results.errors.push({
             row: rowNumber,
@@ -1490,6 +1615,30 @@ class SupplierController {
           });
           results.skipped++;
         }
+      }
+
+      // Guardar historial en import_jobs (equiv. supplier_price_lists)
+      try {
+        await prisma.importJob.create({
+          data: {
+            status: 'completed',
+            fileName: req.file.originalname || 'import',
+            supplierId,
+            companyId,
+            startedBy: req.user.id,
+            isDryRun: false,
+            totalRows: results.created + results.updated + results.skipped + results.errors.length,
+            processedRows: results.created + results.updated + results.skipped,
+            createdCount: results.created,
+            updatedCount: results.updated,
+            skippedCount: results.skipped,
+            errorCount: results.errors.length,
+            previewJson: null,
+            finishedAt: new Date()
+          }
+        })
+      } catch (e) {
+        console.warn('Import job history save warning:', e?.message || e)
       }
 
       res.json({
