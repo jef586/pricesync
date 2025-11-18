@@ -1404,7 +1404,6 @@ class SupplierController {
         } catch {}
 
         let computedSalePrice = null;
-        let computedSalePrice = null;
         const allowPricing = (req.body?.applyOnImport === 'true') ? true : (pricing && pricing.applyOnImport);
         if (rowErrors.length === 0 && allowPricing) {
           try {

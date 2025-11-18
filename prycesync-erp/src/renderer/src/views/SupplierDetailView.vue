@@ -41,51 +41,51 @@
       </div>
 
       <!-- Supplier Info Card -->
-      <div v-if="supplier" class="bg-white rounded-lg shadow p-6 mb-6">
+      <div v-if="supplier" class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6 border border-gray-200 dark:border-gray-700">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div>
-            <h3 class="text-lg font-medium text-gray-900 mb-4">Información del Proveedor</h3>
+            <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Información del Proveedor</h3>
             <dl class="space-y-2">
               <div>
-                <dt class="text-sm font-medium text-gray-500">Código</dt>
-                <dd class="text-sm text-gray-900">{{ supplier.code }}</dd>
+                <dt class="text-sm font-medium text-gray-500 dark:text-gray-300">Código</dt>
+                <dd class="text-sm text-gray-900 dark:text-gray-100">{{ supplier.code }}</dd>
               </div>
               <div>
-                <dt class="text-sm font-medium text-gray-500">Nombre</dt>
-                <dd class="text-sm text-gray-900">{{ supplier.name }}</dd>
+                <dt class="text-sm font-medium text-gray-500 dark:text-gray-300">Nombre</dt>
+                <dd class="text-sm text-gray-900 dark:text-gray-100">{{ supplier.name }}</dd>
               </div>
               <div v-if="supplier.email">
-                <dt class="text-sm font-medium text-gray-500">Email</dt>
-                <dd class="text-sm text-gray-900">{{ supplier.email }}</dd>
+                <dt class="text-sm font-medium text-gray-500 dark:text-gray-300">Email</dt>
+                <dd class="text-sm text-gray-900 dark:text-gray-100">{{ supplier.email }}</dd>
               </div>
             </dl>
           </div>
           <div>
-            <h3 class="text-lg font-medium text-gray-900 mb-4">Contacto</h3>
+            <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Contacto</h3>
             <dl class="space-y-2">
               <div v-if="supplier.phone">
-                <dt class="text-sm font-medium text-gray-500">Teléfono</dt>
-                <dd class="text-sm text-gray-900">{{ supplier.phone }}</dd>
+                <dt class="text-sm font-medium text-gray-500 dark:text-gray-300">Teléfono</dt>
+                <dd class="text-sm text-gray-900 dark:text-gray-100">{{ supplier.phone }}</dd>
               </div>
               <div v-if="supplier.taxId">
-                <dt class="text-sm font-medium text-gray-500">RUC/DNI</dt>
-                <dd class="text-sm text-gray-900">{{ supplier.taxId }}</dd>
+                <dt class="text-sm font-medium text-gray-500 dark:text-gray-300">RUC/DNI</dt>
+                <dd class="text-sm text-gray-900 dark:text-gray-100">{{ supplier.taxId }}</dd>
               </div>
               <div v-if="supplier.address">
-                <dt class="text-sm font-medium text-gray-500">Dirección</dt>
-                <dd class="text-sm text-gray-900">{{ supplier.address }}</dd>
+                <dt class="text-sm font-medium text-gray-500 dark:text-gray-300">Dirección</dt>
+                <dd class="text-sm text-gray-900 dark:text-gray-100">{{ supplier.address }}</dd>
               </div>
             </dl>
           </div>
           <div>
-            <h3 class="text-lg font-medium text-gray-900 mb-4">Estadísticas</h3>
+            <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Estadísticas</h3>
             <dl class="space-y-2">
               <div>
-                <dt class="text-sm font-medium text-gray-500">Total Productos</dt>
-                <dd class="text-sm text-gray-900">{{ supplier._count?.products || 0 }}</dd>
+                <dt class="text-sm font-medium text-gray-500 dark:text-gray-300">Total Productos</dt>
+                <dd class="text-sm text-gray-900 dark:text-gray-100">{{ supplier._count?.products || 0 }}</dd>
               </div>
               <div>
-                <dt class="text-sm font-medium text-gray-500">Estado</dt>
+                <dt class="text-sm font-medium text-gray-500 dark:text-gray-300">Estado</dt>
                 <dd>
                   <span :class="[
                     'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
@@ -101,13 +101,13 @@
       </div>
 
       <!-- Products Section -->
-      <div class="bg-white rounded-lg shadow">
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700">
         <div class="px-6 py-4 border-b border-gray-200">
-          <h3 class="text-lg font-medium text-gray-900">Productos del Proveedor</h3>
+          <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">Productos del Proveedor</h3>
         </div>
         
         <!-- Filters -->
-        <div class="p-6 border-b border-gray-200">
+        <div class="p-6 border-b border-gray-200 dark:border-gray-700">
           <div class="flex flex-col sm:flex-row gap-4">
             <div class="flex-1">
               <input
@@ -115,12 +115,12 @@
                 @input="debouncedProductSearch"
                 type="text"
                 placeholder="Buscar por código, nombre, marca o OEM..."
-                class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                class="block w-full rounded-md border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
               />
             </div>
             <button
               @click="fetchProducts"
-              class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+              class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-100 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800"
             >
               <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -133,56 +133,56 @@
         <!-- Products Table -->
         <div class="overflow-x-auto">
           <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
+            <thead class="bg-gray-50 dark:bg-gray-900">
               <tr>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Producto
+                  <span class="text-gray-500 dark:text-gray-300">Producto</span>
                 </th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Precios
+                  <span class="text-gray-500 dark:text-gray-300">Precios</span>
                 </th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Detalles
+                  <span class="text-gray-500 dark:text-gray-300">Detalles</span>
                 </th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Estado
+                  <span class="text-gray-500 dark:text-gray-300">Estado</span>
                 </th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Acciones
+                  <span class="text-gray-500 dark:text-gray-300">Acciones</span>
                 </th>
               </tr>
             </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
+            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               <tr v-if="isLoadingProducts">
-                <td colspan="5" class="px-6 py-4 text-center text-gray-500">
+                <td colspan="5" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
                   Cargando productos...
                 </td>
               </tr>
               <tr v-else-if="products.length === 0">
-                <td colspan="5" class="px-6 py-4 text-center text-gray-500">
+                <td colspan="5" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
                   No hay productos para este proveedor
                 </td>
               </tr>
-              <tr v-else v-for="product in products" :key="product.id" class="hover:bg-gray-50">
+              <tr v-else v-for="product in products" :key="product.id" class="hover:bg-gray-50 dark:hover:bg-gray-700">
                 <td class="px-6 py-4 whitespace-nowrap">
                   <div>
-                    <div class="text-sm font-medium text-gray-900">{{ product.supplierName }}</div>
-                    <div class="text-sm text-gray-500">{{ product.supplierCode }}</div>
-                    <div v-if="product.brand" class="text-xs text-gray-400">{{ product.brand }} {{ product.model }}</div>
+                    <div class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ product.supplierName }}</div>
+                    <div class="text-sm text-gray-500 dark:text-gray-400">{{ product.supplierCode }}</div>
+                    <div v-if="product.brand" class="text-xs text-gray-400 dark:text-gray-500">{{ product.brand }} {{ product.model }}</div>
                   </div>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
                   <div>
-                    <div class="text-sm text-gray-900">Costo: ${{ product.costPrice }}</div>
-                    <div v-if="product.listPrice" class="text-sm text-gray-500">Lista: ${{ product.listPrice }}</div>
-                    <div class="text-xs text-gray-400">{{ product.currency }}</div>
+                    <div class="text-sm text-gray-900 dark:text-gray-100">Costo: ${{ product.costPrice }}</div>
+                    <div v-if="product.listPrice" class="text-sm text-gray-500 dark:text-gray-400">Lista: ${{ product.listPrice }}</div>
+                    <div class="text-xs text-gray-400 dark:text-gray-500">{{ product.currency }}</div>
                   </div>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
                   <div>
-                    <div v-if="product.oem" class="text-sm text-gray-900">OEM: {{ product.oem }}</div>
-                    <div v-if="product.year" class="text-sm text-gray-500">Año: {{ product.year }}</div>
-                    <div v-if="product.minQuantity" class="text-xs text-gray-400">Min: {{ product.minQuantity }}</div>
+                    <div v-if="product.oem" class="text-sm text-gray-900 dark:text-gray-100">OEM: {{ product.oem }}</div>
+                    <div v-if="product.year" class="text-sm text-gray-500 dark:text-gray-400">Año: {{ product.year }}</div>
+                    <div v-if="product.minQuantity" class="text-xs text-gray-400 dark:text-gray-500">Min: {{ product.minQuantity }}</div>
                   </div>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
@@ -205,7 +205,7 @@
                   <div class="flex items-center gap-2">
                     <button
                       @click="editProduct(product)"
-                      class="text-blue-600 hover:text-blue-900"
+                      class="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300"
                       title="Editar"
                     >
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -214,7 +214,7 @@
                     </button>
                     <button
                       @click="deleteProduct(product)"
-                      class="text-red-600 hover:text-red-900"
+                      class="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300"
                       title="Eliminar"
                     >
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

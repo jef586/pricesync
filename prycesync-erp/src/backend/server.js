@@ -40,9 +40,13 @@ const ASSETS_DIR = process.env.ASSETS_DIR || (process.env.NODE_ENV === 'developm
   : '/app/assets');
 const ARTICLES_ASSETS_DIR = path.join(ASSETS_DIR, 'articles');
 
-// Middleware CORS para permitir conexiones desde el frontend Vue (puerto 5173)
+// Middleware CORS configurable por entorno
+const allowedOrigins = String(process.env.CORS_ORIGIN || 'http://localhost:5173,http://127.0.0.1:5173')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean)
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
+  origin: allowedOrigins,
   credentials: true
 }));
 

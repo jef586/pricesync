@@ -73,8 +73,9 @@ export function useSupplierDetail(supplierId: Ref<string>) {
     totalPages: 0
   })
 
-  // API Base URL
-  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3002/api'
+  // API Base URL (normalizado con sufijo /api)
+  const rawBase = (import.meta.env.VITE_API_URL || 'http://localhost:3002').trim()
+  const API_BASE = rawBase.endsWith('/api') ? rawBase : `${rawBase}/api`
 
   // Fetch supplier details
   const fetchSupplier = async () => {

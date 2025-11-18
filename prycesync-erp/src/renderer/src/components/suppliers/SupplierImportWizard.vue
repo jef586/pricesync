@@ -34,16 +34,27 @@
         <div class="text-sm font-medium text-gray-700 dark:text-gray-200">Mapeo de columnas</div>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div v-for="field in mappingFields" :key="field.key" class="space-y-1">
-            <label class="text-xs font-medium text-gray-600 dark:text-gray-300">{{ field.label }}<span v-if="field.required" class="text-red-600">*</span></label>
+            <label class="text-xs font-medium text-gray-600 dark:text-gray-300">
+              {{ field.label }}<span v-if="field.required" class="text-red-600">*</span>
+              <span v-if="aiMapping && aiMapping[field.key]" :class="confidenceClass(aiMapping[field.key].confidence)" class="ml-2 px-2 py-0.5 rounded text-[10px]">
+                {{ formatConfidence(aiMapping[field.key].confidence) }}
+              </span>
+            </label>
             <BaseSelect :model-value="mapping[field.key] || ''" :placeholder="'— Seleccionar columna —'" @update:modelValue="v => setMapping(field.key, v)" :error="mappingError(field.key)">
               <option v-for="h in availableHeaders" :key="h" :value="h">{{ h }}</option>
             </BaseSelect>
           </div>
         </div>
-        <div v-if="availableHeaders.length === 0" class="text-xs text-yellow-700 dark:text-yellow-400">No se detectaron encabezados. Vuelve al Paso 1 y ajusta “Fila de encabezados”.</div>
-        <div class="flex justify-between">
-          <BaseButton variant="secondary" @click="step = 1">Atrás</BaseButton>
-          <BaseButton :disabled="!canPreview || processing" variant="primary" @click="toTransform">Siguiente</BaseButton>
+        <div class="flex items-center justify-between">
+          <div class="text-xs text-yellow-700 dark:text-yellow-400" v-if="availableHeaders.length === 0">No se detectaron encabezados. Vuelve al Paso 1 y ajusta “Fila de encabezados”.</div>
+          <div class="flex gap-2">
+            <BaseButton variant="secondary" :disabled="processing || aiLoading" @click="step = 1">Atrás</BaseButton>
+            <BaseButton variant="ghost" :disabled="processing || aiLoading || availableHeaders.length === 0" @click="suggestAiMapping">
+              <span v-if="aiLoading">Calculando…</span>
+              <span v-else>Sugerir mapeo con IA (Groq)</span>
+            </BaseButton>
+            <BaseButton :disabled="!canPreview || processing || aiLoading" variant="primary" @click="toTransform">Siguiente</BaseButton>
+          </div>
         </div>
       </div>
 
@@ -136,6 +147,8 @@ watch(isOpen, v => emit('update:modelValue', v))
 const step = ref<number>(1)
 const processing = ref<boolean>(false)
 const importing = ref<boolean>(false)
+const aiLoading = ref<boolean>(false)
+const aiMapping = ref<AiMappingResponse | null>(null)
 interface ImportResults { created: number; updated: number; skipped: number; errors: { row: number; error: string }[] }
 const results = ref<ImportResults | null>(null)
 
@@ -392,3 +405,70 @@ function handleClose() {
 <style scoped>
 .space-y-6 > * + * { margin-top: 1.5rem; }
 </style>
+type AiMappingField = { columnIndex: number | null; confidence: number }
+type AiMappingResponse = {
+  supplier_sku: AiMappingField
+  name: AiMappingField
+  cost_price: AiMappingField
+  list_price: AiMappingField
+  brand: AiMappingField
+  category_name: AiMappingField
+  tax_rate: AiMappingField
+  unit: AiMappingField
+}
+
+function formatConfidence(v: number) {
+  return `${Math.round(v * 100)}%`
+}
+
+function confidenceClass(v: number) {
+  if (v >= 0.9) return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+  if (v >= 0.6) return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+  return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+}
+
+async function suggestAiMapping() {
+  if (availableHeaders.value.length === 0) return
+  aiLoading.value = true
+  try {
+    const cols = availableHeaders.value.map((label, index) => ({ index, label }))
+    const idx = Math.max(1, headerRow.value) - 1
+    const rows = rawPreview.value.slice(idx + 1, idx + 1 + 5)
+    const body = {
+      supplierId: props.supplierId,
+      supplierName: props.supplierName || '',
+      columns: cols,
+      sampleRows: rows,
+      hasHeader: true
+    }
+    const resp = await fetch(`${API_BASE}/ai/supplier-mapping`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${auth.token}` },
+      body: JSON.stringify(body)
+    })
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}))
+      throw new Error(err.message || err.error || 'Error llamando a IA')
+    }
+    const data = await resp.json() as AiMappingResponse
+    aiMapping.value = data
+    const mapByIndex = (idx: number | null) => {
+      if (idx === null) return ''
+      const label = availableHeaders.value[idx]
+      return label || ''
+    }
+    store.setMapping('supplier_sku', mapByIndex(data.supplier_sku.columnIndex))
+    store.setMapping('name', mapByIndex(data.name.columnIndex))
+    store.setMapping('cost_price', mapByIndex(data.cost_price.columnIndex))
+    store.setMapping('list_price', mapByIndex(data.list_price.columnIndex))
+    store.setMapping('brand', mapByIndex(data.brand.columnIndex))
+    store.setMapping('category_name', mapByIndex(data.category_name.columnIndex))
+    store.setMapping('tax_rate', mapByIndex(data.tax_rate.columnIndex))
+    store.setMapping('unit', mapByIndex(data.unit.columnIndex))
+    success('Mapeo sugerido aplicado')
+  } catch (err: any) {
+    error('Falló el mapeo IA', err?.message || 'Error desconocido')
+  } finally {
+    aiLoading.value = false
+  }
+}
