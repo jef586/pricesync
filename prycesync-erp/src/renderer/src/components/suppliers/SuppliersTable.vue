@@ -247,7 +247,7 @@
     />
 
     <!-- Modal de importación -->
-    <SupplierImportModal
+    <SupplierImportWizard
       v-if="showImportModal"
       v-model="showImportModal"
       :supplier-id="supplierToImport?.id || ''"
@@ -270,7 +270,7 @@ import BaseBadge from '@/components/atoms/BaseBadge.vue'
 import BaseButton from '@/components/atoms/BaseButton.vue'
 import BaseSpinner from '@/components/atoms/BaseSpinner.vue'
 import ConfirmModal from '@/components/atoms/ConfirmModal.vue'
-import SupplierImportModal from '@/components/suppliers/SupplierImportModal.vue'
+import SupplierImportWizard from '@/components/suppliers/SupplierImportWizard.vue'
 
 interface Props {
   suppliers: Supplier[]

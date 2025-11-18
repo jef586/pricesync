@@ -41,3 +41,10 @@ export function validateRow(row: SupplierImportRow): { errors: string[], warning
   return { errors, warnings }
 }
 
+export function normalizeCost(costPrice: number, taxRate: number | undefined, includesVat: boolean, currency: 'ARS' | 'USD', usdRate?: number): number {
+  const cost = Number(costPrice || 0)
+  const vat = Number(taxRate || 0)
+  const base = includesVat ? (vat > 0 ? cost / (1 + vat / 100) : cost) : cost
+  const rate = currency === 'USD' ? Number(usdRate || 1) : 1
+  return Number((base * rate).toFixed(2))
+}

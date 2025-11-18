@@ -673,7 +673,8 @@ class SupplierController {
       const allowedMimeTypes = [
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'application/vnd.ms-excel',
-        'application/octet-stream'
+        'application/octet-stream',
+        'text/csv'
       ];
 
       if (!allowedMimeTypes.includes(req.file.mimetype)) {
@@ -1282,21 +1283,28 @@ class SupplierController {
         console.warn('Pricing warning (previewProductsImport):', e?.message || e);
       }
 
-      // Construir índice de encabezados si hay mapeo
+      const headerRowNum = (() => {
+        const hr = parseInt(req.body?.headerRow);
+        return Number.isFinite(hr) && hr >= 1 ? hr : 1;
+      })();
       let headerIndex = {};
       if (mapping) {
-        const headerRow = worksheet.getRow(1);
-        headerRow.eachCell((cell, colNumber) => {
+        const headerRowObj = worksheet.getRow(headerRowNum);
+        headerRowObj.eachCell((cell, colNumber) => {
           const val = (cell.value?.toString?.() || '').trim();
           if (val) headerIndex[val] = colNumber;
         });
       }
 
+      let transformConfig = null;
+      try {
+        transformConfig = req.body?.transformConfig ? JSON.parse(req.body.transformConfig) : null;
+      } catch {}
+
       worksheet.eachRow((row, rowNumber) => {
         rowIndex++;
         
-        // Saltar la primera fila (encabezados)
-        if (rowNumber === 1) return;
+        if (rowNumber <= headerRowNum) return;
         
         // Limitar la vista previa a 50 filas
         if (preview.length >= 50) return;
@@ -1381,13 +1389,26 @@ class SupplierController {
           }
         }
 
-        // Calcular precio de venta sugerido si es válido y se puede aplicar pricing
+        let normalizedCost = null;
+        try {
+          const costRaw = parseFloat(rowData.costPrice);
+          const tRate = rowData.taxRate ? parseFloat(rowData.taxRate) : 21;
+          const includesVat = !!(transformConfig && transformConfig.costPriceIncludesVat);
+          const currency = (transformConfig && transformConfig.currency) || rowData.currency || 'ARS';
+          const usdRate = transformConfig?.usdRate ? parseFloat(transformConfig.usdRate) : 1;
+          if (!isNaN(costRaw)) {
+            const base = includesVat ? (tRate > 0 ? costRaw / (1 + tRate / 100) : costRaw) : costRaw;
+            normalizedCost = currency === 'USD' ? base * (usdRate || 1) : base;
+            normalizedCost = Number(normalizedCost.toFixed(2));
+          }
+        } catch {}
+
+        let computedSalePrice = null;
         let computedSalePrice = null;
         const allowPricing = (req.body?.applyOnImport === 'true') ? true : (pricing && pricing.applyOnImport);
         if (rowErrors.length === 0 && allowPricing) {
           try {
-              
-            const cost = parseFloat(rowData.costPrice);
+            const cost = normalizedCost != null ? normalizedCost : parseFloat(rowData.costPrice);
             const list = rowData.listPrice ? parseFloat(rowData.listPrice) : null;
             computedSalePrice = computeSalePrice({
               costPrice: cost,
@@ -1402,6 +1423,7 @@ class SupplierController {
 
         preview.push({
           ...rowData,
+          costPriceNormalized: normalizedCost,
           computedSalePrice,
           errors: rowErrors,
           hasErrors: rowErrors.length > 0
@@ -1415,7 +1437,7 @@ class SupplierController {
         }
       });
 
-      const totalRows = rowIndex - 1; // Excluir encabezados
+      const totalRows = Math.max(0, rowIndex - headerRowNum);
       const validRows = preview.filter(row => !row.hasErrors).length;
 
       res.json({
@@ -1497,18 +1519,24 @@ class SupplierController {
         errors: []
       };
 
-      // Índice de encabezados si hay mapeo
+      const headerRowNum = (() => {
+        const hr = parseInt(req.body?.headerRow);
+        return Number.isFinite(hr) && hr >= 1 ? hr : 1;
+      })();
       let headerIndex = {};
       if (mapping) {
-        const headerRow = worksheet.getRow(1);
-        headerRow.eachCell((cell, colNumber) => {
+        const headerRowObj = worksheet.getRow(headerRowNum);
+        headerRowObj.eachCell((cell, colNumber) => {
           const val = (cell.value?.toString?.() || '').trim();
           if (val) headerIndex[val] = colNumber;
         });
       }
 
+      let transformConfig = null;
+      try { transformConfig = req.body?.transformConfig ? JSON.parse(req.body.transformConfig) : null; } catch {}
+
       // Procesar cada fila
-      for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber++) {
+      for (let rowNumber = headerRowNum + 1; rowNumber <= worksheet.rowCount; rowNumber++) {
         const row = worksheet.getRow(rowNumber);
         
         try {
@@ -1561,6 +1589,15 @@ class SupplierController {
             results.skipped++;
             continue;
           }
+
+          const tRate = rowData.taxRate ? parseFloat(rowData.taxRate) : 21;
+          const includesVat = !!(transformConfig && transformConfig.costPriceIncludesVat);
+          const currency = (transformConfig && transformConfig.currency) || rowData.currency || 'ARS';
+          const usdRate = transformConfig?.usdRate ? parseFloat(transformConfig.usdRate) : 1;
+          const costRaw = Number(rowData.costPrice || 0);
+          const base = includesVat ? (tRate > 0 ? costRaw / (1 + tRate / 100) : costRaw) : costRaw;
+          const normalizedCost = currency === 'USD' ? base * (usdRate || 1) : base;
+          rowData.costPrice = Number(normalizedCost.toFixed(2));
 
           // Verificar si el producto ya existe
           const existingProduct = await prisma.supplierProduct.findFirst({
@@ -1617,7 +1654,7 @@ class SupplierController {
         }
       }
 
-      // Guardar historial en import_jobs (equiv. supplier_price_lists)
+      // Guardar historial en import_jobs
       try {
         await prisma.importJob.create({
           data: {

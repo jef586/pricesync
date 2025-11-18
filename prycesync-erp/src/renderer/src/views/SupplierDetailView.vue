@@ -257,7 +257,7 @@
       </div>
 
       <!-- Import Modal -->
-    <SupplierImportModal
+    <SupplierImportWizard
       v-if="showImportModal"
       v-model="showImportModal"
       :supplier-id="supplierId"
@@ -287,7 +287,7 @@ import StatsCard from '../components/atoms/StatsCard.vue'
 import FilterBar from '../components/molecules/FilterBar.vue'
 import DataTable from '../components/atoms/DataTable.vue'
 import BaseButton from '../components/atoms/BaseButton.vue'
-import SupplierImportModal from '../components/suppliers/SupplierImportModal.vue'
+import SupplierImportWizard from '../components/suppliers/SupplierImportWizard.vue'
 import SupplierProductFormModal from '../components/suppliers/SupplierProductFormModal.vue'
 import { useSupplierDetail } from "../composables/useSupplierDetail";
 
