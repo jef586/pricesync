@@ -1,0 +1,111 @@
+# Dockerfile para construir app móvil con Node 20 y Capacitor
+FROM node:20-alpine AS builder
+
+WORKDIR /usr/src/app
+
+# Instalar dependencias del sistema para Android
+RUN apk add --no-cache \
+    openjdk17 \
+    wget \
+    unzip \
+    git \
+    bash \
+    python3 \
+    make \
+    g++
+
+# Instalar Android SDK
+ENV ANDROID_SDK_ROOT=/opt/android-sdk
+ENV ANDROID_HOME=/opt/android-sdk
+ENV PATH=${PATH}:${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin:${ANDROID_SDK_ROOT}/platform-tools
+
+RUN mkdir -p ${ANDROID_SDK_ROOT} && \
+    cd ${ANDROID_SDK_ROOT} && \
+    wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip && \
+    unzip commandlinetools-linux-11076708_latest.zip && \
+    rm commandlinetools-linux-11076708_latest.zip && \
+    mkdir -p cmdline-tools/latest && \
+    mv cmdline-tools/* cmdline-tools/latest/ || true
+
+# Aceptar licencias e instalar herramientas
+RUN yes | sdkmanager --licenses && \
+    sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+
+# Copiar archivos de configuración
+COPY package*.json ./
+COPY capacitor.config.ts ./
+COPY tsconfig.json ./
+COPY vite.config.ts ./
+
+# Instalar dependencias
+RUN npm ci
+
+# Copiar código fuente
+COPY src ./src
+COPY index.html ./
+
+# Construir aplicación web
+RUN npm run build
+
+# Sincronizar con Capacitor Android
+RUN npx cap sync android
+
+# Construir APK
+RUN cd android && ./gradlew assembleDebug
+
+# Etapa final - servidor con APKs
+FROM nginx:alpine
+
+# Copiar APK construido
+COPY --from=builder /usr/src/app/android/app/build/outputs/apk/debug/app-debug.apk /usr/share/nginx/html/prycesync-mobile-debug.apk
+
+# Copiar aplicación web
+COPY --from=builder /usr/src/app/dist /usr/share/nginx/html/web
+
+# Crear página de descarga
+RUN echo '<!DOCTYPE html>\
+<html>\
+<head>\
+    <title>PryceSync Mobile - Descarga</title>\
+    <meta name="viewport" content="width=device-width, initial-scale=1">\
+    <style>\
+        body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }\
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }\
+        h1 { color: #5B7EFF; text-align: center; }\
+        .download-btn { display: block; width: 100%; padding: 15px; background: #5B7EFF; color: white; text-decoration: none; text-align: center; border-radius: 5px; margin: 20px 0; font-weight: bold; }\
+        .download-btn:hover { background: #4A6BD9; }\
+        .info { background: #e3f2fd; padding: 15px; border-radius: 5px; margin: 20px 0; }\
+        .web-link { text-align: center; margin-top: 20px; }\
+    </style>\
+</head>\
+<body>\
+    <div class="container">\
+        <h1>🚀 PryceSync Mobile</h1>\
+        <p>App móvil nativa para el equipo de ventas</p>\
+        \
+        <div class="info">\
+            <strong>📱 Para Android:</strong><br>\
+            Descarga e instala el APK en tu dispositivo Android.\
+        </div>\
+        \
+        <a href="prycesync-mobile-debug.apk" class="download-btn">📲 Descargar APK</a>\
+        \
+        <div class="info">\
+            <strong>💡 Nota:</strong><br>\
+            Es posible que necesites habilitar "Orígenes desconocidos" en la configuración de seguridad de tu dispositivo.\
+        </div>\
+        \
+        <div class="web-link">\
+            <p>O prueba la versión web:</p>\
+            <a href="/web" class="download-btn" style="background: #10B981;">🌐 Versión Web</a>\
+        </div>\
+    </div>\
+</body>\
+</html>' > /usr/share/nginx/html/index.html
+
+# Configurar nginx
+COPY nginx.conf /etc/nginx/nginx.conf
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]

@@ -1,0 +1,68 @@
+/* Import design tokens from main ERP */
+@import './design-tokens.css';
+
+/* Mobile-specific overrides */
+:root {
+  /* Mobile-specific variables */
+  --mobile-header-height: 56px;
+  --mobile-safe-area-top: env(safe-area-inset-top, 0px);
+  --mobile-safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --mobile-safe-area-left: env(safe-area-inset-left, 0px);
+  --mobile-safe-area-right: env(safe-area-inset-right, 0px);
+}
+
+/* Ionic theme integration */
+body {
+  font-family: var(--ps-font-family);
+  background: var(--ps-bg);
+  color: var(--ps-text-primary);
+}
+
+/* Mobile-specific components */
+.mobile-header {
+  height: var(--mobile-header-height);
+  background: var(--ps-card);
+  border-bottom: var(--ps-border-width) solid var(--ps-border);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--ps-space-2);
+}
+
+.mobile-content {
+  padding: var(--ps-space-2);
+  padding-bottom: calc(var(--ps-space-2) + var(--mobile-safe-area-bottom));
+}
+
+/* Dark mode support */
+body.dark {
+  background: var(--ps-bg);
+  color: var(--ps-text-primary);
+}
+
+/* Ionic component overrides */
+.ion-page {
+  background: var(--ps-bg);
+}
+
+.ion-toolbar {
+  --background: var(--ps-card);
+  --color: var(--ps-text-primary);
+  --border-color: var(--ps-border);
+}
+
+.ion-item {
+  --background: var(--ps-card);
+  --color: var(--ps-text-primary);
+  --border-color: var(--ps-border);
+}
+
+.ion-button {
+  --background: var(--ps-primary);
+  --color: white;
+}
+
+.ion-input {
+  --background: var(--ps-input-bg);
+  --color: var(--ps-text-primary);
+  --placeholder-color: var(--ps-text-secondary);
+}

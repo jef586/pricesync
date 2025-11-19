@@ -1,0 +1,43 @@
+/* Main styles file for mobile app */
+@import './design-tokens.css';
+@import './mobile-tokens.css';
+
+/* Reset and base styles */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--ps-font-family);
+  background: var(--ps-bg);
+  color: var(--ps-text-primary);
+  line-height: 1.5;
+}
+
+/* Utility classes */
+.text-primary { color: var(--ps-text-primary); }
+.text-secondary { color: var(--ps-text-secondary); }
+.bg-primary { background: var(--ps-primary); }
+.bg-success { background: var(--ps-success); }
+.bg-warning { background: var(--ps-warning); }
+.bg-error { background: var(--ps-error); }
+
+/* Spacing utilities */
+.p-1 { padding: var(--ps-space-1); }
+.p-2 { padding: var(--ps-space-2); }
+.p-3 { padding: var(--ps-space-3); }
+.m-1 { margin: var(--ps-space-1); }
+.m-2 { margin: var(--ps-space-2); }
+.m-3 { margin: var(--ps-space-3); }
+
+/* Border radius */
+.rounded-sm { border-radius: var(--ps-radius-sm); }
+.rounded-md { border-radius: var(--ps-radius-md); }
+.rounded-lg { border-radius: var(--ps-radius-lg); }
+
+/* Shadows */
+.shadow-sm { box-shadow: var(--ps-shadow-sm); }
+.shadow-md { box-shadow: var(--ps-shadow-md); }
+.shadow-lg { box-shadow: var(--ps-shadow-lg); }

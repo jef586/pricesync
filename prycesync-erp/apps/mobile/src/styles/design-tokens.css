@@ -1,0 +1,80 @@
+/* PriceSync ERP Design Tokens - Mobile Version */
+/* Light/Dark theme variables, 8px spacing grid, typography, shadows, borders */
+
+:root {
+  /* Brand semantic colors */
+  --ps-primary: #5B7EFF;
+  --ps-success: #10B981;
+  --ps-warning: #F59E0B;
+  --ps-error: #EF4444;
+
+  /* Light mode palette */
+  --ps-bg: #F9FAFB;                /* main background */
+  --ps-card: #FFFFFF;               /* cards/surfaces */
+  --ps-sidebar: #F3F4F6;            /* sidebar */
+  --ps-input-bg: #F3F4F6;           /* inputs background */
+  --ps-text-primary: #1F2937;       /* slate-800 */
+  --ps-text-secondary: #6B7280;     /* slate-500 */
+  --ps-border: #E5E7EB;             /* gray-200 */
+
+  /* Typography */
+  --ps-font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, sans-serif;
+  --ps-font-xs: 12px;
+  --ps-font-sm: 14px;
+  --ps-font-base: 16px;
+  --ps-font-lg: 18px;
+  --ps-font-xl: 20px;
+  --ps-font-2xl: 24px;
+  --ps-weight-regular: 400;
+  --ps-weight-medium: 500;
+  --ps-weight-semibold: 600;
+  --ps-weight-bold: 700;
+
+  /* Spacing - 8px grid */
+  --ps-space-0: 0;
+  --ps-space-1: 8px;
+  --ps-space-2: 16px;
+  --ps-space-3: 24px;
+  --ps-space-4: 32px;
+  --ps-space-5: 40px;
+  --ps-space-6: 48px;
+
+  /* Radii & borders */
+  --ps-radius-sm: 8px;
+  --ps-radius-md: 12px;
+  --ps-radius-lg: 16px;
+  --ps-border-width: 1px;
+
+  /* Shadows/Elevations */
+  --ps-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --ps-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.10);
+  --ps-shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.12);
+}
+
+/* Dark mode overrides */
+.dark {
+  --ps-bg: #0F172A;                 /* slate-900-ish */
+  --ps-card: #1E293B;               /* slate-800 surface */
+  --ps-sidebar: #1E293B;            /* sidebar */
+  --ps-input-bg: #2B3648;           /* inputs background (slightly lighter than card) */
+  --ps-text-primary: #F1F5F9;       /* slate-100 */
+  --ps-text-secondary: #94A3B8;     /* slate-400 */
+  --ps-border: #334155;             /* slate-600 */
+
+  /* Shadows slightly softened for dark */
+  --ps-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --ps-shadow-md: 0 6px 10px rgba(0, 0, 0, 0.45);
+  --ps-shadow-lg: 0 16px 24px rgba(0, 0, 0, 0.50);
+}
+
+/* Global base using tokens */
+html, body {
+  background: var(--ps-bg);
+  color: var(--ps-text-primary);
+  font-family: var(--ps-font-family);
+}
+
+/* Themed surfaces */
+.ps-surface { background: var(--ps-card); color: var(--ps-text-primary); }
+.ps-sidebar { background: var(--ps-sidebar); color: var(--ps-text-secondary); }
+.ps-header { height: 64px; background: var(--ps-card); border-bottom: var(--ps-border-width) solid var(--ps-border); }

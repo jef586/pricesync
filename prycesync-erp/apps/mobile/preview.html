@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>PryceSync Mobile - Vista Previa</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .mobile-frame {
+            width: 375px;
+            height: 812px;
+            margin: 20px auto;
+            background: #000;
+            border-radius: 40px;
+            padding: 10px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            position: relative;
+        }
+        
+        .mobile-screen {
+            width: 100%;
+            height: 100%;
+            background: #fff;
+            border-radius: 30px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .status-bar {
+            height: 44px;
+            background: #f8f9fa;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        .app-content {
+            height: calc(100% - 88px);
+            overflow-y: auto;
+            background: #f5f5f7;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        
+        .nav-tabs {
+            display: flex;
+            background: white;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .nav-tab {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .nav-tab.active {
+            color: #667eea;
+            border-bottom: 2px solid #667eea;
+        }
+        
+        .content-section {
+            display: none;
+            padding: 20px;
+        }
+        
+        .content-section.active {
+            display: block;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .card h3 {
+            font-size: 16px;
+            margin-bottom: 8px;
+            color: #333;
+        }
+        
+        .card p {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.4;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .status-info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        
+        .bottom-nav {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 44px;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+        }
+        
+        .nav-item {
+            text-align: center;
+            font-size: 10px;
+            color: #666;
+            padding: 5px;
+        }
+        
+        .nav-item.active {
+            color: #667eea;
+        }
+        
+        .info-panel {
+            text-align: center;
+            padding: 20px;
+            background: white;
+            margin: 20px auto;
+            max-width: 600px;
+            border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            margin: 10px 5px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn:hover {
+            background: #5a6fd8;
+            transform: translateY(-2px);
+        }
+        
+        @media (max-width: 768px) {
+            .mobile-frame {
+                width: 100%;
+                max-width: 375px;
+                height: 100vh;
+                max-height: 812px;
+                margin: 0 auto;
+                border-radius: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="info-panel">
+        <h2>🚀 PryceSync Mobile - Vista Previa</h2>
+        <p>Esta es una vista previa de tu app móvil nativa. La app real está configurada con Capacitor y lista para compilar.</p>
+        <a href="#" class="btn" onclick="showMobilePreview()">Ver Vista Móvil</a>
+        <a href="https://ionicframework.com/docs" target="_blank" class="btn">Documentación Ionic</a>
+    </div>
+
+    <div id="mobilePreview" class="mobile-frame" style="display: none;">
+        <div class="mobile-screen">
+            <div class="status-bar">
+                <span>9:41</span>
+                <span>📶 🔋</span>
+            </div>
+            
+            <div class="header">
+                <h1>PryceSync Mobile</h1>
+                <p>App de Ventas ERP</p>
+            </div>
+            
+            <div class="nav-tabs">
+                <div class="nav-tab active" onclick="showTab('dashboard')">Dashboard</div>
+                <div class="nav-tab" onclick="showTab('clients')">Clientes</div>
+                <div class="nav-tab" onclick="showTab('orders')">Pedidos</div>
+            </div>
+            
+            <div class="app-content">
+                <div id="dashboard" class="content-section active">
+                    <div class="card">
+                        <h3>📊 Resumen de Ventas</h3>
+                        <p>Ventas del día: <strong>$12,450</strong></p>
+                        <span class="status-badge status-success">+15% vs ayer</span>
+                    </div>
+                    
+                    <div class="card">
+                        <h3>👥 Clientes Activos</h3>
+                        <p>Clientes atendidos: <strong>28</strong></p>
+                        <span class="status-badge status-info">5 nuevos hoy</span>
+                    </div>
+                    
+                    <div class="card">
+                        <h3>📦 Pedidos Pendientes</h3>
+                        <p>Pedidos por entregar: <strong>12</strong></p>
+                        <span class="status-badge status-warning">3 urgentes</span>
+                    </div>
+                    
+                    <div class="card">
+                        <h3>📍 Ruta de Ventas</h3>
+                        <p>Ubicación actual: <strong>Zona Centro</strong></p>
+                        <span class="status-badge status-success">GPS Activo</span>
+                    </div>
+                </div>
+                
+                <div id="clients" class="content-section">
+                    <div class="card">
+                        <h3>🏪 Supermercado El Sol</h3>
+                        <p>Última visita: Hoy 10:30 AM</p>
+                        <span class="status-badge status-success">Activo</span>
+                    </div>
+                    
+                    <div class="card">
+                        <h3>🛒 Distribuidora López</h3>
+                        <p>Última visita: Ayer 3:45 PM</p>
+                        <span class="status-badge status-info">Programado hoy</span>
+                    </div>
+                    
+                    <div class="card">
+                        <h3>🏪 Mini Market Central</h3>
+                        <p>Última visita: Hace 2 días</p>
+                        <span class="status-badge status-warning">Pendiente visita</span>
+                    </div>
+                </div>
+                
+                <div id="orders" class="content-section">
+                    <div class="card">
+                        <h3>Pedido #1234</h3>
+                        <p>Cliente: Supermercado El Sol</p>
+                        <p>Total: <strong>$1,250</strong></p>
+                        <span class="status-badge status-info">En preparación</span>
+                    </div>
+                    
+                    <div class="card">
+                        <h3>Pedido #1235</h3>
+                        <p>Cliente: Distribuidora López</p>
+                        <p>Total: <strong>$2,100</strong></p>
+                        <span class="status-badge status-success">Entregado</span>
+                    </div>
+                    
+                    <div class="card">
+                        <h3>Pedido #1236</h3>
+                        <p>Cliente: Mini Market Central</p>
+                        <p>Total: <strong>$850</strong></p>
+                        <span class="status-badge status-warning">Pendiente</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bottom-nav">
+                <div class="nav-item active">
+                    <div>🏠</div>
+                    <div>Inicio</div>
+                </div>
+                <div class="nav-item">
+                    <div>📊</div>
+                    <div>Reportes</div>
+                </div>
+                <div class="nav-item">
+                    <div>👤</div>
+                    <div>Perfil</div>
+                </div>
+                <div class="nav-item">
+                    <div>⚙️</div>
+                    <div>Más</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showTab(tabName) {
+            // Ocultar todas las secciones
+            document.querySelectorAll('.content-section').forEach(section => {
+                section.classList.remove('active');
+            });
+            
+            // Remover active de todas las tabs
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Mostrar sección seleccionada
+            document.getElementById(tabName).classList.add('active');
+            
+            // Activar tab seleccionada
+            event.target.classList.add('active');
+        }
+        
+        function showMobilePreview() {
+            const preview = document.getElementById('mobilePreview');
+            const infoPanel = document.querySelector('.info-panel');
+            
+            if (preview.style.display === 'none') {
+                preview.style.display = 'block';
+                infoPanel.style.display = 'none';
+                document.body.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+            } else {
+                preview.style.display = 'none';
+                infoPanel.style.display = 'block';
+                document.body.style.background = '#f0f0f0';
+            }
+        }
+        
+        // Simular actualización de datos
+        setInterval(() => {
+            const timeElement = document.querySelector('.status-bar span:first-child');
+            const now = new Date();
+            const hours = now.getHours().toString().padStart(2, '0');
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            timeElement.textContent = `${hours}:${minutes}`;
+        }, 60000);
+        
+        // Mostrar preview automáticamente después de 2 segundos
+        setTimeout(() => {
+            showMobilePreview();
+        }, 2000);
+    </script>
+</body>
+</html>
