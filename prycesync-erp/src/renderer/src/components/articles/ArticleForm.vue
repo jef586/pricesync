@@ -193,24 +193,10 @@
       </div>
     </section>
 
-    <!-- Precio -->
-    <section v-if="showAdvanced" aria-labelledby="price-section">
-      <h2 id="price-section" class="text-lg font-semibold">{{ t('inventory.article.sections.price') }}</h2>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <label class="block text-sm mb-1">Costo</label>
-          <input v-model.number="form.cost" type="number" step="0.01" min="0" class="border rounded px-3 py-2 w-full" @input="lastEdited = 'cost'; recalcFromCost()" />
-        </div>
-        <div>
-          <label class="block text-sm mb-1">Margen %</label>
-          <input v-model.number="form.gainPct" type="number" step="0.01" class="border rounded px-3 py-2 w-full" @input="lastEdited = 'gainPct'; recalcFromCost()" />
-        </div>
-        <div>
-          <label class="block text-sm mb-1">Precio público</label>
-          <input v-model.number="form.pricePublic" type="number" step="0.01" min="0" class="border rounded px-3 py-2 w-full" @input="lastEdited = 'pricePublic'; recalcFromPublic()" />
-          <p v-if="errors.price" class="text-red-600 text-sm">{{ errors.price }}</p>
-        </div>
-      </div>
+    <!-- Precios & Listas (4) -->
+    <section v-if="showAdvanced" aria-labelledby="pricing-unified-section">
+      <h2 id="pricing-unified-section" class="text-lg font-semibold">Precios & Listas (4)</h2>
+      <ArticlePricingUnifiedCard :article-id="props.initial?.id ? String(props.initial.id) : undefined" @configure-l4="openPromoModal" />
     </section>
 
     <!-- Stock -->
@@ -429,23 +415,6 @@
       </div>
     </section>
 
-    <!-- Precio por mayor -->
-    <section v-if="showAdvanced" aria-labelledby="wholesale-section">
-      <div class="flex items-center justify-between">
-        <h2 id="wholesale-section" class="text-lg font-semibold">{{ t('inventory.article.sections.wholesale') }}</h2>
-        <div class="flex items-center gap-2">
-          <BaseButton v-if="quantityPromoLoaded" variant="secondary" @click="openPromoModal">Editar promo</BaseButton>
-          <BaseButton v-if="quantityPromoLoaded" variant="ghost" @click="removePromotion">Quitar promo</BaseButton>
-          <BaseButton v-else variant="primary" @click="openPromoModal">Promoción por cantidad</BaseButton>
-        </div>
-      </div>
-      <div v-if="mode === 'edit' && props.initial?.id">
-        <ArticleBulkPricingGrid :article-id="String(props.initial.id)" />
-      </div>
-      <div v-else class="text-sm text-slate-600">
-        Guarda el artículo para gestionar las reglas mayoristas.
-      </div>
-    </section>
 
     <!-- Puntos y Días de stock -->
     <section v-if="showAdvanced" aria-labelledby="points-stockdays-section">
@@ -569,7 +538,7 @@ import BaseButton from '@/components/atoms/BaseButton.vue'
 import ConfirmModal from '@/components/atoms/ConfirmModal.vue'
 import BaseModal from '@/components/atoms/BaseModal.vue'
 import SupplierFormModal from '@/components/suppliers/SupplierFormModal.vue'
-import ArticleBulkPricingGrid from '@/components/articles/ArticleBulkPricingGrid.vue'
+import ArticlePricingUnifiedCard from '@/components/articles/ArticlePricingUnifiedCard.vue'
 import { useArticleStore } from '@/stores/articles'
 import { useCategories } from '@/composables/useCategories'
 import { useSuppliers } from '@/composables/useSuppliers'

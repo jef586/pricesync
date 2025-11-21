@@ -190,9 +190,19 @@ class SalesController {
           include: {
             items: true,
             payments: true,
-            customer: { select: { id: true, name: true, email: true } }
+          customer: { select: { id: true, name: true, email: true } }
           }
         });
+
+        try {
+          await StockService.createSaleOutForOrder(tx, {
+            companyId,
+            saleId: sale.id,
+            createdBy: req.user?.id || 'system'
+          })
+        } catch (err) {
+          throw Object.assign(err, { httpCode: err?.httpCode || 500 })
+        }
 
         // Aplicar tributos (retenciones/percepciones) para la venta en best-effort:
         // no bloquear la creación de la venta si hay incompatibilidades de esquema
@@ -394,8 +404,8 @@ class SalesController {
           }
         }
 
-        // If sale transitioned to cancelled from paid, revert stock and loyalty
-        if ((data.status === 'cancelled') && (existing.status === 'paid')) {
+        // If sale transitioned to cancelled from any non-cancelled state, revert stock and loyalty
+        if ((data.status === 'cancelled') && (existing.status !== 'cancelled')) {
           try {
             await StockService.createRevertForOrder(tx, {
               companyId,

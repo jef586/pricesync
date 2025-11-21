@@ -88,6 +88,14 @@ const iconClasses = computed(() => {
 })
 
 const formattedValue = computed(() => {
+  // If value is a non-numeric string (e.g., 'Nunca', '28/07/2024'), show as-is
+  if (typeof props.value === 'string') {
+    const numeric = Number(props.value)
+    if (!Number.isFinite(numeric)) {
+      return props.value
+    }
+  }
+
   const numValue = typeof props.value === 'string' ? parseFloat(props.value) : props.value
   
   switch (props.format) {

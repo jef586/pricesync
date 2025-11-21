@@ -51,10 +51,11 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./prisma/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
+      test: ["CMD-SHELL", "pg_isready -U postgres -d pricesync -h localhost"]
+      interval: 5s
       timeout: 5s
-      retries: 5
+      start_period: 120s
+      retries: 30
     restart: unless-stopped
 
   redis:

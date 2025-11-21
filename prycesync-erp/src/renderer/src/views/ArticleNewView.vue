@@ -105,18 +105,19 @@
               <!-- Fila 3: 33% / 33% / 33% -->
               <div class="col-span-4">
                 <label class="text-xs font-semibold">Proveedor 1 *</label>
-                <input v-model="form.supplier1" class="w-full mt-1 px-2 py-1 text-xs rounded-md border-default" placeholder="Buscar proveedor" />
+                <select v-model="form.supplierId" class="w-full mt-1 px-2 py-1 text-xs rounded-md border-default">
+                  <option value="">{{ suppliersLoading ? 'Cargando...' : 'Seleccionar' }}</option>
+                  <option v-for="s in suppliers" :key="s.id" :value="s.id">{{ s.name }} ({{ s.code }})</option>
+                </select>
               </div>
               <div class="col-span-4">
                 <label class="text-xs font-semibold">Proveedor 2</label>
-                <input v-model="form.supplier2" class="w-full mt-1 px-2 py-1 text-xs rounded-md border-default" placeholder="Opcional" />
+                <select v-model="form.supplier2Id" class="w-full mt-1 px-2 py-1 text-xs rounded-md border-default">
+                  <option value="">{{ suppliersLoading ? 'Cargando...' : 'Seleccionar' }}</option>
+                  <option v-for="s in suppliers" :key="s.id" :value="s.id">{{ s.name }} ({{ s.code }})</option>
+                </select>
               </div>
-              <div class="col-span-4">
-                <label class="text-sm font-semibold opacity-0">Acción</label>
-                <div class="mt-1">
-                  <button class="ps-btn ps-btn--secondary ps-btn--compact text-xs px-3 py-1" @click.prevent>+ Nuevo proveedor</button>
-                </div>
-              </div>
+              
             </div>
           </div>
 
@@ -184,16 +185,15 @@
           </div>
         </div>
 
-        <!-- Columna 2: Precios, Stock -->
-        <div class="col-span-1 grid grid-rows-[1fr_1fr] gap-4 h-full">
-          <!-- Precios -->
-          <div class="ps-card p-4 h-full">
-            <h2 class="text-base font-bold mb-2">Precios (directo ↔ inverso)</h2>
-            <div class="flex items-center gap-4 mb-2">
+        <!-- Columna 2: Precios, Stock, UoM -->
+        <div class="col-span-1 grid grid-rows-[auto_auto_auto] gap-3 h-full">
+          <section class="ps-card overflow-hidden max-w-full p-4">
+            <h2 class="text-base font-bold mb-2">Precios y Listas</h2>
+            <div class="flex items-center gap-3 mb-1">
               <label class="flex items-center gap-1.5 text-xs"><input type="radio" value="direct" v-model="calc.mode" /> Directo (costo→precio)</label>
               <label class="flex items-center gap-1.5 text-xs"><input type="radio" value="inverse" v-model="calc.mode" /> Inverso (precio→margen)</label>
             </div>
-            <div class="grid grid-cols-2 gap-2">
+            <div class="grid grid-cols-2 gap-1">
               <div>
                 <label class="text-xs font-semibold">Costo</label>
                 <input type="number" v-model.number="calc.cost" class="w-full mt-1 px-2 py-1 text-xs rounded-md border-default" />
@@ -223,21 +223,79 @@
                   <input type="number" v-model.number="calc.pricePublic" class="flex-1 px-2 py-1 text-xs rounded-md border-default" />
                   <button class="ps-btn ps-btn--secondary ps-btn--compact text-xs px-3 py-1" @click="recalculate">↻ Recalcular</button>
                 </div>
-                <p class="mt-1 text-[10px] text-secondary">Nota de redondeo (2 dec, HALF_UP).</p>
               </div>
             </div>
-
-            <!-- Checks fiscales al final de la card de Precios -->
-            <div class="mt-4 grid grid-cols-3 gap-2 text-xs">
+            <div class="mt-2 grid grid-cols-4 gap-1 text-xs">
+              <div>Ganancia: <strong>{{ toCurrency(computedGainAmount) }}</strong></div>
+              <div>Margen: <strong>{{ computedMarginPct }}%</strong></div>
+              <div>IVA: <strong>{{ toCurrency(ivaAmount) }}</strong></div>
+              <div>Imp. Interno: <strong>{{ toCurrency(effectiveInternalTax) }}</strong></div>
+            </div>
+            <div class="mt-2 grid grid-cols-3 gap-1 text-xs">
               <label class="flex items-center gap-1.5"><input type="checkbox" v-model="fiscal.iibbRetPerc" /> IIBB (ret/perc)</label>
               <label class="flex items-center gap-1.5"><input type="checkbox" v-model="fiscal.gananciasRet" /> Ganancias (ret)</label>
               <label class="flex items-center gap-1.5"><input type="checkbox" v-model="fiscal.percIva" /> Percepción IVA</label>
             </div>
-          </div>
-          <!-- Stock & UoM -->
-          <div class="ps-card p-4 h-full">
-            <h2 class="text-base font-bold mb-2">Stock & UoM</h2>
-            <div class="grid grid-cols-2 gap-2">
+            <div class="mt-3 space-y-1 w-full text-xs">
+              <div class="grid grid-cols-12 gap-0.5 items-center w-full">
+                <div class="col-span-5 flex items-center gap-1 min-w-0">
+                  <span class="font-semibold truncate">L1 Ganancia %:</span>
+                  <input type="number" step="0.01" v-model.number="priceLists[1].margin" @input="lastEditedByRow[1] = 'margin'" class="compact-input compact-input--sm rounded-md border-default" />
+                </div>
+                <div class="col-span-5 flex items-center gap-1 min-w-0">
+                  <span class="font-semibold truncate">Precio final:</span>
+                  <input type="number" step="0.01" v-model.number="priceLists[1].final" @input="lastEditedByRow[1] = 'final'" class="compact-input compact-input--price rounded-md border-default" />
+                </div>
+                <div class="col-span-2 min-w-0">
+                  
+                </div>
+              </div>
+              <div class="grid grid-cols-12 gap-0.5 items-center w-full">
+                <div class="col-span-5 flex items-center gap-1 min-w-0">
+                  <span class="font-semibold truncate">L2 Ganancia %:</span>
+                  <input type="number" step="0.01" v-model.number="priceLists[2].margin" @input="lastEditedByRow[2] = 'margin'" class="compact-input compact-input--sm rounded-md border-default" />
+                </div>
+                <div class="col-span-5 flex items-center gap-1 min-w-0">
+                  <span class="font-semibold truncate">Precio final:</span>
+                  <input type="number" step="0.01" v-model.number="priceLists[2].final" @input="lastEditedByRow[2] = 'final'" class="compact-input compact-input--price rounded-md border-default" />
+                </div>
+                <div class="col-span-2 min-w-0">
+                  
+                </div>
+              </div>
+              <div class="grid grid-cols-12 gap-0.5 items-center w-full">
+                <div class="col-span-5 flex items-center gap-1 min-w-0">
+                  <span class="font-semibold truncate">L3 Ganancia %:</span>
+                  <input type="number" step="0.01" v-model.number="priceLists[3].margin" @input="lastEditedByRow[3] = 'margin'" class="compact-input compact-input--sm rounded-md border-default" />
+                </div>
+                <div class="col-span-5 flex items-center gap-1 min-w-0">
+                  <span class="font-semibold truncate">Precio final:</span>
+                  <input type="number" step="0.01" v-model.number="priceLists[3].final" @input="lastEditedByRow[3] = 'final'" class="compact-input compact-input--price rounded-md border-default" />
+                </div>
+                <div class="col-span-2 min-w-0">
+                  
+                </div>
+              </div>
+              <div class="grid grid-cols-12 gap-0.5 items-center w-full">
+                <div class="col-span-5 flex items-center gap-1 min-w-0">
+                  <span class="font-semibold truncate">L4 (Promo) Precio:</span>
+                  <input :value="toCurrency(l4Preview)" class="compact-input compact-input--price rounded-md border-default bg-gray-50" readonly />
+                </div>
+                <div class="col-span-5 flex items-center gap-1 min-w-0">
+                  <span class="font-semibold truncate">Cantidad:</span>
+                  <input type="number" min="1" v-model.number="l4Qty" class="compact-input compact-input--sm rounded-md border-default" placeholder="Qty" />
+                </div>
+                <div class="col-span-2 min-w-0">
+                  <button class="ps-btn ps-btn--secondary ps-btn--compact px-2 py-1 w-full" @click="openPromoModal">Configurar</button>
+                </div>
+              </div>
+              <div class="text-[10px] text-secondary">Redondeo: 2 dec, HALF_UP. IVA e Imp. Interno incluidos. Si Qty ≥ mínimo y hay promo, se aplica % desc.</div>
+            </div>
+          </section>
+          <!-- Stock -->
+          <div class="ps-card p-3">
+            <h2 class="text-base font-bold mb-2">Stock</h2>
+            <div class="grid grid-cols-2 gap-1">
               <div>
                 <label class="text-xs font-semibold">Stock mín</label>
                 <input type="number" v-model.number="stock.min" class="w-full mt-1 px-2 py-1 text-xs rounded-md border-default" />
@@ -248,12 +306,23 @@
                 <p v-if="validation.stockInvalid" class="mt-1 text-[10px] text-red-600">stock máximo menor que mínimo</p>
               </div>
             </div>
-            <div class="mt-4">
-              <label class="text-xs font-semibold">UoM base: UN</label>
+            <div class="grid grid-cols-2 gap-1 mt-1">
+              <div>
+                <label class="text-xs font-semibold">Días de stock</label>
+                <input type="number" min="0" v-model.number="stock.days" class="w-full mt-1 px-2 py-1 text-xs rounded-md border-default" placeholder="0" />
+              </div>
             </div>
-            <div class="mt-4">
+          </div>
+
+          <!-- Unidades de medida -->
+          <div class="ps-card p-3">
+            <h2 class="text-base font-bold mb-2">Unidades de medida</h2>
+            <div>
+              <label class="text-xs font-semibold">Unidad base: UN</label>
+            </div>
+            <div class="mt-1">
               <div class="text-xs font-semibold mb-1.5">Conversiones</div>
-              <div class="grid grid-cols-3 gap-1.5 text-xs">
+              <div class="grid grid-cols-3 gap-1 text-xs">
                 <div>BU</div>
                 <div><input type="number" v-model.number="uom.bu.factor" class="w-full px-2 py-1 text-xs rounded-md border-default" /></div>
                 <div><input type="number" v-model.number="uom.bu.decimals" class="w-full px-2 py-1 text-xs rounded-md border-default" /></div>
@@ -265,9 +334,6 @@
                 <div><input type="number" v-model.number="uom.lt.decimals" class="w-full px-2 py-1 text-xs rounded-md border-default" /></div>
               </div>
               <p v-if="validation.uomInvalid" class="mt-1 text-[10px] text-blue-700">Info: factor UoM inválido / regla mayorista inconsistente</p>
-            </div>
-            <div class="mt-4">
-              <label class="flex items-center gap-1.5 text-xs"><input type="checkbox" v-model="stock.byWeight" /> (Opcional) Venta por peso</label>
             </div>
           </div>
         </div>
@@ -370,9 +436,16 @@
               <p class="mt-1 text-[10px] text-secondary">0 = no otorga.</p>
             </div>
             <div v-show="tab9 === 'dos'" class="text-xs space-y-2">
-              <div>avg 7/30/90: — / — / —</div>
-              <div>ventana usada: 90d</div>
-              <div>DoS, ROP, Sugerida: —</div>
+              <div class="flex items-center gap-2">
+                <button class="ps-btn ps-btn--secondary ps-btn--compact text-xs px-3 py-1" @click="refreshDos">Actualizar</button>
+              </div>
+              <div>
+                <div>avg 7/30/90: {{ dosStats ? `${dosStats.avgDaily} / — / —` : '— / — / —' }}</div>
+                <div>ventana usada: {{ dosStats ? `${dosStats.windowUsed}d` : '—' }}</div>
+                <div>DoS: {{ dosStats ? dosStats.daysOfStock : '—' }}</div>
+                <div>ROP: {{ dosStats ? dosStats.reorderPoint : '—' }}</div>
+                <div>Sugerida: {{ dosStats ? dosStats.suggestedQty : '—' }}</div>
+              </div>
               <button class="ps-btn ps-btn--primary ps-btn--compact text-xs px-3 py-1">Crear orden sugerida</button>
             </div>
             <div v-show="tab9 === 'auditoria'" class="text-sm space-y-2">
@@ -382,85 +455,8 @@
             </div>
           </div>
 
-          <!-- Card: Listas de Precios (4 fijas) -->
-          <section class="ps-card overflow-hidden max-w-full p-4">
-            <h2 class="text-base font-bold mb-2">Listas de Precios (4 fijas)</h2>
-            <div class="space-y-1.5 w-full text-xs">
-              <!-- LISTA 1 -->
-              <div class="grid grid-cols-12 gap-1 items-center w-full">
-                <div class="col-span-5 flex items-center gap-1 min-w-0">
-                  <span class="font-semibold truncate">LISTA 1 Ganancia %:</span>
-                  <input type="number" step="0.01" v-model.number="priceLists[1].margin" @input="lastEditedByRow[1] = 'margin'" class="w-full px-2 py-1 rounded-md border-default" />
-                </div>
-                <div class="col-span-5 flex items-center gap-1 min-w-0">
-                  <span class="font-semibold truncate">Precio al Público:</span>
-                  <input type="number" step="0.01" v-model.number="priceLists[1].final" @input="lastEditedByRow[1] = 'final'" class="w-full px-2 py-1 rounded-md border-default" />
-                </div>
-                <div class="col-span-2 min-w-0">
-                  <button class="ps-btn ps-btn--secondary ps-btn--compact px-3 py-1 w-full" @click="calcRow(1)">Calcular</button>
-                </div>
-              </div>
-              <!-- LISTA 2 -->
-              <div class="grid grid-cols-12 gap-1 items-center w-full">
-                <div class="col-span-5 flex items-center gap-1 min-w-0">
-                  <span class="font-semibold truncate">LISTA 2 Ganancia %:</span>
-                  <input type="number" step="0.01" v-model.number="priceLists[2].margin" @input="lastEditedByRow[2] = 'margin'" class="w-full px-2 py-1 rounded-md border-default" />
-                </div>
-                <div class="col-span-5 flex items-center gap-1 min-w-0">
-                  <span class="font-semibold truncate">Precio al Público:</span>
-                  <input type="number" step="0.01" v-model.number="priceLists[2].final" @input="lastEditedByRow[2] = 'final'" class="w-full px-2 py-1 rounded-md border-default" />
-                </div>
-                <div class="col-span-2 min-w-0">
-                  <button class="ps-btn ps-btn--secondary ps-btn--compact px-3 py-1 w-full" @click="calcRow(2)">Calcular</button>
-                </div>
-              </div>
-              <!-- LISTA 3 -->
-              <div class="grid grid-cols-12 gap-1 items-center w-full">
-                <div class="col-span-5 flex items-center gap-1 min-w-0">
-                  <span class="font-semibold truncate">LISTA 3 Ganancia %:</span>
-                  <input type="number" step="0.01" v-model.number="priceLists[3].margin" @input="lastEditedByRow[3] = 'margin'" class="w-full px-2 py-1 rounded-md border-default" />
-                </div>
-                <div class="col-span-5 flex items-center gap-1 min-w-0">
-                  <span class="font-semibold truncate">Precio al Público:</span>
-                  <input type="number" step="0.01" v-model.number="priceLists[3].final" @input="lastEditedByRow[3] = 'final'" class="w-full px-2 py-1 rounded-md border-default" />
-                </div>
-                <div class="col-span-2 min-w-0">
-                  <button class="ps-btn ps-btn--secondary ps-btn--compact px-3 py-1 w-full" @click="calcRow(3)">Calcular</button>
-                </div>
-              </div>
-              <!-- LISTA 4 (Promo) -->
-              <div class="grid grid-cols-12 gap-1 items-center w-full">
-                <div class="col-span-7 flex items-center gap-1 min-w-0">
-                  <span class="font-semibold truncate">LISTA 4 (Promo) Precio:</span>
-                  <input :value="toCurrency(l4Preview)" class="w-full px-2 py-1 rounded-md border-default bg-gray-50" readonly />
-                </div>
-                <div class="col-span-3 min-w-0">
-                  <input type="number" min="1" v-model.number="l4Qty" class="w-full px-2 py-1 rounded-md border-default" placeholder="Qty" />
-                </div>
-                <div class="col-span-2 grid grid-cols-2 gap-1 min-w-0">
-                  <button class="ps-btn ps-btn--secondary ps-btn--compact px-3 py-1 w-full" @click="openPromoModal">Configurar</button>
-                  <button class="ps-btn ps-btn--secondary ps-btn--compact px-3 py-1 w-full" @click="refreshL4">Preview</button>
-                </div>
-              </div>
-
-              <div class="text-[10px] text-secondary">Redondeo: 2 dec, HALF_UP. IVA e Imp. Interno incluidos.</div>
-            </div>
-          </section>
-
-          <!-- Resumen de precio -->
-          <div class="ps-card p-4 h-full">
-            <h2 class="text-base font-bold mb-2">Resumen de precio</h2>
-            <div class="grid grid-cols-2 gap-1.5 text-xs">
-              <div>Costo: <strong>{{ toCurrency(calc.cost) }}</strong></div>
-              <div>Imp. Interno: <strong>{{ toCurrency(effectiveInternalTax) }}</strong></div>
-              <div>IVA: <strong>{{ toCurrency(ivaAmount) }}</strong></div>
-              <div class="col-span-2">= Precio público: <strong class="text-emerald-700">{{ toCurrency(calc.pricePublic) }}</strong></div>
-            </div>
-            <div class="mt-2">
-              <span v-if="wholesaleBadge" class="inline-block px-2 py-1 text-xs rounded-md bg-emerald-100 text-emerald-800">Precio x Mayor</span>
-            </div>
+          
           </div>
-        </div>
       </div>
     </main>
     </div>
@@ -524,6 +520,7 @@
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import DashboardLayout from '@/components/organisms/DashboardLayout.vue';
 import BaseModal from '@/components/atoms/BaseModal.vue';
+import { useSuppliers } from '@/composables/useSuppliers';
 import { useRouter } from 'vue-router';
 import { createArticle, resolveArticle } from '@/services/articles';
 import { apiClient } from '@/services/api';
@@ -534,6 +531,7 @@ import type { RubroDTO } from '@/types/rubro';
   const router = useRouter();
   const isDirty = ref(false);
   const isSaving = ref(false);
+  const { suppliers, fetchSuppliers, isLoading: suppliersLoading } = useSuppliers();
 
   // Estados para rubros y subrubros
   const rubros = ref<RubroDTO[]>([]);
@@ -552,8 +550,8 @@ const form = ref({
   ean: '',
   active: true,
   autoCode: false,
-  supplier1: '',
-  supplier2: ''
+  supplierId: '',
+  supplier2Id: ''
 });
   const imagePreview = ref('');
   const imageInput = ref<HTMLInputElement | null>(null);
@@ -620,7 +618,7 @@ const fiscal = ref({ iibbRetPerc: false, gananciasRet: false, percIva: false });
 // (Simulador eliminado)
 
 // Stock & UoM
-const stock = ref({ min: 0, max: 0, byWeight: false });
+const stock = ref({ min: 0, max: 0, days: 0, byWeight: false });
 const uom = ref({
   bu: { factor: 12, decimals: 0 },
   kg: { factor: 1, decimals: 3 },
@@ -752,6 +750,19 @@ const ivaAmount = computed(() => {
 });
 const wholesaleBadge = computed(() => false); // placeholder
 
+const ivaFactor = computed(() => 1 + (calc.value.ivaPct / 100));
+const netPriceWithoutIva = computed(() => calc.value.pricePublic / ivaFactor.value);
+const computedGainAmount = computed(() => {
+  const neto = calc.value.cost + effectiveInternalTax.value;
+  const gain = netPriceWithoutIva.value - neto;
+  return roundHalfUp(Math.max(0, gain), 2);
+});
+const computedMarginPct = computed(() => {
+  const neto = calc.value.cost + effectiveInternalTax.value;
+  if (neto <= 0) return 0;
+  return roundHalfUp(((netPriceWithoutIva.value / neto) - 1) * 100, 2);
+});
+
 function recalculate() {
   const cost = calc.value.cost;
   const internal = effectiveInternalTax.value;
@@ -776,6 +787,17 @@ function roundHalfUp(n: number, decimals: number) {
 
 function toCurrency(v: number) {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(v || 0);
+}
+
+function computeL4Preview() {
+  const base = Number(calc.value.pricePublic || 0)
+  const qty = Number(l4Qty.value || 1)
+  const minQty = Number(promoForm.value.minQty || 0)
+  const offPct = Number(promoForm.value.offPct || 0)
+  const has = !!hasPromo.value
+  const apply = has && qty >= minQty && offPct > 0
+  const result = apply ? base * (1 - offPct / 100) : base
+  l4Preview.value = roundHalfUp(result, 2)
 }
 
 function addAlias() {
@@ -878,14 +900,17 @@ onMounted(() => {
   // Marcar como 'dirty' cuando el usuario empiece a interactuar
   window.addEventListener('input', () => isDirty.value = true, { once: true });
   
-  // Cargar rubros al montar el componente
+  // Cargar rubros y proveedores al montar el componente
   loadRubros();
+  try { fetchSuppliers({ limit: 500, status: 'active' }) } catch (_) {}
+  computeL4Preview()
 });
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyDown);
   window.removeEventListener('input', () => isDirty.value = true);
 });
+
 
 // Simple validations
 watch([() => stock.value.min, () => stock.value.max], () => {
@@ -924,6 +949,26 @@ function calcRow(row: number) {
     r.final = roundHalfUp(final, 2)
   }
 }
+
+const recalcAllFixedRows = () => {
+  ;[1,2,3].forEach((i) => calcRow(i))
+}
+
+watch([
+  () => calc.value.cost,
+  () => calc.value.internalTax,
+  () => calc.value.internalTaxIsPct,
+  () => calc.value.ivaPct
+], () => {
+  recalcAllFixedRows()
+})
+
+watch(() => priceLists.value[1].margin, () => { if (lastEditedByRow[1] === 'margin') calcRow(1) })
+watch(() => priceLists.value[2].margin, () => { if (lastEditedByRow[2] === 'margin') calcRow(2) })
+watch(() => priceLists.value[3].margin, () => { if (lastEditedByRow[3] === 'margin') calcRow(3) })
+watch(() => priceLists.value[1].final, () => { if (lastEditedByRow[1] === 'final') calcRow(1) })
+watch(() => priceLists.value[2].final, () => { if (lastEditedByRow[2] === 'final') calcRow(2) })
+watch(() => priceLists.value[3].final, () => { if (lastEditedByRow[3] === 'final') calcRow(3) })
 
 async function saveFixedPrices() {
   if (!lastCreatedArticleId.value) return
@@ -966,8 +1011,39 @@ async function refreshL4() {
     l4Preview.value = 0
   }
 }
+const dosStats = ref<any | null>(null)
+async function refreshDos() {
+  if (!lastCreatedArticleId.value) return
+  try {
+    const resp = await apiClient.get(`/stock/estimator/${lastCreatedArticleId.value}`, { params: { window: 'auto' } })
+    dosStats.value = resp.data
+  } catch (err) {
+    dosStats.value = null
+  }
+}
+watch(tab9, (v) => {
+  if (v === 'dos') refreshDos()
+})
 watch(() => form.value.ean, (v) => {
   // placeholder para duplicado
   validation.value.eanDuplicate = v === '1234567890123';
 });
+
+// Recalcular L4 cuando cambian base/promo/qty (ubicado después de declarar l4Qty)
+watch([
+  () => calc.value.pricePublic,
+  () => calc.value.cost,
+  () => calc.value.marginPct,
+  () => calc.value.ivaPct,
+  () => calc.value.internalTax,
+  () => l4Qty.value,
+  () => promoForm.value.minQty,
+  () => promoForm.value.offPct,
+  () => hasPromo.value
+], () => { computeL4Preview() })
 </script>
+<style scoped>
+.compact-input { width: 6rem; padding: 0.25rem 0.5rem; font-size: 0.875rem; }
+.compact-input--sm { width: 4.75rem; }
+.compact-input--price { width: 6.75rem; }
+</style>

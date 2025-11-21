@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <DashboardLayout>
     <div class="sales-pos-view">
       <PageHeader
@@ -102,6 +102,11 @@
                   <div class="text-xs text-gray-500">{{ item.code }}</div>
                   <div v-if="item.bulkInfo?.applied" class="mt-1">
                     <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">Precio x Mayor</span>
+                  </div>
+                  <div class="mt-1 flex gap-1 items-center">
+                    <span v-if="rowAlerts[item.tempId]?.state === 'insufficient'" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">Insuficiente</span>
+                    <span v-else-if="rowAlerts[item.tempId]?.state === 'low'" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">Stock mínimo</span>
+                    <span v-else-if="rowAlerts[item.tempId]?.state === 'near'" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">Cerca del mínimo</span>
                   </div>
                 </td>
                 <td class="px-6 py-4 text-right">
@@ -208,6 +213,8 @@ import { useBarcodeListener } from '@/composables/useBarcodeListener'
 import { getPosBarcodeSettings } from '@/services/posBarcodeSettings'
 import { useSalesStore } from '@/stores/modules/sales'
 import { resolveBulk } from '@/services/bulkPricingService'
+import { getArticle } from '@/services/articles'
+import { apiClient } from '@/services/api'
 
 // Composables
 const { searchProducts, searchByBarcode } = useProducts()
@@ -242,6 +249,7 @@ const cartItems = ref<Array<{
   _unitPriceEdited?: boolean,
   bulkInfo?: { applied: boolean, rule?: any }
 }>>([])
+const rowAlerts = ref<Record<string, { state: 'ok' | 'near' | 'low' | 'insufficient', stock: number, min: number, available: number }>>({})
 const sales = useSalesStore()
 let barcodeCtrl: ReturnType<typeof useBarcodeListener> | null = null
 
@@ -320,6 +328,7 @@ watch(
         if (!it._unitPriceEdited && Number(it.quantity) > 0) {
           await maybeResolveBulk(it)
         }
+        await refreshStockAlerts(it)
       }
       recalcTotals()
     })
@@ -392,6 +401,7 @@ const addProductToCart = async (prod: any) => {
   productResults.value = []
   productQuery.value = ''
   await maybeResolveBulk(item)
+  await refreshStockAlerts(item)
   recalcTotals()
 }
 
@@ -447,7 +457,10 @@ async function maybeResolveBulk(item: any) {
 
 function onQtyChanged(item: any) {
   // Recalcular totales y aplicar mayorista segÃºn cantidad
-  maybeResolveBulk(item).finally(() => updateItemTotals(item))
+  maybeResolveBulk(item).finally(async () => {
+    await refreshStockAlerts(item)
+    updateItemTotals(item)
+  })
 }
 
 function onUnitPriceEdited(item: any) {
@@ -478,6 +491,39 @@ function recalcTotals() {
   const tax = (taxBase + surchargeAmount) * 0.21
   const total = taxBase + surchargeAmount + tax
   totals.value = { subtotalGross: gross, itemsDiscountTotal: itemDisc, netSubtotal: net, finalDiscountAmount: finalDisc, surchargeAmount, tax, total }
+}
+
+async function refreshStockAlerts(item: any) {
+  try {
+    const id = String(item.articleId || item.productId || '')
+    if (!id) return
+    let stock = 0
+    let min = 0
+    try {
+      const art = await getArticle(id)
+      stock = Number(art?.stock || 0)
+      min = Number(art?.stockMin || 0)
+    } catch (_) {}
+    let available = stock
+    let insufficient = false
+    try {
+      const payload = { items: [{ articleId: id, qty: Number(item.quantity || 0), uom: item.uom || 'UN' }] }
+      const res = await apiClient.post('/stock/can-fulfill', payload)
+      const r = (res.data?.data?.results || [])[0]
+      if (r) {
+        available = Number(r.availableUn || available)
+        insufficient = !r.canFulfill
+      }
+    } catch (_) {}
+    const nearFactor = 1.2
+    let state: 'ok' | 'near' | 'low' | 'insufficient' = 'ok'
+    if (insufficient) state = 'insufficient'
+    else if (typeof min === 'number' && min > 0) {
+      if (available <= min) state = 'low'
+      else if (available <= min * nearFactor) state = 'near'
+    }
+    rowAlerts.value[item.tempId] = { state, stock, min, available }
+  } catch (_) {}
 }
 
 const submitSale = async () => {

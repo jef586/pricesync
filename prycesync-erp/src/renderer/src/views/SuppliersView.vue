@@ -149,9 +149,13 @@ const activeSuppliers = computed(() =>
   Array.isArray(suppliers.value) ? suppliers.value.filter(s => s.status === 'active').length : 0
 )
 
-const suppliersWithImports = computed(() => 
-  Array.isArray(suppliers.value) ? suppliers.value.filter(s => s.importedProductsCount && s.importedProductsCount > 0).length : 0
-)
+const suppliersWithImports = computed(() => {
+  if (!Array.isArray(suppliers.value)) return 0
+  return suppliers.value.filter((s: any) => {
+    const count = s.importedProductsCount ?? s._count?.products ?? 0
+    return (count as number) > 0
+  }).length
+})
 
 const lastImportDate = computed(() => {
   if (!Array.isArray(suppliers.value)) return 'Nunca'

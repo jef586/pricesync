@@ -34,20 +34,36 @@ class SupplierController {
         ...(status && { status })
       };
 
-      const [suppliers, total] = await Promise.all([
+      const [rawSuppliers, total] = await Promise.all([
         prisma.supplier.findMany({
           where,
           skip: parseInt(skip),
           take: parseInt(limit),
           orderBy: { [sortBy]: sortOrder },
           include: {
-            _count: {
-              select: { products: true }
+            // Count products linked to supplier (used as "con listas importadas")
+            _count: { select: { products: true } },
+            // Fetch latest import date from supplier products (only the newest)
+            products: {
+              select: { lastImportDate: true },
+              orderBy: { lastImportDate: 'desc' },
+              take: 1
             }
           }
         }),
         prisma.supplier.count({ where })
       ]);
+
+      const suppliers = rawSuppliers.map(s => ({
+        ...s,
+        importedProductsCount: s?._count?.products ?? 0,
+        lastImportDate: (Array.isArray(s.products) && s.products.length > 0)
+          ? s.products[0].lastImportDate
+          : null,
+        // Do not expose included helper arrays in final payload
+        products: undefined,
+        _count: undefined
+      }));
 
       res.json({
         suppliers,

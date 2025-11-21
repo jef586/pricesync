@@ -177,6 +177,40 @@ export async function deleteArticleBarcode(articleId: string, barcodeId: string)
   await apiClient.delete(`/articles/${articleId}/barcodes/${barcodeId}`)
 }
 
+// --- Precios fijos L1–L3 ---
+export async function getFixedPrices(articleId: string): Promise<any | null> {
+  const resp = await apiClient.get(`/articles/${articleId}/prices-fixed`)
+  return resp.data?.data || resp.data || null
+}
+
+export async function updateFixedPrices(articleId: string, payload: Partial<{
+  l1MarginPct: number | null
+  l1FinalPrice: number | null
+  l1Locked: boolean
+  l2MarginPct: number | null
+  l2FinalPrice: number | null
+  l2Locked: boolean
+  l3MarginPct: number | null
+  l3FinalPrice: number | null
+  l3Locked: boolean
+}>): Promise<any> {
+  const resp = await apiClient.put(`/articles/${articleId}/prices-fixed`, payload)
+  return resp.data?.data || resp.data
+}
+
+// --- Vista previa de pricing con qty + lista ---
+export async function getPricingPreview(articleId: string, qty: number, priceList: 'l1'|'l2'|'l3'):
+  Promise<{ baseUnitPrice: number; finalUnitPrice: number; appliedPromo: any | null }>
+{
+  const resp = await apiClient.get(`/pricing/preview?articleId=${encodeURIComponent(String(articleId))}&qty=${Number(qty)}&priceList=${priceList}`)
+  const data = resp.data?.data || resp.data
+  return {
+    baseUnitPrice: Number(data?.baseUnitPrice || 0),
+    finalUnitPrice: Number(data?.finalUnitPrice || 0),
+    appliedPromo: data?.appliedPromo || null
+  }
+}
+
 // Resolver artículo por barcode/sku o equivalencia de proveedor
 export async function resolveArticle(params: {
   barcode?: string
