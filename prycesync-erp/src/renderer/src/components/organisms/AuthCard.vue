@@ -7,8 +7,8 @@
         </h1>
         <p class="auth-card__subtitle">
           {{ isLogin 
-            ? 'Accede a tu cuenta de PryceSync ERP' 
-            : 'Únete a PryceSync ERP' 
+            ? 'Accede a tu cuenta' 
+            : 'Crea tu cuenta' 
           }}
         </p>
       </div>
@@ -35,7 +35,7 @@
     <template #footer>
       <div class="auth-card__footer">
         <p class="auth-card__footer-text">
-          Al continuar, aceptas nuestros términos de servicio y política de privacidad.
+          Al continuar aceptas nuestros términos y políticas.
         </p>
       </div>
     </template>
@@ -99,7 +99,7 @@ const handleRegister = (data: RegisterData) => {
 
 <style scoped>
 .auth-card {
-  @apply w-full max-w-md mx-auto bg-white rounded-2xl shadow-xl border border-gray-100 p-8;
+  @apply w-full max-w-md mx-auto rounded-2xl shadow-xl border p-8;
 }
 
 .auth-card__header {
@@ -107,11 +107,11 @@ const handleRegister = (data: RegisterData) => {
 }
 
 .auth-card__title {
-  @apply text-2xl font-bold text-gray-900 mb-2;
+  @apply text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2;
 }
 
 .auth-card__subtitle {
-  @apply text-gray-600 text-sm;
+  @apply text-gray-600 dark:text-gray-300 text-sm;
 }
 
 .auth-card__content {
@@ -119,10 +119,10 @@ const handleRegister = (data: RegisterData) => {
 }
 
 .auth-card__footer {
-  @apply text-center mt-8 pt-6 border-t border-gray-100;
+  @apply text-center mt-8 pt-6 border-t;
 }
 
 .auth-card__footer-text {
-  @apply text-xs text-gray-500 leading-relaxed;
+  @apply text-xs text-gray-500 dark:text-gray-400 leading-relaxed;
 }
 </style>

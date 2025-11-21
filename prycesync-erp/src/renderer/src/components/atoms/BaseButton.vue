@@ -24,7 +24,7 @@
 interface Props {
   type?: 'button' | 'submit' | 'reset'
   variant?: 'primary' | 'secondary' | 'danger' | 'ghost'
-  size?: 'sm' | 'md' | 'lg'
+  size?: 'sm' | 'md' | 'lg' | 'large'
   disabled?: boolean
   loading?: boolean
   loadingText?: string
@@ -55,7 +55,7 @@ defineEmits<Emits>()
 
 /* Variants */
 .base-button--primary {
-  @apply bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500 active:bg-blue-800;
+  @apply bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500 active:bg-primary-800;
 }
 
 .base-button--secondary {
@@ -101,6 +101,10 @@ defineEmits<Emits>()
 
 .base-button--lg {
   @apply px-8 py-4 text-base;
+}
+
+.base-button--large {
+  @apply px-10 py-4 text-lg;
 }
 
 /* States */

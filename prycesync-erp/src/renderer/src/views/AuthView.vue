@@ -1,15 +1,14 @@
 <template>
   <div class="auth-view">
     <div class="auth-view__container">
-  <div class="auth-view__brand">
-    <div class="auth-view__logo">
-      <img :src="logoUrl" alt="IberaSoft" class="auth-view__logo-icon" />
-      <span class="auth-view__logo-text">PryceSync ERP</span>
-    </div>
-    <p class="auth-view__tagline">
-      Sistema integral de gestión empresarial
-    </p>
-  </div>
+      <div class="auth-view__brand hidden lg:flex">
+        <div class="auth-view__logo">
+          <img :src="logoUrl" alt="Punto de Venta 2026" class="auth-view__logo-icon" />
+        </div>
+        <p class="auth-view__tagline">
+          Sistema de punto de venta para tu negocio
+        </p>
+      </div>
 
       <div class="auth-view__form">
         <AuthCard
@@ -29,7 +28,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import AuthCard from '../components/organisms/AuthCard.vue'
-import logoUrl from '@/assets/iberasoft-logo.png'
+import logoUrl from '@/assets/punto_de_venta_2026_optimized.png'
 
 interface LoginData {
   email: string
@@ -78,7 +77,7 @@ onMounted(() => {
 
 <style scoped>
 .auth-view {
-  @apply min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-6;
+  @apply min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center p-6;
 }
 
 .auth-view__container {
@@ -86,23 +85,23 @@ onMounted(() => {
 }
 
 .auth-view__brand {
-  @apply text-center lg:text-left space-y-8 lg:pr-8;
+  @apply h-full flex flex-col items-center justify-center text-center space-y-8;
 }
 
 .auth-view__logo {
-  @apply flex items-center justify-center lg:justify-start space-x-4;
+  @apply flex items-center justify-center space-x-4;
 }
 
 .auth-view__logo-icon {
-  @apply w-16 h-16 object-contain;
+  @apply w-96 h-96 object-contain drop-shadow-xl;
 }
 
 .auth-view__logo-text {
-  @apply text-4xl font-bold text-gray-900;
+  @apply text-4xl font-bold text-gray-900 dark:text-gray-100;
 }
 
 .auth-view__tagline {
-  @apply text-lg text-gray-600 max-w-lg mx-auto lg:mx-0 leading-relaxed;
+  @apply text-lg text-gray-600 dark:text-gray-300 max-w-lg mx-auto lg:mx-0 leading-relaxed;
 }
 
 .auth-view__form {
@@ -124,7 +123,7 @@ onMounted(() => {
   }
   
   .auth-view__logo-icon {
-    @apply w-12 h-12;
+    @apply w-80 h-80;
   }
   
   .auth-view__logo-text {
@@ -158,3 +157,6 @@ onMounted(() => {
   }
 }
 </style>
+  .auth-view__logo-icon {
+    @apply w-64 h-64;
+  }

@@ -29,7 +29,7 @@
     <BaseButton
       type="submit"
       variant="primary"
-      size="large"
+      size="md"
       :loading="authStore.isLoading"
       :disabled="!isFormValid"
       class="w-full"
