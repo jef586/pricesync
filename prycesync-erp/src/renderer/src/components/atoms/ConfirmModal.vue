@@ -1,7 +1,9 @@
 <template>
   <BaseModal
-    :show="true"
+    v-if="modelValue"
+    :model-value="modelValue"
     :title="title"
+    @update:modelValue="onUpdateModelValue"
     @close="handleCancel"
   >
     <div class="confirm-modal">
@@ -19,6 +21,7 @@
         </div>
         
         <p class="confirm-modal__message">{{ message }}</p>
+        <p v-if="details" class="confirm-modal__details">{{ details }}</p>
       </div>
       
       <div class="confirm-modal__actions">
@@ -44,8 +47,10 @@
 import { ref } from 'vue'
 
 interface Props {
+  modelValue: boolean
   title: string
   message: string
+  details?: string
   confirmText?: string
   cancelText?: string
   variant?: 'primary' | 'danger' | 'warning' | 'neutral'
@@ -53,11 +58,13 @@ interface Props {
 }
 
 interface Emits {
+  (e: 'update:modelValue', value: boolean): void
   (e: 'confirm'): void
   (e: 'cancel'): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  modelValue: false,
   confirmText: 'Confirmar',
   cancelText: 'Cancelar',
   variant: 'neutral',
@@ -66,12 +73,18 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<Emits>()
 
+const onUpdateModelValue = (val: boolean) => {
+  emit('update:modelValue', val)
+}
+
 const handleConfirm = () => {
   emit('confirm')
+  emit('update:modelValue', false)
 }
 
 const handleCancel = () => {
   emit('cancel')
+  emit('update:modelValue', false)
 }
 </script>
 
@@ -106,6 +119,10 @@ const handleCancel = () => {
 
 .confirm-modal__message {
   @apply text-gray-700 dark:text-gray-300 text-lg;
+}
+
+.confirm-modal__details {
+  @apply mt-2 text-sm text-gray-600 dark:text-gray-400;
 }
 
 .confirm-modal__actions {

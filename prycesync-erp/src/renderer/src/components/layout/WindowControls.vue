@@ -5,16 +5,16 @@
       type="button"
       aria-label="Minimizar"
       title="Minimizar"
-      class="h-6 w-10 flex items-center justify-center rounded-md transition-colors outline-none
-             hover:bg-black/5 active:bg-black/10
-             dark:hover:bg-white/10 dark:active:bg-white/20
+      class="group h-6 w-10 flex items-center justify-center rounded-md transition-colors outline-none
+             hover:bg-white/70 active:bg-white
+             dark:hover:bg-white/30 dark:active:bg-white/40
              focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--ps-primary)]"
       style="-webkit-app-region: no-drag; pointer-events: auto;"
       @mousedown.stop
       @dblclick.stop
       @click="onMinimize"
     >
-      <span class="text-base leading-none">—</span>
+      <span class="text-base leading-none transition-colors group-hover:text-black">—</span>
     </button>
 
     <!-- Maximizar/Restaurar -->
@@ -22,16 +22,16 @@
       type="button"
       aria-label="Maximizar/Restaurar"
       title="Maximizar/Restaurar"
-      class="h-6 w-10 flex items-center justify-center rounded-md transition-colors outline-none
-             hover:bg-black/5 active:bg-black/10
-             dark:hover:bg-white/10 dark:active:bg-white/20
+      class="group h-6 w-10 flex items-center justify-center rounded-md transition-colors outline-none
+             hover:bg-white/70 active:bg-white
+             dark:hover:bg-white/30 dark:active:bg-white/40
              focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--ps-primary)]"
       style="-webkit-app-region: no-drag; pointer-events: auto;"
       @mousedown.stop
       @dblclick.stop
       @click="onToggleMaximize"
     >
-      <span class="text-sm leading-none">▢</span>
+      <span class="text-sm leading-none transition-colors group-hover:text-black">▢</span>
     </button>
 
     <!-- Cerrar -->
@@ -39,16 +39,16 @@
       type="button"
       aria-label="Cerrar"
       title="Cerrar"
-      class="h-6 w-10 flex items-center justify-center rounded-md transition-colors outline-none
-             hover:bg-black/5 active:bg-black/10
-             dark:hover:bg-white/10 dark:active:bg-white/20
+      class="group h-6 w-10 flex items-center justify-center rounded-md transition-colors outline-none
+             hover:bg-red-600 active:bg-red-700
+             dark:hover:bg-red-600 dark:active:bg-red-700
              focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--ps-primary)]"
       style="-webkit-app-region: no-drag; pointer-events: auto;"
       @mousedown.stop
       @dblclick.stop
       @click="onClose"
     >
-      <span class="text-base leading-none">✕</span>
+      <span class="text-base leading-none transition-colors group-hover:text-white">✕</span>
     </button>
   </div>
 </template>

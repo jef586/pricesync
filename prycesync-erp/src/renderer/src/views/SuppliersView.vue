@@ -304,4 +304,9 @@ onMounted(async () => {
 .suppliers-view {
   @apply space-y-6;
 }
+
+/* Harmonizar el ancho/peso del título con Gestión de Artículos */
+:deep(.page-header__title) {
+  font-weight: 700;
+}
 </style>
