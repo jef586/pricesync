@@ -623,13 +623,13 @@ class ArticleController {
             controlStock: !!controlStock,
             categoryId: categoryId || null,
             companyId,
-            internalTaxType: internalTaxType || null,
-            internalTaxValue: internalTaxValue != null ? parseFloat(internalTaxValue) : null,
+            internalTaxType: (internalTaxType && internalTaxType !== 'NONE' ? 'FIXED' : 'NONE'),
+            internalTaxValue: internalTaxValue != null ? parseFloat(internalTaxValue) : 0,
             subjectIIBB: !!subjectIIBB,
             subjectGanancias: !!subjectGanancias,
             subjectPercIVA: !!subjectPercIVA,
-            pointsPerUnit: pointsPerUnit != null ? Number(pointsPerUnit).toFixed(3) : null,
-            imageUrl: imageUrl || null
+            imageUrl: imageUrl || null,
+            ...(pointsPerUnit != null ? { pointsPerUnit: Number(pointsPerUnit) } : {})
           },
           include: { category: { select: { id: true, name: true } } }
         })
@@ -732,12 +732,12 @@ class ArticleController {
       if (stockMax !== undefined) updateData.stockMax = stockMax != null ? parseInt(stockMax) : null;
       if (controlStock !== undefined) updateData.controlStock = !!controlStock;
       if (categoryId !== undefined) updateData.categoryId = categoryId || null;
-      if (internalTaxType !== undefined) updateData.internalTaxType = internalTaxType || null;
-      if (internalTaxValue !== undefined) updateData.internalTaxValue = internalTaxValue != null ? parseFloat(internalTaxValue) : null;
+      if (internalTaxType !== undefined) updateData.internalTaxType = (internalTaxType && internalTaxType !== 'NONE' ? 'FIXED' : 'NONE');
+      if (internalTaxValue !== undefined) updateData.internalTaxValue = internalTaxValue != null ? parseFloat(internalTaxValue) : 0;
       if (subjectIIBB !== undefined) updateData.subjectIIBB = !!subjectIIBB;
       if (subjectGanancias !== undefined) updateData.subjectGanancias = !!subjectGanancias;
       if (subjectPercIVA !== undefined) updateData.subjectPercIVA = !!subjectPercIVA;
-      if (pointsPerUnit !== undefined) updateData.pointsPerUnit = pointsPerUnit != null ? Number(pointsPerUnit).toFixed(3) : null;
+      if (pointsPerUnit !== undefined) updateData.pointsPerUnit = pointsPerUnit != null ? Number(pointsPerUnit) : undefined;
       if (imageUrl !== undefined) updateData.imageUrl = imageUrl || null;
 
       // Resolver componentes entrantes

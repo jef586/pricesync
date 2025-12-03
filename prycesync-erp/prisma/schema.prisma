@@ -398,7 +398,7 @@ model Article {
   subjectPercIVA   Boolean @default(false) @map("subject_perc_iva")
 
   // Fidelización
-  pointsPerUnit Decimal? @default(0) @map("points_per_unit") @db.Decimal(10, 3)
+  pointsPerUnit Int? @default(0) @map("points_per_unit")
 
   // Relaciones
   companyId String  @map("company_id")

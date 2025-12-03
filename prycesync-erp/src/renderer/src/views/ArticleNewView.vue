@@ -1,53 +1,39 @@
 <template>
   <DashboardLayout>
     <div class="bg-gray-50 dark:bg-gray-900 h-full flex flex-col">
-    <!-- Header Fijo -->
-    <header class="sticky top-0 bg-white dark:bg-gray-800 ps-header shadow-md px-6 z-10">
-      <div class="w-full flex items-center justify-between">
-        <!-- Izquierda: Volver -->
-        <button class="ps-btn ps-btn--secondary" @click="goBack">← Volver</button>
+    <div class="px-6 pt-4">
+      <PageHeader title="Nuevo artículo" dense>
+        <template #actions>
+          <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2">
+              <span class="text-sm text-secondary">{{ form.active ? 'Activo' : 'Inactivo' }}</span>
+              <button
+                type="button"
+                role="switch"
+                :aria-checked="String(form.active)"
+                class="relative inline-flex items-center w-10 h-5 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                :class="form.active ? 'bg-emerald-500' : 'bg-gray-300'"
+                @click="form.active = !form.active"
+              >
+                <span
+                  class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200"
+                  :class="form.active ? 'translate-x-5' : 'translate-x-0'"
+                ></span>
+              </button>
+            </div>
+            <BaseButton variant="secondary" :loading="isSaving" :disabled="!isFormValid" @click="saveAndNew">Guardar y nuevo</BaseButton>
+            <BaseButton variant="primary" :loading="isSaving" :disabled="!isFormValid" @click="save">Guardar</BaseButton>
+          </div>
+        </template>
+      </PageHeader>
+    </div>
 
-        <!-- Centro: Título con indicador dirty -->
-        <h1 class="text-lg font-bold flex items-center gap-2">
-          Nuevo artículo
-          <span v-if="isDirty" title="Cambios sin guardar" class="inline-block w-2 h-2 rounded-full bg-yellow-500"></span>
-        </h1>
-
-        <!-- Derecha: Toggle Activo + Acciones -->
-        <div class="flex items-center gap-3">
-          <span class="text-sm text-gray-600 dark:text-gray-400">{{ form.active ? 'Activo' : 'Inactivo' }}</span>
-          <!-- Switch animado vinculado a estado (sin peer) -->
-          <button
-            type="button"
-            role="switch"
-            :aria-checked="String(form.active)"
-            class="relative inline-flex items-center w-12 h-6 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-400"
-            :class="form.active ? 'bg-emerald-500' : 'bg-gray-300'"
-            @click="form.active = !form.active"
-          >
-            <span
-              class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200"
-              :class="form.active ? 'translate-x-6' : 'translate-x-0'"
-            ></span>
-          </button>
-
-          <button class="ps-btn ps-btn--secondary" @click="saveAndNew" :disabled="isSaving">
-            {{ isSaving ? 'Guardando…' : 'Guardar y nuevo' }}
-          </button>
-          <button class="ps-btn ps-btn--primary" @click="save" :disabled="isSaving">
-            {{ isSaving ? 'Guardando…' : 'Guardar' }}
-          </button>
-        </div>
-      </div>
-    </header>
-
-    <!-- Contenido Principal con Grid -->
     <main class="pt-4 px-4 flex-1">
       <div class="grid grid-cols-3 gap-5 items-stretch h-full">
         <!-- Columna 1: Básicos, Códigos, Imagen -->
-        <div class="col-span-1 grid grid-rows-[minmax(300px,auto)_minmax(260px,auto)_auto] gap-4 h-full">
+        <div class="col-span-1 grid grid-rows-[minmax(200px,auto)_minmax(260px,auto)_auto] gap-4 h-full">
           <!-- Básicos -->
-          <div class="ps-card p-4 min-h-[300px]">
+          <div class="ps-card p-4">
             <h2 class="text-base font-bold mb-2">Básicos</h2>
             <div class="grid grid-cols-12 gap-1.5">
               <!-- Fila 1: Nombre + Tipo -->
@@ -64,22 +50,10 @@
               </div>
 
               <!-- Fila 2: EAN/PLU + Código automático -->
-              <div class="col-span-6">
-                <label class="text-xs font-semibold">EAN / PLU</label>
-                <input v-model="form.ean" class="w-full mt-1 px-2 py-1 text-xs rounded-md border-default" placeholder="Código de barras" />
-                <p v-if="validation.eanDuplicate" class="mt-1 text-[10px] text-red-600">EAN duplicado</p>
-              </div>
-              <div class="col-span-6">
-                <div class="mt-6">
-                  <label class="flex items-center gap-1.5 text-xs">
-                    <input type="checkbox" v-model="form.autoCode" />
-                    Código automático
-                  </label>
-                </div>
-              </div>
+              
 
               <!-- Fila 2: 33% / 33% / 33% -->
-              <div class="col-span-4">
+              <div class="col-span-6">
                 <label class="text-xs font-semibold">Rubro *</label>
                 <select v-model="form.categoryId" class="w-full mt-1 px-2 py-1 text-xs rounded-md border-default" :disabled="loadingRubros">
                   <option value="">{{ loadingRubros ? 'Cargando...' : 'Seleccionar' }}</option>
@@ -88,7 +62,7 @@
                   </option>
                 </select>
               </div>
-              <div class="col-span-4">
+              <div class="col-span-6">
                 <label class="text-xs font-semibold">Sub-rubro *</label>
                 <select v-model="form.subCategoryId" class="w-full mt-1 px-2 py-1 text-xs rounded-md border-default" :disabled="!form.categoryId || subrubros.length === 0">
                   <option value="">{{ !form.categoryId ? 'Seleccione rubro primero' : subrubros.length === 0 ? 'Sin subrubros' : 'Seleccionar' }}</option>
@@ -97,20 +71,16 @@
                   </option>
                 </select>
               </div>
-              <div class="col-span-4">
-                <label class="text-xs font-semibold">SKU</label>
-                <input v-model="form.sku" class="w-full mt-1 px-2 py-1 text-xs rounded-md border-default" placeholder="Opcional" />
-              </div>
 
               <!-- Fila 3: 33% / 33% / 33% -->
-              <div class="col-span-4">
+              <div class="col-span-6">
                 <label class="text-xs font-semibold">Proveedor 1 *</label>
                 <select v-model="form.supplierId" class="w-full mt-1 px-2 py-1 text-xs rounded-md border-default">
                   <option value="">{{ suppliersLoading ? 'Cargando...' : 'Seleccionar' }}</option>
                   <option v-for="s in suppliers" :key="s.id" :value="s.id">{{ s.name }} ({{ s.code }})</option>
                 </select>
               </div>
-              <div class="col-span-4">
+              <div class="col-span-6">
                 <label class="text-xs font-semibold">Proveedor 2</label>
                 <select v-model="form.supplier2Id" class="w-full mt-1 px-2 py-1 text-xs rounded-md border-default">
                   <option value="">{{ suppliersLoading ? 'Cargando...' : 'Seleccionar' }}</option>
@@ -124,16 +94,35 @@
           <!-- Códigos -->
           <div class="ps-card p-4 min-h-[260px]">
             <h2 class="text-base font-bold mb-2">Códigos</h2>
-            <div>
-              <div class="text-xs font-semibold mb-2">Códigos secundarios (alias)</div>
-              <div class="flex items-center gap-2">
-                <input v-model="aliasInput" class="flex-1 mt-1 px-2 py-1 text-xs rounded-md border-default" placeholder="Agregar alias" />
-                <button class="ps-btn ps-btn--secondary ps-btn--compact text-xs px-3 py-1" @click="addAlias">Agregar</button>
+            <div class="grid grid-cols-12 gap-1.5 mb-3">
+              <div class="col-span-8">
+                <label class="text-xs font-semibold">EAN / PLU</label>
+                <input ref="eanInputRef" v-model="form.ean" class="w-full mt-1 px-2 py-1 text-xs rounded-md border-default" placeholder="Código de barras" />
+                <p v-if="validation.eanDuplicate" class="mt-1 text-[10px] text-red-600">EAN duplicado</p>
               </div>
-              <ul class="mt-2 text-xs list-disc ml-5">
-                <li v-for="a in aliases" :key="a">{{ a }} <button class="text-red-600 ml-2" @click="removeAlias(a)">Eliminar</button></li>
-              </ul>
-              <p v-if="validation.aliasDuplicate" class="mt-1 text-[10px] text-red-600">Alias duplicado</p>
+              <div class="col-span-4">
+                <label class="flex items-center gap-1.5 text-xs mt-6">
+                  <input type="checkbox" v-model="form.autoCode" />
+                  Código automático
+                </label>
+              </div>
+            </div>
+            <div class="grid grid-cols-12 gap-1.5">
+              <div class="col-span-4">
+                <label class="text-xs font-semibold">SKU</label>
+                <input v-model="form.sku" class="w-full mt-1 px-2 py-1 text-xs rounded-md border-default" placeholder="Opcional" />
+              </div>
+              <div class="col-span-8">
+                <div class="text-xs font-semibold mb-2">Códigos secundarios (alias)</div>
+                <div class="flex items-center gap-2">
+                  <input v-model="aliasInput" class="flex-1 mt-1 px-2 py-1 text-xs rounded-md border-default" placeholder="Agregar alias" />
+                  <button class="ps-btn ps-btn--secondary ps-btn--compact text-xs px-3 py-1" @click="addAlias">Agregar</button>
+                </div>
+                <ul class="mt-2 text-xs list-disc ml-5">
+                  <li v-for="a in aliases" :key="a">{{ a }} <button class="text-red-600 ml-2" @click="removeAlias(a)">Eliminar</button></li>
+                </ul>
+                <p v-if="validation.aliasDuplicate" class="mt-1 text-[10px] text-red-600">Alias duplicado</p>
+              </div>
             </div>
             <div class="mt-6">
               <div class="text-xs font-semibold mb-2">Código proveedor (equivalencia)</div>
@@ -312,9 +301,26 @@
                 <input type="number" min="0" v-model.number="stock.days" class="w-full mt-1 px-2 py-1 text-xs rounded-md border-default" placeholder="0" />
               </div>
             </div>
+            <div class="mt-2 text-xs space-y-2">
+              <div class="flex items-center gap-2">
+                <button class="ps-btn ps-btn--secondary ps-btn--compact text-xs px-3 py-1" @click="refreshDos">Actualizar</button>
+                <button class="ps-btn ps-btn--primary ps-btn--compact text-xs px-3 py-1" @click="openSuggestedOrderModal">Crear orden sugerida</button>
+              </div>
+              <div>
+                <div>Promedio ventas diarias (7/30/90): {{ dosStats ? `${dosStats.avgDaily} / — / —` : '— / — / —' }}</div>
+                <div>Ventana usada: {{ dosStats ? `${dosStats.windowUsed}d` : '—' }}</div>
+                <div>Días de stock (DoS): {{ dosStats ? dosStats.daysOfStock : '—' }}</div>
+                <div>Punto de reposición (ROP): {{ dosStats ? dosStats.reorderPoint : '—' }}</div>
+                <div>Cantidad sugerida: {{ dosStats ? dosStats.suggestedQty : '—' }}</div>
+                <div class="text-[10px] text-secondary mt-1">La sugerida se calcula para alcanzar el objetivo de días de stock.</div>
+              </div>
+            </div>
           </div>
 
-          <!-- Unidades de medida -->
+          
+        </div>
+        <!-- Columna 3: Combos, Reglas, Resumen -->
+        <div class="col-span-1 grid grid-rows-[auto_auto_auto_auto] gap-4 h-full">
           <div class="ps-card p-3">
             <h2 class="text-base font-bold mb-2">Unidades de medida</h2>
             <div>
@@ -336,11 +342,8 @@
               <p v-if="validation.uomInvalid" class="mt-1 text-[10px] text-blue-700">Info: factor UoM inválido / regla mayorista inconsistente</p>
             </div>
           </div>
-        </div>
-        <!-- Columna 3: Combos, Reglas, Resumen -->
-        <div class="col-span-1 grid grid-rows-[1fr_1fr_1fr] gap-4 h-full">
           <!-- Combos/Kits -->
-          <div class="ps-card p-4 h-full">
+          <div class="ps-card p-3">
             <div class="flex items-center justify-between mb-2">
               <h2 class="text-base font-bold">Combos y Promociones</h2>
               <div class="flex items-center gap-2">
@@ -392,15 +395,13 @@
             </div>
           </div>
 
-          <!-- Reglas -->
-          <div class="ps-card p-4 h-full">
-            <div class="flex items-center justify-between mb-4">
-              <h2 class="text-base font-bold">Reglas</h2>
+          <!-- Puntos y Auditoría -->
+          <div class="ps-card p-3">
+            <div class="flex items-center justify-between mb-2">
+              <h2 class="text-base font-bold">Puntos y Auditoría</h2>
               <div class="flex items-center gap-2">
-                <!-- <button class="ps-btn ps-btn--secondary ps-btn--compact text-xs px-3 py-1" @click="tab9 = 'mayorista'" :class="{ 'ring-2 ring-emerald-400': tab9 === 'mayorista' }">Mayorista & Promos</button> -->
-                <button class="ps-btn ps-btn--secondary ps-btn--compact text-xs px-3 py-1" @click="tab9 = 'puntos'" :class="{ 'ring-2 ring-emerald-400': tab9 === 'puntos' }">Puntos</button>
-                <button class="ps-btn ps-btn--secondary ps-btn--compact text-xs px-3 py-1" @click="tab9 = 'dos'" :class="{ 'ring-2 ring-emerald-400': tab9 === 'dos' }">Días de stock</button>
-                <button class="ps-btn ps-btn--secondary ps-btn--compact text-xs px-3 py-1" @click="tab9 = 'auditoria'" :class="{ 'ring-2 ring-emerald-400': tab9 === 'auditoria' }">Auditoría</button>
+                <button class="ps-btn ps-btn--secondary ps-btn--compact text-xs px-3 py-1" @click="tabPA = 'puntos'" :class="{ 'ring-2 ring-emerald-400': tabPA === 'puntos' }">Puntos</button>
+                <button class="ps-btn ps-btn--secondary ps-btn--compact text-xs px-3 py-1" @click="tabPA = 'auditoria'" :class="{ 'ring-2 ring-emerald-400': tabPA === 'auditoria' }">Auditoría</button>
               </div>
             </div>
             <!-- <div v-show="tab9 === 'mayorista'" class="space-y-3">
@@ -430,33 +431,73 @@
                 </table>
               </div>
             </div> -->
-            <div v-show="tab9 === 'puntos'" class="text-xs">
+            <div v-show="tabPA === 'puntos'" class="text-xs">
               <label class="text-sm font-semibold">pointsPerUnit</label>
               <input type="number" v-model.number="pointsPerUnit" class="w-full mt-1 px-2 py-1 text-xs rounded-md border-default" />
               <p class="mt-1 text-[10px] text-secondary">0 = no otorga.</p>
             </div>
-            <div v-show="tab9 === 'dos'" class="text-xs space-y-2">
-              <div class="flex items-center gap-2">
-                <button class="ps-btn ps-btn--secondary ps-btn--compact text-xs px-3 py-1" @click="refreshDos">Actualizar</button>
-              </div>
-              <div>
-                <div>avg 7/30/90: {{ dosStats ? `${dosStats.avgDaily} / — / —` : '— / — / —' }}</div>
-                <div>ventana usada: {{ dosStats ? `${dosStats.windowUsed}d` : '—' }}</div>
-                <div>DoS: {{ dosStats ? dosStats.daysOfStock : '—' }}</div>
-                <div>ROP: {{ dosStats ? dosStats.reorderPoint : '—' }}</div>
-                <div>Sugerida: {{ dosStats ? dosStats.suggestedQty : '—' }}</div>
-              </div>
-              <button class="ps-btn ps-btn--primary ps-btn--compact text-xs px-3 py-1">Crear orden sugerida</button>
-            </div>
-            <div v-show="tab9 === 'auditoria'" class="text-sm space-y-2">
-              <div>Creado por: — / fecha: —</div>
-              <div>Actualizado por: — / fecha: —</div>
-              <div>Ver Kardex del artículo</div>
-            </div>
+          <div v-show="tabPA === 'auditoria'" class="text-sm space-y-2 mt-2">
+            <div>Creado por: — / fecha: —</div>
+            <div>Actualizado por: — / fecha: —</div>
+            <div>Ver Kardex del artículo</div>
           </div>
+        </div>
 
-          
+        <!-- Resumen de artículo -->
+        <div class="ps-card p-3">
+          <div class="flex items-center justify-between mb-2">
+            <h2 class="text-base font-bold">Resumen de artículo</h2>
           </div>
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <div>
+              <div class="font-semibold">Nombre</div>
+              <div class="text-secondary">{{ form.name || '—' }}</div>
+            </div>
+            <div>
+              <div class="font-semibold">Tipo</div>
+              <div class="text-secondary">{{ form.type === 'PRODUCT' ? 'Producto' : 'Servicio' }}</div>
+            </div>
+            <div>
+              <div class="font-semibold">SKU</div>
+              <div class="text-secondary">{{ form.sku || '—' }}</div>
+            </div>
+            <div>
+              <div class="font-semibold">EAN / PLU</div>
+              <div class="text-secondary">{{ form.ean || '—' }}</div>
+            </div>
+            <div>
+              <div class="font-semibold">Precio público</div>
+              <div class="text-secondary">{{ toCurrency(calc.pricePublic || 0) }}</div>
+            </div>
+            <div>
+              <div class="font-semibold">IVA</div>
+              <div class="text-secondary">{{ calc.ivaPct }}%</div>
+            </div>
+            <div>
+              <div class="font-semibold">Margen</div>
+              <div class="text-secondary">{{ computedMarginPct }}%</div>
+            </div>
+            <div>
+              <div class="font-semibold">Imp. Interno</div>
+              <div class="text-secondary">{{ calc.internalTaxIsPct ? (calc.internalTax + '%') : toCurrency(calc.internalTax || 0) }}</div>
+            </div>
+            <div>
+              <div class="font-semibold">Stock mín/máx</div>
+              <div class="text-secondary">{{ stock.min || 0 }} / {{ stock.max || 0 }}</div>
+            </div>
+            <div>
+              <div class="font-semibold">Puntos por unidad</div>
+              <div class="text-secondary">{{ pointsPerUnit || 0 }}</div>
+            </div>
+            <div>
+              <div class="font-semibold">Promo cantidad</div>
+              <div class="text-secondary">{{ hasPromo ? ('min ' + promoForm.minQty + ' ' + promoForm.uom + ' • ' + promoForm.offPct + '% OFF') : '—' }}</div>
+            </div>
+          </div>
+        </div>
+
+        
+        </div>
       </div>
     </main>
     </div>
@@ -515,23 +556,55 @@
       <button class="ps-btn ps-btn--primary" form="compForm" @click="addComponent">Agregar</button>
     </template>
   </BaseModal>
+  <!-- Modal de orden sugerida -->
+  <BaseModal v-model="showSuggestedOrderModal" title="Orden sugerida" size="md">
+    <form id="suggestedOrderForm" @submit.prevent="createSuggestedOrder" class="space-y-3 text-xs">
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="text-xs font-semibold">Proveedor</label>
+          <select v-model="suggestedOrder.supplierId" class="w-full mt-1 px-2 py-1 text-xs rounded-md border-default">
+            <option value="">Seleccionar</option>
+            <option v-for="s in suppliers" :key="s.id" :value="s.id">{{ s.name }} ({{ s.code }})</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs font-semibold">Cantidad sugerida</label>
+          <input type="number" min="0" v-model.number="suggestedOrder.qty" class="w-full mt-1 px-2 py-1 text-xs rounded-md border-default" />
+        </div>
+        <div class="col-span-2">
+          <label class="text-xs font-semibold">Notas</label>
+          <input v-model="suggestedOrder.notes" class="w-full mt-1 px-2 py-1 text-xs rounded-md border-default" placeholder="Opcional" />
+        </div>
+      </div>
+    </form>
+    <template #footer>
+      <button class="ps-btn ps-btn--secondary" @click="showSuggestedOrderModal = false">Cancelar</button>
+      <button class="ps-btn ps-btn--primary" form="suggestedOrderForm" @click="createSuggestedOrder">Crear</button>
+    </template>
+  </BaseModal>
 </template>
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import DashboardLayout from '@/components/organisms/DashboardLayout.vue';
 import BaseModal from '@/components/atoms/BaseModal.vue';
+import PageHeader from '@/components/molecules/PageHeader.vue';
+import BaseButton from '@/components/atoms/BaseButton.vue';
+import { useBarcodeListener } from '@/composables/useBarcodeListener';
+import { nextTick } from 'vue';
 import { useSuppliers } from '@/composables/useSuppliers';
 import { useRouter } from 'vue-router';
-import { createArticle, resolveArticle } from '@/services/articles';
+import { createArticle, resolveArticle, addArticleBarcode } from '@/services/articles';
 import { apiClient } from '@/services/api';
 import { createPromotion, getPromotion, createTier } from '@/services/quantityPromotionService';
 import { listRubros } from '@/services/rubros';
 import type { RubroDTO } from '@/types/rubro';
+import { useNotifications } from '@/composables/useNotifications';
 
   const router = useRouter();
   const isDirty = ref(false);
   const isSaving = ref(false);
   const { suppliers, fetchSuppliers, isLoading: suppliersLoading } = useSuppliers();
+  const { success, error } = useNotifications();
 
   // Estados para rubros y subrubros
   const rubros = ref<RubroDTO[]>([]);
@@ -553,10 +626,16 @@ const form = ref({
   supplierId: '',
   supplier2Id: ''
 });
+const isFormValid = computed(() => {
+  return Boolean(form.value.name?.trim()) && Boolean(form.value.categoryId)
+});
   const imagePreview = ref('');
   const imageInput = ref<HTMLInputElement | null>(null);
   const imageFile = ref<File | null>(null);
   const imageError = ref('');
+  const eanInputRef = ref<HTMLInputElement | null>(null);
+  const barcode = useBarcodeListener({ suffix: 'Enter', preventInInputs: true });
+  let offScan: null | (() => void) = null;
 
   function selectImageFile() {
     imageInput.value?.click();
@@ -629,8 +708,6 @@ const uom = ref({
 const aliases = ref<string[]>([]);
 const aliasInput = ref('');
 
-// Tabs (.div9)
-const tab9 = ref<'mayorista' | 'puntos' | 'dos' | 'auditoria'>('mayorista');
 const pointsPerUnit = ref(0);
 
 // Promoción por cantidad (UI local)
@@ -823,6 +900,10 @@ const goBack = () => {
 const save = async () => {
   isSaving.value = true;
   try {
+    if (!isFormValid.value) {
+      notificationError('Complete Nombre y Rubro antes de guardar')
+      return
+    }
     const payload: any = {
       name: form.value.name?.trim(),
       type: form.value.type,
@@ -857,6 +938,16 @@ const save = async () => {
       }
     }
 
+    if (aliases.value.length && articleId) {
+      try {
+        for (const code of aliases.value) {
+          await addArticleBarcode(articleId, code)
+        }
+      } catch (err) {
+        console.warn('No se pudieron guardar alias', err)
+      }
+    }
+
     if (hasPromo.value && articleId) {
       try {
         const convResp = await apiClient.post(`/articles/${articleId}/convert`, { uom: promoForm.value.uom, qty: promoForm.value.minQty });
@@ -872,9 +963,9 @@ const save = async () => {
     }
 
     isDirty.value = false;
-    console.log('Guardado con éxito.', created);
+    success('Artículo guardado correctamente')
   } catch (err) {
-    console.error('Error guardando artículo', err);
+    error('Error guardando artículo', (err as any)?.message)
   } finally {
     isSaving.value = false;
   }
@@ -904,11 +995,19 @@ onMounted(() => {
   loadRubros();
   try { fetchSuppliers({ limit: 500, status: 'active' }) } catch (_) {}
   computeL4Preview()
+  offScan = barcode.onScan(async (code) => {
+    form.value.ean = code
+    await nextTick()
+    try { eanInputRef.value?.focus() } catch (_) {}
+  })
+  barcode.start()
 });
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyDown);
   window.removeEventListener('input', () => isDirty.value = true);
+  try { offScan?.() } catch (_) {}
+  try { barcode.stop() } catch (_) {}
 });
 
 
@@ -1012,6 +1111,7 @@ async function refreshL4() {
   }
 }
 const dosStats = ref<any | null>(null)
+const tabPA = ref<'puntos' | 'auditoria'>('puntos')
 async function refreshDos() {
   if (!lastCreatedArticleId.value) return
   try {
@@ -1021,9 +1121,32 @@ async function refreshDos() {
     dosStats.value = null
   }
 }
-watch(tab9, (v) => {
-  if (v === 'dos') refreshDos()
-})
+
+const showSuggestedOrderModal = ref(false)
+const suggestedOrder = ref<{ supplierId: string | ''; qty: number; notes: string }>({ supplierId: '', qty: 0, notes: '' })
+function openSuggestedOrderModal() {
+  const qty = Number(dosStats.value?.suggestedQty || stock.value.days || 0)
+  suggestedOrder.value.qty = isFinite(qty) && qty > 0 ? qty : 0
+  showSuggestedOrderModal.value = true
+}
+async function createSuggestedOrder() {
+  if (!suggestedOrder.value.qty || suggestedOrder.value.qty <= 0) {
+    notificationError('Cantidad sugerida inválida')
+    return
+  }
+  if (!suggestedOrder.value.supplierId) {
+    notificationError('Seleccione un proveedor')
+    return
+  }
+  try {
+    // Placeholder de creación: aún no hay endpoint de órdenes de compra.
+    // Dejamos registro informativo.
+    success(`Orden sugerida preparada: proveedor=${suggestedOrder.value.supplierId}, qty=${suggestedOrder.value.qty}`)
+    showSuggestedOrderModal.value = false
+  } catch (err: any) {
+    notificationError(err?.message || 'No se pudo crear la orden sugerida')
+  }
+}
 watch(() => form.value.ean, (v) => {
   // placeholder para duplicado
   validation.value.eanDuplicate = v === '1234567890123';
