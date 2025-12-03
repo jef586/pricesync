@@ -229,6 +229,9 @@ const handleImport = () => {
 
 const closeImportModal = () => {
   showImportModal.value = false
+  const q = { ...route.query }
+  if (q.import) { delete q.import }
+  router.replace({ path: route.path, query: q })
 }
 
 const handleImportSuccess = () => {
@@ -283,6 +286,10 @@ const parseURLParams = () => {
       sort,
       order: String(query.order || 'asc') as 'asc' | 'desc'
     })
+  }
+
+  if (String(query.import || '') === 'excel') {
+    showImportModal.value = true
   }
 }
 

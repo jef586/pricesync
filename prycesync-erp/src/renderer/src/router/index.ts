@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import AuthView from '../views/AuthView.vue'
 import Dashboard from '../views/Dashboard.vue'
+import HomeView from '../views/HomeView.vue'
 import InventoryView from '../views/InventoryView.vue'
 import SuppliersView from '../views/SuppliersView.vue'
 import SupplierDetailView from '../views/SupplierDetailView.vue'
@@ -44,7 +45,13 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      redirect: '/dashboard'
+      redirect: '/home'
+    },
+    {
+      path: '/home',
+      name: 'Home',
+      component: HomeView,
+      meta: { requiresAuth: true }
     },
     {
       path: '/admin/config/audit',

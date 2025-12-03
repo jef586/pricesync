@@ -13,10 +13,21 @@
       <nav class="sidebar-nav">
         <ul class="nav-list">
           <li class="nav-item">
-            <router-link to="/" class="nav-link" :class="{ active: $route.path === '/' }" :title="sidebarCollapsed ? 'Dashboard' : ''">
+            <router-link to="/home" class="nav-link" :class="{ active: $route.path.startsWith('/home') }" :title="sidebarCollapsed ? 'Inicio' : ''">
+              <svg class="nav-icon" :title="sidebarCollapsed ? 'Inicio' : ''" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 9L12 2L21 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M5 10V20C5 20.5304 5.21071 21.0391 5.58579 21.4142C5.96086 21.7893 6.46957 22 7 22H17C17.5304 22 18.0391 21.7893 18.4142 21.4142C18.7893 21.0391 19 20.5304 19 20V10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span v-if="!sidebarCollapsed" class="nav-text">Inicio</span>
+            </router-link>
+          </li>
+
+          <li class="nav-item">
+            <router-link to="/dashboard" class="nav-link" :class="{ active: $route.path.startsWith('/dashboard') }" :title="sidebarCollapsed ? 'Dashboard' : ''">
               <svg class="nav-icon" :title="sidebarCollapsed ? 'Dashboard' : ''" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M3 9L12 2L21 9V20C21 20.5304 20.7893 21.0391 20.4142 21.4142C20.0391 21.7893 19.5304 22 19 22H5C4.46957 22 3.96086 21.7893 3.58579 21.4142C3.21071 21.0391 3 20.5304 3 20V9Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M9 22V12H15V22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M3 3H9V21H3V3Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M10 8H16V21H10V8Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M17 13H21V21H17V13Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
               <span v-if="!sidebarCollapsed" class="nav-text">Dashboard</span>
             </router-link>

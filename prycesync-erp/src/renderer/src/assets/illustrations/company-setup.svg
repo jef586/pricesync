@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 480">
+  <defs>
+    <style>
+      .gear { fill: #9CA3AF; stroke: #111827; stroke-width: 8; }
+      .center { fill: #FFFFFF; stroke: #111827; stroke-width: 8; }
+      .accent { fill: #3FB9A3; stroke: none; }
+      .accent-stroke { stroke: #3FB9A3; stroke-width: 8; fill: none; stroke-dasharray: 12 16; }
+    </style>
+  </defs>
+  <g transform="translate(0,0)">
+    <circle cx="400" cy="240" r="160" class="accent-stroke"/>
+    <g transform="translate(400,240)">
+      <circle r="42" class="center"/>
+      <path class="gear" d="M0,-120 l24,0 l10,26 l26,10 l0,24 l-26,10 l-10,26 l-24,0 l-10,-26 l-26,-10 l0,-24 l26,-10 z" transform="rotate(12)"/>
+    </g>
+    <circle cx="575" cy="240" r="24" class="accent"/>
+    <circle cx="225" cy="240" r="24" class="accent"/>
+    <rect x="540" y="160" width="56" height="36" rx="10" class="accent"/>
+    <rect x="204" y="320" width="56" height="36" rx="10" class="accent"/>
+    <path d="M620 180 a12 12 0 1 0 0 24 a12 12 0 1 0 0 -24" fill="#3FB9A3"/>
+    <path d="M180 200 a12 12 0 1 0 0 24 a12 12 0 1 0 0 -24" fill="#3FB9A3"/>
+    <text x="400" y="440" text-anchor="middle" fill="#6B7280" font-family="system-ui" font-size="20">Configuración</text>
+  </g>
+</svg>
