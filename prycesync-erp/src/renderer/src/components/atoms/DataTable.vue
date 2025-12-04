@@ -412,8 +412,21 @@ watch(() => props.data, () => {
 }
 
 .data-table__td--actions {
-  @apply text-center;
+  @apply text-right;
 }
+
+/* Sticky actions column on desktop */
+  @media (min-width: 1024px) {
+    .data-table__th--actions,
+    .data-table__td--actions {
+      position: sticky;
+      right: 0;
+      background: var(--ps-card);
+    width: 200px;
+    min-width: 200px;
+      box-shadow: -4px 0 8px rgba(0,0,0,0.04);
+    }
+  }
 
 .data-table__empty {
   @apply p-12;

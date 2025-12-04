@@ -24,6 +24,7 @@
         }
       ]"
       v-bind="$attrs"
+      ref="inputEl"
       @input="handleInput"
       @blur="$emit('blur')"
       @focus="$emit('focus')"
@@ -68,6 +69,9 @@ withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<Emits>()
 
+import { ref } from 'vue'
+const inputEl = ref<HTMLInputElement | null>(null)
+
 const handleInput = (event: Event) => {
   const target = event.target as HTMLInputElement
   const value = target.value
@@ -80,6 +84,10 @@ const handleInput = (event: Event) => {
     emit('update:modelValue', value)
   }
 }
+
+defineExpose({
+  focus: () => { inputEl.value?.focus() }
+})
 </script>
 
 <style scoped>

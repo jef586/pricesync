@@ -38,6 +38,24 @@ npm run build
 npm run test:unit
 ```
 
+## Tabla genérica: acciones por fila
+
+- El componente `components/atoms/DataTable.vue` expone el slot `actions` para renderizar acciones por fila.
+- Ejemplo de uso en `src/views/ArticlesView.vue`: pasar íconos con `title` y `aria-label` para accesibilidad.
+- Integra permisos consultando `useAuthStore().hasAnyRole(...)` para habilitar/deshabilitar acciones.
+- La columna de acciones es sticky a la derecha en desktop y mantiene sorting/paginación intactos.
+
+```vue
+<DataTable :columns="cols" :data="rows">
+  <template #actions="{ item }">
+    <BaseButton variant="ghost" title="Editar" aria-label="Editar" @click.stop="onEdit(item.id)">
+      <PencilSquareIcon class="w-5 h-5" />
+    </BaseButton>
+    <!-- más íconos... -->
+  </template>
+</DataTable>
+```
+
 ### Run End-to-End Tests with [Playwright](https://playwright.dev)
 
 ```sh

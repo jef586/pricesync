@@ -30,63 +30,51 @@
         </div>
       </div>
 
-      <!-- Filtros comunes -->
       <FilterBar
         v-model="uiFilters"
         :status-options="statusOptions"
         :stock-options="stockStateOptions"
         :show-date-range="false"
-        search-placeholder="Buscar por nombre, SKU o EAN..."
+        search-placeholder="Buscar por nombre, SKU o EAN/PLU"
+        :debounce-ms="400"
+        compact
+        sticky
+        persist-key="articles_filters"
         @filter-change="applyFilters"
-        @search="debouncedSearch"
+        @search="onSearch"
+        @apply="applyFilters"
+        @reset="onReset"
         class="mb-4"
       >
-        <template #custom-filters="{ updateFilter }">
-          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-            <!-- Nombre -->
+        <template #advanced="{ updateFilter }">
+          <div class="grid grid-cols-3 md:grid-cols-2 sm:grid-cols-1 gap-3">
             <div>
               <label class="filter-label">Nombre</label>
               <input v-model="uiFilters.name" type="text" class="filter-input border rounded px-2 py-1 w-full" />
             </div>
-            <!-- Descripción -->
             <div>
               <label class="filter-label">Descripción</label>
               <input v-model="uiFilters.description" type="text" class="filter-input border rounded px-2 py-1 w-full" />
             </div>
-
-            <!-- Código de Barras -->
             <div>
-              <label class="filter-label">Código de Barras</label>
+              <label class="filter-label">Código de barras</label>
               <input v-model="uiFilters.ean" type="text" class="filter-input border rounded px-2 py-1 w-full" />
             </div>
-            <!-- Código Proveedor -->
             <div>
-              <label class="filter-label">Código Proveedor</label>
+              <label class="filter-label">Código proveedor</label>
               <input v-model="uiFilters.supplierSku" type="text" class="filter-input border rounded px-2 py-1 w-full" />
             </div>
-            <!-- Rubro -->
             <div>
               <label class="filter-label">Rubro</label>
-              <select
-                :value="uiFilters.categoryId || ''"
-                @change="onCategoryChange($event, updateFilter)"
-                class="filter-select border rounded px-2 py-1 w-full"
-              >
+              <select :value="uiFilters.categoryId || ''" @change="onCategoryChange($event, updateFilter)" class="filter-select border rounded px-2 py-1 w-full">
                 <option value="">Todos</option>
                 <option v-for="opt in categoryOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
               </select>
             </div>
-            <!-- Sub-rubro -->
             <div>
               <label class="filter-label">Sub-rubro</label>
-              <input v-model="uiFilters.subcategoryId" type="text" class="filter-input border rounded px-2 py-1 w-full" placeholder="ID o nombre" />
+              <input v-model="uiFilters.subcategoryId" type="text" class="filter-input border rounded px-2 py-1 w-full" />
             </div>
-            <!-- Fabricante (opcional) -->
-            <div>
-              <label class="filter-label">Fabricante</label>
-              <input v-model="uiFilters.manufacturerId" type="text" class="filter-input border rounded px-2 py-1 w-full" placeholder="ID fabricante" />
-            </div>
-            <!-- Proveedor -->
             <div>
               <label class="filter-label">Proveedor</label>
               <select v-model="uiFilters.supplierId" class="filter-select border rounded px-2 py-1 w-full">
@@ -94,7 +82,10 @@
                 <option v-for="opt in supplierOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
               </select>
             </div>
-            <!-- IVA % -->
+            <div>
+              <label class="filter-label">Fabricante</label>
+              <input v-model="uiFilters.manufacturerId" type="text" class="filter-input border rounded px-2 py-1 w-full" />
+            </div>
             <div>
               <label class="filter-label">IVA %</label>
               <select v-model="uiFilters.vatRate" class="filter-select border rounded px-2 py-1 w-full">
@@ -104,13 +95,16 @@
                 <option :value="21">21</option>
               </select>
             </div>
-            <!-- Código Interno -->
             <div>
-              <label class="filter-label">Código Interno</label>
+              <label class="filter-label">Código interno</label>
               <input v-model="uiFilters.internalCode" type="text" class="filter-input border rounded px-2 py-1 w-full" />
             </div>
-            
           </div>
+        </template>
+        <template #presets="{ applyPreset }">
+          <BaseButton variant="ghost" size="sm" @click="applyPreset('solo-activos')">Solo activos</BaseButton>
+          <BaseButton variant="ghost" size="sm" @click="applyPreset('bajo-stock')">Bajo stock</BaseButton>
+          <BaseButton variant="ghost" size="sm" @click="applyPreset('sin-precios')">Sin precios</BaseButton>
         </template>
       </FilterBar>
 
@@ -156,14 +150,70 @@
           </span>
         </template>
         <template #actions="{ item }">
-          <div class="flex items-center gap-2">
-            <BaseButton variant="secondary" size="sm" @click.stop="goEdit(item.id)">Editar</BaseButton>
-            <BaseButton variant="ghost" size="sm" @click.stop="duplicateItem(item)">Duplicar</BaseButton>
-            <BaseButton variant="ghost" size="sm" @click.stop="toggleActive(item)">{{ item.active ? 'Desactivar' : 'Activar' }}</BaseButton>
-            <BaseButton variant="danger" size="sm" @click.stop="removeItem(item.id)">Eliminar</BaseButton>
+          <div class="flex items-center justify-end gap-3">
+            <BaseButton
+              variant="ghost"
+              size="sm"
+              :aria-label="'Editar'"
+              title="Editar"
+              :disabled="!canModify"
+              @click.stop="goEdit(item.id)"
+            >
+              <PencilSquareIcon class="w-6 h-6 text-blue-600 dark:text-blue-400" />
+            </BaseButton>
+            <BaseButton
+              variant="ghost"
+              size="sm"
+              :aria-label="'Duplicar'"
+              title="Duplicar"
+              :disabled="!canModify"
+              @click.stop="duplicateItem(item)"
+            >
+              <DocumentDuplicateIcon class="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+            </BaseButton>
+            <BaseButton
+              variant="ghost"
+              size="sm"
+              :aria-label="item.active ? 'Desactivar' : 'Activar'"
+              :title="item.active ? 'Desactivar' : 'Activar'"
+              :disabled="!canModify"
+              @click.stop="toggleActive(item)"
+            >
+              <PowerIcon :class="['w-6 h-6', item.active ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400']" />
+            </BaseButton>
+            <BaseButton
+              variant="ghost"
+              size="sm"
+              :aria-label="'Eliminar'"
+              title="Eliminar"
+              :disabled="!canDelete"
+              @click.stop="removeItem(item.id)"
+            >
+              <TrashIcon class="w-6 h-6 text-red-600 dark:text-red-400" />
+            </BaseButton>
           </div>
         </template>
       </DataTable>
+
+      <!-- Confirmaciones -->
+      <ConfirmModal
+        v-model="showDeleteModal"
+        title="Eliminar artículo"
+        message="¿Eliminar el artículo? Esta acción es reversible (soft delete)."
+        confirm-text="Eliminar"
+        variant="danger"
+        @confirm="confirmDelete"
+        @cancel="cancelDelete"
+      />
+      <ConfirmModal
+        v-model="showToggleModal"
+        title="Desactivar artículo"
+        message="¿Desactivar este artículo? Podrás volver a activarlo luego."
+        confirm-text="Desactivar"
+        variant="warning"
+        @confirm="confirmToggle"
+        @cancel="cancelToggle"
+      />
     </div>
   </DashboardLayout>
 </template>
@@ -175,10 +225,15 @@ import { debounce } from 'lodash-es'
 import DashboardLayout from '@/components/organisms/DashboardLayout.vue'
 import FilterBar from '@/components/molecules/FilterBar.vue'
 import DataTable from '@/components/atoms/DataTable.vue'
+import ConfirmModal from '@/components/atoms/ConfirmModal.vue'
 import { useArticleStore } from '@/stores/articles'
 import { useCategories } from '@/composables/useCategories'
 import { useSuppliers } from '@/composables/useSuppliers'
 import { useNotifications } from '@/composables/useNotifications'
+import { mapUiFiltersToQuery } from '@/composables/useArticleFilters'
+import { useAuthStore } from '@/stores/auth'
+import { reportsService } from '@/services/reportsService'
+import { PencilSquareIcon, DocumentDuplicateIcon, PowerIcon, TrashIcon } from '@heroicons/vue/24/outline'
 
 // Minimal i18n shim
 function t(key: string) {
@@ -195,6 +250,7 @@ const navigating = ref(false)
 const { categories } = useCategories()
 const { suppliers, fetchSuppliers } = useSuppliers()
 const { success, error } = useNotifications()
+const auth = useAuthStore()
 
 // Filtros de UI para FilterBar
 const uiFilters = ref({
@@ -255,24 +311,7 @@ async function reload() {
 
 // Mapear filtros del FilterBar a los filtros del store
 function mapUiToStoreFilters() {
-  const f: any = {}
-  if (uiFilters.value.search) f.q = uiFilters.value.search
-  if (uiFilters.value.categoryId) f.rubroId = uiFilters.value.categoryId
-  if (uiFilters.value.status) {
-    f.active = uiFilters.value.status === 'active' ? true : uiFilters.value.status === 'inactive' ? false : undefined
-  }
-  // Avanzados
-  if (uiFilters.value.name) f.name = uiFilters.value.name
-  if (uiFilters.value.description) f.description = uiFilters.value.description
-  if (uiFilters.value.ean) f.ean = uiFilters.value.ean
-  if (uiFilters.value.supplierSku) f.supplierSku = uiFilters.value.supplierSku
-  if (uiFilters.value.subcategoryId) f.subcategoryId = uiFilters.value.subcategoryId
-  if (uiFilters.value.supplierId) f.supplierId = uiFilters.value.supplierId
-  if (uiFilters.value.manufacturerId) f.manufacturerId = uiFilters.value.manufacturerId
-  if (uiFilters.value.vatRate !== '' && uiFilters.value.vatRate != null) f.vatRate = Number(uiFilters.value.vatRate)
-  if (uiFilters.value.internalCode) f.internalCode = uiFilters.value.internalCode
-  if (uiFilters.value.stockState) f.stockState = uiFilters.value.stockState
-  return f
+  return mapUiFiltersToQuery(uiFilters.value as any)
 }
 
 function onCategoryChange(e: Event, updateFilter: (key: string, value: any) => void) {
@@ -286,13 +325,17 @@ const debouncedSearch = debounce(async (term: string) => {
   const f = mapUiToStoreFilters()
   store.setFilters(f as any)
   await store.list({ ...store.filters, page: 1 })
-}, 300)
+}, 400)
+
+const onSearch = debouncedSearch
 
 async function applyFilters() {
   const f = mapUiToStoreFilters()
   store.setFilters(f as any)
   await store.list({ ...store.filters, page: 1 })
 }
+
+function onReset() {}
 
 async function handleRowClick(item: any) {
   await goEdit(item.id)
@@ -321,7 +364,82 @@ function isLowStock(item: any) {
 
 function formatMoney(n: number | null | undefined) {
   if (n == null) return '—'
-  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(n)
+  return reportsService.formatCurrency(n || 0)
+}
+
+const canModify = computed(() => auth.hasAnyRole(['admin']))
+const canDelete = computed(() => auth.hasAnyRole(['admin']))
+
+const showDeleteModal = ref(false)
+const deleteId = ref<string | null>(null)
+
+const showToggleModal = ref(false)
+const toggleItem = ref<any | null>(null)
+
+function removeItem(id: string) {
+  if (!canDelete.value) return
+  deleteId.value = id
+  showDeleteModal.value = true
+}
+
+async function confirmDelete() {
+  if (!deleteId.value) return
+  try {
+    await store.remove(deleteId.value)
+    success('Artículo eliminado')
+  } catch (e: any) {
+    error('Error al eliminar', e?.message)
+  } finally {
+    showDeleteModal.value = false
+    deleteId.value = null
+  }
+}
+
+function cancelDelete() {
+  showDeleteModal.value = false
+  deleteId.value = null
+}
+
+async function duplicateItem(item: any) {
+  if (!canModify.value) return
+  try {
+    const payload = { ...item, id: undefined, name: `${item.name} (copia)` }
+    await store.create(payload)
+    success('Artículo duplicado')
+  } catch (e: any) {
+    error('Error al duplicar', e?.message)
+  }
+}
+
+function toggleActive(item: any) {
+  if (!canModify.value) return
+  if (item.active) {
+    toggleItem.value = item
+    showToggleModal.value = true
+  } else {
+    confirmToggleActivate(item)
+  }
+}
+
+async function confirmToggle() {
+  if (!toggleItem.value) return
+  try {
+    await store.update(toggleItem.value.id, { active: false })
+    success('Artículo desactivado')
+  } catch (e: any) {
+    error('Error al desactivar', e?.message)
+  } finally {
+    showToggleModal.value = false
+    toggleItem.value = null
+  }
+}
+
+async function confirmToggleActivate(item: any) {
+  try {
+    await store.update(item.id, { active: true })
+    success('Artículo activado')
+  } catch (e: any) {
+    error('Error al activar', e?.message)
+  }
 }
 </script>
-
