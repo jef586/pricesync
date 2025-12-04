@@ -31,7 +31,6 @@ import SalesNewView from '../views/SalesNewView.vue'
 import ParkedSalesView from '../views/ParkedSalesView.vue'
 import ArticlesView from '../views/ArticlesView.vue'
 import ArticleNewView from '../views/ArticleNewView.vue'
-import ArticleEditView from '../views/ArticleEditView.vue'
 import PriceLookupView from '../views/PriceLookupView.vue'
 import AIChatView from '../views/AIChatView.vue'
 import UsersView from '../views/UsersView.vue'
@@ -290,7 +289,7 @@ const router = createRouter({
     {
       path: '/articles/:id/edit',
       name: 'ArticleEdit',
-      component: ArticleEditView,
+      component: ArticleNewView,
       meta: { requiresAuth: true }
     },
     {

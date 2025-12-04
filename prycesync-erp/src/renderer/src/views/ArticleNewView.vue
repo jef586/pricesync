@@ -2,7 +2,7 @@
   <DashboardLayout>
     <div class="bg-gray-50 dark:bg-gray-900 h-full flex flex-col">
     <div class="px-6 pt-4">
-      <PageHeader title="Nuevo artículo" dense>
+      <PageHeader :title="pageTitle" dense>
         <template #actions>
           <div class="flex items-center gap-3">
             <div class="flex items-center gap-2">
@@ -28,7 +28,11 @@
       </PageHeader>
     </div>
 
-    <main class="pt-4 px-4 flex-1">
+    <div v-if="useUnified" class="pt-4 px-4">
+      <ArticleForm :mode="formMode" :initial="initialArticle" @saved="onSaved" @cancel="goBack" />
+    </div>
+
+    <main v-else class="pt-4 px-4 flex-1">
       <div class="grid grid-cols-3 gap-5 items-stretch h-full">
         <!-- Columna 1: Básicos, Códigos, Imagen -->
         <div class="col-span-1 grid grid-rows-[minmax(200px,auto)_minmax(260px,auto)_auto] gap-4 h-full">
@@ -584,6 +588,9 @@
   </BaseModal>
 </template>
 <script setup lang="ts">
+import ArticleForm from '@/components/articles/ArticleForm.vue'
+const useUnified = computed(() => !editId.value)
+const onSaved = (id: string) => { router.push(`/articles/${id}/edit`) }
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import DashboardLayout from '@/components/organisms/DashboardLayout.vue';
 import BaseModal from '@/components/atoms/BaseModal.vue';
@@ -592,15 +599,22 @@ import BaseButton from '@/components/atoms/BaseButton.vue';
 import { useBarcodeListener } from '@/composables/useBarcodeListener';
 import { nextTick } from 'vue';
 import { useSuppliers } from '@/composables/useSuppliers';
-import { useRouter } from 'vue-router';
-import { createArticle, resolveArticle, addArticleBarcode } from '@/services/articles';
+import { useRouter, useRoute } from 'vue-router';
+import { createArticle, updateArticle, resolveArticle, addArticleBarcode } from '@/services/articles';
 import { apiClient } from '@/services/api';
 import { createPromotion, getPromotion, createTier } from '@/services/quantityPromotionService';
 import { listRubros } from '@/services/rubros';
 import type { RubroDTO } from '@/types/rubro';
 import { useNotifications } from '@/composables/useNotifications';
+import { useArticleStore } from '@/stores/articles';
 
   const router = useRouter();
+  const route = useRoute();
+  const store = useArticleStore();
+  const editId = computed(() => String(route.params.id || ''))
+  const formMode = computed(() => editId.value ? 'edit' : 'create')
+  const pageTitle = computed(() => editId.value ? 'Editar artículo' : 'Nuevo artículo')
+  const initialArticle = ref<any | null>(null)
   const isDirty = ref(false);
   const isSaving = ref(false);
   const { suppliers, fetchSuppliers, isLoading: suppliersLoading } = useSuppliers();
@@ -897,6 +911,40 @@ const goBack = () => {
   router.back();
 };
 
+function detectBarcodeType(code: string | undefined | null) {
+  const c = String(code || '')
+  if (!c) return null
+  if (/^\d{13}$/.test(c)) return 'EAN13'
+  if (/^\d{8}$/.test(c)) return 'EAN8'
+  return null
+}
+
+function normalizePayload() {
+  const barcode = form.value.ean?.trim() || undefined
+  const payload: any = {
+    name: form.value.name?.trim(),
+    type: String(form.value.type || 'PRODUCT').toUpperCase(),
+    active: !!form.value.active,
+    sku: form.value.sku?.trim() || undefined,
+    barcode,
+    rubroId: form.value.categoryId || undefined,
+    subrubroId: form.value.subCategoryId || null,
+    taxRate: Number(calc.value.ivaPct),
+    cost: Number(calc.value.cost),
+    gainPct: Number(calc.value.marginPct),
+    pricePublic: Number(calc.value.pricePublic),
+    internalTaxValue: Number(calc.value.internalTax) || 0,
+    internalTaxType: (Number(calc.value.internalTax) > 0)
+      ? (calc.value.internalTaxIsPct ? 'PERCENT' : 'FIXED')
+      : 'NONE',
+    stockMin: stock.value.min || undefined,
+    stockMax: stock.value.max || undefined,
+    pointsPerUnit: pointsPerUnit.value || undefined,
+    comboOwnPrice: false
+  }
+  return payload
+}
+
 const save = async () => {
   isSaving.value = true;
   try {
@@ -904,29 +952,16 @@ const save = async () => {
       notificationError('Complete Nombre y Rubro antes de guardar')
       return
     }
-    const payload: any = {
-      name: form.value.name?.trim(),
-      type: form.value.type,
-      active: !!form.value.active,
-      sku: form.value.sku?.trim() || undefined,
-      barcode: form.value.ean?.trim() || undefined,
-      categoryId: form.value.categoryId || undefined,
-      subCategoryId: form.value.subCategoryId || undefined,
-      taxRate: Number(calc.value.ivaPct),
-      cost: Number(calc.value.cost),
-      gainPct: Number(calc.value.marginPct),
-      pricePublic: Number(calc.value.pricePublic),
-      internalTaxType: calc.value.internalTaxIsPct ? 'PERCENT' : 'AMOUNT',
-      internalTaxValue: Number(calc.value.internalTax) || 0,
-      stockMin: stock.value.min || undefined,
-      stockMax: stock.value.max || undefined,
-      pointsPerUnit: pointsPerUnit.value || undefined,
-      bundleComponents: components.value.map(c => ({ articleId: c.articleId, qty: c.qty })),
-      comboOwnPrice: false
-    };
+    const payload = normalizePayload();
 
-    const created = await createArticle(payload);
-    const articleId = (created as any)?.id;
+    let articleId: string | undefined
+    if (editId.value) {
+      const updated = await updateArticle(editId.value, payload)
+      articleId = (updated as any)?.id || editId.value
+    } else {
+      const created = await createArticle(payload)
+      articleId = (created as any)?.id
+    }
     lastCreatedArticleId.value = articleId || ''
 
     if (imageFile.value && articleId) {
@@ -987,6 +1022,34 @@ const handleKeyDown = (event: KeyboardEvent) => {
 };
 
 onMounted(() => {
+  if (editId.value) {
+    store.get(editId.value).then((art: any) => {
+      initialArticle.value = art
+      form.value.name = art?.name || ''
+      form.value.type = art?.type || 'PRODUCT'
+      form.value.categoryId = art?.categoryId || ''
+      form.value.subCategoryId = art?.subCategoryId || art?.subcategoryId || ''
+      form.value.sku = art?.sku || ''
+      form.value.ean = art?.barcode || ''
+      form.value.active = !!art?.active
+      form.value.supplierId = art?.supplierId || ''
+      form.value.supplier2Id = art?.supplier2Id || ''
+      calc.value.ivaPct = Number(art?.taxRate ?? calc.value.ivaPct)
+      calc.value.cost = Number(art?.cost ?? 0)
+      calc.value.marginPct = Number(art?.gainPct ?? calc.value.marginPct)
+      calc.value.pricePublic = Number(art?.pricePublic ?? 0)
+      calc.value.internalTaxIsPct = String(art?.internalTaxType || '').toUpperCase() === 'PERCENT'
+      calc.value.internalTax = Number(art?.internalTaxValue ?? 0)
+      stock.value.min = Number(art?.stockMin ?? stock.value.min)
+      stock.value.max = Number(art?.stockMax ?? stock.value.max)
+      pointsPerUnit.value = Number(art?.pointsPerUnit ?? pointsPerUnit.value)
+      lastCreatedArticleId.value = String(art?.id || '')
+  const img = (art as any)?.image?.thumbnailUrl || (art as any)?.image?.imageUrl || (art as any)?.imageUrl || (art as any)?.thumbnailUrl || ''
+  const base = String(apiClient.defaults.baseURL || '')
+  const isAbs = /^https?:\/\//i.test(String(img)) || String(img).startsWith('data:')
+  imagePreview.value = isAbs ? String(img) : (img ? ((base.endsWith('/')?base.slice(0,-1):base) + (String(img).startsWith('/')?String(img):('/'+String(img)))) : '')
+    }).catch(() => { initialArticle.value = null })
+  }
   window.addEventListener('keydown', handleKeyDown);
   // Marcar como 'dirty' cuando el usuario empiece a interactuar
   window.addEventListener('input', () => isDirty.value = true, { once: true });

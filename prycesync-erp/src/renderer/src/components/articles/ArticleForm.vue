@@ -545,6 +545,7 @@ import { useSuppliers } from '@/composables/useSuppliers'
 import { useNotifications } from '@/composables/useNotifications'
 import EntitySearch from '@/components/molecules/EntitySearch.vue'
 import { addArticleSupplierLink, getArticleBarcodes, addArticleBarcode, deleteArticleBarcode, uploadArticleImage, deleteArticleImage } from '@/services/articles'
+import { apiClient } from '@/services/api'
 import { getPromotion, createPromotion, updatePromotion, deletePromotion, listTiers, createTier, updateTier, deleteTier, type ArticleQuantityPromotionDto, type ArticleQuantityPromoTierDto } from '@/services/quantityPromotionService'
 
 const props = defineProps<{ mode: 'create' | 'edit'; initial?: any }>()
@@ -657,7 +658,15 @@ const saving = ref(false)
 const showDeleteModal = ref(false)
 const showSupplierModal = ref(false)
 const showAdvanced = ref(false)
-const apiBase = String((import.meta as any).env?.VITE_API_URL || '')
+const apiBase = String((import.meta as any).env?.VITE_API_URL || (apiClient.defaults.baseURL || ''))
+function resolveImgUrl(p: string | null | undefined): string {
+  const s = String(p || '')
+  if (!s) return ''
+  if (/^https?:\/\//i.test(s) || s.startsWith('data:')) return s
+  const base = apiBase || ''
+  const b = base.endsWith('/') ? base.slice(0, -1) : base
+  return s.startsWith('/') ? `${b}${s}` : `${b}/${s}`
+}
 
 // Promoción por cantidad (UI state)
 const showPromoModal = ref(false)
@@ -1107,7 +1116,7 @@ async function onSubmit() {
         try {
           const result = await uploadArticleImage(created.id, photoFile.value)
           const previewPath = result?.thumbnailUrl || result?.imageUrl
-          photoPreview.value = previewPath ? `${apiBase}${previewPath}` : photoPreview.value
+          photoPreview.value = resolveImgUrl(previewPath) || photoPreview.value
         } catch (err: any) {
           console.error('Upload image failed:', err)
         }
@@ -1120,7 +1129,7 @@ async function onSubmit() {
         try {
           const result = await uploadArticleImage(props.initial!.id, photoFile.value)
           const previewPath = result?.thumbnailUrl || result?.imageUrl
-          photoPreview.value = previewPath ? `${apiBase}${previewPath}` : photoPreview.value
+          photoPreview.value = resolveImgUrl(previewPath) || photoPreview.value
         } catch (err: any) {
           console.error('Upload image failed:', err)
         }
@@ -1253,7 +1262,7 @@ onMounted(() => {
   if (props.mode === 'edit' && props.initial?.id) {
     loadSecondaryBarcodes()
     const url = props.initial?.image?.thumbnailUrl || props.initial?.imageUrl
-    if (url) photoPreview.value = `${apiBase}${url}`
+    photoPreview.value = resolveImgUrl(url)
   }
 })
 // Add watcher to reload secondary barcodes when initial.id changes

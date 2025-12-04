@@ -115,17 +115,17 @@
       </FilterBar>
 
       <!-- Tabla común -->
-      <DataTable
-        :columns="tableColumns"
-        :data="store.items"
-        :loading="store.loading"
-        :page-size="store.pageSize"
-        :show-header="false"
-        :clickable-rows="true"
-        @row-click="handleRowClick"
-        @sort="handleSort"
-        class="mb-6"
-      >
+<DataTable
+  :columns="tableColumns"
+  :data="store.items"
+  :loading="store.loading || navigating"
+  :page-size="store.pageSize"
+  :show-header="false"
+  :clickable-rows="true"
+  @row-click="handleRowClick"
+  @sort="handleSort"
+  class="mb-6"
+>
         <template #cell-sku="{ item }">
           <div>
             <div class="font-mono text-sm">{{ item.barcode || '—' }}</div>
@@ -170,6 +170,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { debounce } from 'lodash-es'
 import DashboardLayout from '@/components/organisms/DashboardLayout.vue'
 import FilterBar from '@/components/molecules/FilterBar.vue'
@@ -189,6 +190,8 @@ function t(key: string) {
 }
 
 const store = useArticleStore()
+const router = useRouter()
+const navigating = ref(false)
 const { categories } = useCategories()
 const { suppliers, fetchSuppliers } = useSuppliers()
 const { success, error } = useNotifications()
@@ -291,8 +294,8 @@ async function applyFilters() {
   await store.list({ ...store.filters, page: 1 })
 }
 
-function handleRowClick(item: any) {
-  goEdit(item.id)
+async function handleRowClick(item: any) {
+  await goEdit(item.id)
 }
 
 async function handleSort(sortBy: string, sortOrder: 'asc' | 'desc') {
@@ -300,8 +303,15 @@ async function handleSort(sortBy: string, sortOrder: 'asc' | 'desc') {
   await store.list({ ...store.filters, sortBy: sortBy as any, sortOrder: sortOrder as any } as any)
 }
 
-function goEdit(id: string) {
-  window.location.assign(`/articles/${id}/edit`)
+async function goEdit(id: string) {
+  navigating.value = true
+  try {
+    try { await store.get(id) } catch (_) {}
+    await new Promise((r) => setTimeout(r, 250))
+    await router.push({ name: 'ArticleEdit', params: { id }, query: { simple: '1' } })
+  } finally {
+    navigating.value = false
+  }
 }
 
 function isLowStock(item: any) {
@@ -314,7 +324,4 @@ function formatMoney(n: number | null | undefined) {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(n)
 }
 </script>
-
-
-
 

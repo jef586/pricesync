@@ -11,10 +11,10 @@
   </template>
 
 <script setup lang="ts">
-import { RouterView } from 'vue-router'
+import { RouterView, useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from './stores/auth'
 import NotificationContainer from './components/molecules/NotificationContainer.vue'
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useNotifications } from '@/composables/useNotifications'
 import { usePrintingStore } from '@/stores/printing'
 import Preloader from '@/components/Preloader.vue'
@@ -23,6 +23,8 @@ const authStore = useAuthStore()
 const { success } = useNotifications()
 const printingStore = usePrintingStore()
 const isLoading = ref(true)
+const router = useRouter()
+const route = useRoute()
 
 onMounted(() => {
   try { printingStore.init() } catch (_) {}
@@ -34,9 +36,14 @@ onMounted(() => {
       })
     } catch (_) {}
   }
-
-  setTimeout(() => { isLoading.value = false }, 10000)
+  try {
+    router.isReady().then(() => { isLoading.value = false })
+  } catch (_) {
+    isLoading.value = false
+  }
 })
+
+watch(() => route.fullPath, () => { isLoading.value = false })
 </script>
 
 <style>

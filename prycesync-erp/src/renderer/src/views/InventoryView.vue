@@ -262,11 +262,11 @@ const handleRowClick = (product: any) => {
 }
 
 const viewProduct = (id: string) => {
-  router.push(`/articles/${id}/edit`)
+  router.push(`/articles/${id}/edit?simple=1`)
 }
 
 const editProduct = (id: string) => {
-  router.push(`/articles/${id}/edit`)
+  router.push(`/articles/${id}/edit?simple=1`)
 }
 
 const showStockModal = (product: any) => {
