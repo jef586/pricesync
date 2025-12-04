@@ -8,6 +8,23 @@
 
       <div class="home-cards">
         <BaseCard variant="elevated" class="home-card">
+          <div class="home-card__progress" aria-live="polite">
+            <template v-if="progress.company">
+              <span class="home-card__progress-icon home-card__progress-icon--ok" aria-label="Completado">
+                <svg viewBox="0 0 20 20" width="18" height="18">
+                  <path d="M7.5 13.5l-3-3 1.4-1.4 1.6 1.6 4.9-4.9 1.4 1.4-6.3 6.3z" fill="currentColor"/>
+                </svg>
+              </span>
+              <span class="home-card__progress-text">Completado</span>
+            </template>
+            <template v-else>
+              <span class="home-card__progress-icon home-card__progress-icon--pending" aria-label="Pendiente">
+                <svg viewBox="0 0 20 20" width="18" height="18">
+                  <circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="2" fill="none" />
+                </svg>
+              </span>
+            </template>
+          </div>
           <div class="home-card__body">
             <div class="home-card__illustration">
               <img v-if="illustrations.company" :src="illustrations.company" alt="Configura tu empresa" class="home-card__image" />
@@ -29,6 +46,23 @@
         </BaseCard>
 
         <BaseCard variant="elevated" class="home-card">
+          <div class="home-card__progress" aria-live="polite">
+            <template v-if="progress.import">
+              <span class="home-card__progress-icon home-card__progress-icon--ok" aria-label="Completado">
+                <svg viewBox="0 0 20 20" width="18" height="18">
+                  <path d="M7.5 13.5l-3-3 1.4-1.4 1.6 1.6 4.9-4.9 1.4 1.4-6.3 6.3z" fill="currentColor"/>
+                </svg>
+              </span>
+              <span class="home-card__progress-text">Completado</span>
+            </template>
+            <template v-else>
+              <span class="home-card__progress-icon home-card__progress-icon--pending" aria-label="Pendiente">
+                <svg viewBox="0 0 20 20" width="18" height="18">
+                  <circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="2" fill="none" />
+                </svg>
+              </span>
+            </template>
+          </div>
           <div class="home-card__body">
             <div class="home-card__illustration">
               <img v-if="illustrations.suppliers" :src="illustrations.suppliers" alt="Importa tu lista de artículos" class="home-card__image" />
@@ -50,6 +84,23 @@
         </BaseCard>
 
         <BaseCard variant="elevated" class="home-card">
+          <div class="home-card__progress" aria-live="polite">
+            <template v-if="progress.pricing">
+              <span class="home-card__progress-icon home-card__progress-icon--ok" aria-label="Completado">
+                <svg viewBox="0 0 20 20" width="18" height="18">
+                  <path d="M7.5 13.5l-3-3 1.4-1.4 1.6 1.6 4.9-4.9 1.4 1.4-6.3 6.3z" fill="currentColor"/>
+                </svg>
+              </span>
+              <span class="home-card__progress-text">Completado</span>
+            </template>
+            <template v-else>
+              <span class="home-card__progress-icon home-card__progress-icon--pending" aria-label="Pendiente">
+                <svg viewBox="0 0 20 20" width="18" height="18">
+                  <circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="2" fill="none" />
+                </svg>
+              </span>
+            </template>
+          </div>
           <div class="home-card__body">
             <div class="home-card__illustration">
               <img v-if="illustrations.pricing" :src="illustrations.pricing" alt="Configura tu lista de precios" class="home-card__image" />
@@ -70,6 +121,23 @@
         </BaseCard>
 
         <BaseCard variant="elevated" class="home-card">
+          <div class="home-card__progress" aria-live="polite">
+            <template v-if="progress.product">
+              <span class="home-card__progress-icon home-card__progress-icon--ok" aria-label="Completado">
+                <svg viewBox="0 0 20 20" width="18" height="18">
+                  <path d="M7.5 13.5l-3-3 1.4-1.4 1.6 1.6 4.9-4.9 1.4 1.4-6.3 6.3z" fill="currentColor"/>
+                </svg>
+              </span>
+              <span class="home-card__progress-text">Completado</span>
+            </template>
+            <template v-else>
+              <span class="home-card__progress-icon home-card__progress-icon--pending" aria-label="Pendiente">
+                <svg viewBox="0 0 20 20" width="18" height="18">
+                  <circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="2" fill="none" />
+                </svg>
+              </span>
+            </template>
+          </div>
           <div class="home-card__body">
             <div class="home-card__illustration">
               <img v-if="illustrations.product" :src="illustrations.product" alt="Crea tu primer producto" class="home-card__image" />
@@ -91,6 +159,23 @@
         </BaseCard>
 
         <BaseCard variant="elevated" class="home-card">
+          <div class="home-card__progress" aria-live="polite">
+            <template v-if="progress.sale">
+              <span class="home-card__progress-icon home-card__progress-icon--ok" aria-label="Completado">
+                <svg viewBox="0 0 20 20" width="18" height="18">
+                  <path d="M7.5 13.5l-3-3 1.4-1.4 1.6 1.6 4.9-4.9 1.4 1.4-6.3 6.3z" fill="currentColor"/>
+                </svg>
+              </span>
+              <span class="home-card__progress-text">Completado</span>
+            </template>
+            <template v-else>
+              <span class="home-card__progress-icon home-card__progress-icon--pending" aria-label="Pendiente">
+                <svg viewBox="0 0 20 20" width="18" height="18">
+                  <circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="2" fill="none" />
+                </svg>
+              </span>
+            </template>
+          </div>
           <div class="home-card__body">
             <div class="home-card__illustration">
               <img v-if="illustrations.sale" :src="illustrations.sale" alt="Registra tu primera venta" class="home-card__image" />
@@ -113,6 +198,23 @@
         </BaseCard>
 
         <BaseCard variant="elevated" class="home-card">
+          <div class="home-card__progress" aria-live="polite">
+            <template v-if="progress.help">
+              <span class="home-card__progress-icon home-card__progress-icon--ok" aria-label="Completado">
+                <svg viewBox="0 0 20 20" width="18" height="18">
+                  <path d="M7.5 13.5l-3-3 1.4-1.4 1.6 1.6 4.9-4.9 1.4 1.4-6.3 6.3z" fill="currentColor"/>
+                </svg>
+              </span>
+              <span class="home-card__progress-text">Completado</span>
+            </template>
+            <template v-else>
+              <span class="home-card__progress-icon home-card__progress-icon--pending" aria-label="Pendiente">
+                <svg viewBox="0 0 20 20" width="18" height="18">
+                  <circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="2" fill="none" />
+                </svg>
+              </span>
+            </template>
+          </div>
           <div class="home-card__body">
             <div class="home-card__illustration">
               <img v-if="illustrations.help" :src="illustrations.help" alt="Solicitar ayuda" class="home-card__image" />
@@ -138,7 +240,8 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
+import { useAuthStore } from '@/stores/auth'
 import DashboardLayout from '@/components/organisms/DashboardLayout.vue'
 import PageHeader from '@/components/molecules/PageHeader.vue'
 import BaseCard from '@/components/atoms/BaseCard.vue'
@@ -150,6 +253,10 @@ import cajaPng from '@/assets/illustrations/caja.png'
 import precioPng from '@/assets/illustrations/precio.png'
 import firstArticlePng from '@/assets/illustrations/firstArticle.png'
 import helpPng from '@/assets/illustrations/help.png'
+import { listArticles } from '@/services/articles'
+import { getPricingSettings } from '@/services/settingsService'
+import { useSuppliers } from '@/composables/useSuppliers'
+import { useInvoices } from '@/composables/useInvoices'
 
 const illustrations = {
   company: companySetupPng,
@@ -159,6 +266,15 @@ const illustrations = {
   sale: cajaPng,
   help: helpPng
 }
+
+const progress = ref({
+  company: false,
+  import: false,
+  pricing: false,
+  product: false,
+  sale: false,
+  help: false
+})
 
 onMounted(() => {
   const gsap = (window as any).gsap
@@ -173,11 +289,46 @@ onMounted(() => {
     stagger: 0.08
   })
 })
+
+onMounted(async () => {
+  const auth = useAuthStore()
+  progress.value.company = Boolean(auth.user?.company?.taxId)
+
+  try {
+    const res = await listArticles({ pageSize: 1 })
+    progress.value.product = (res.total || 0) > 0
+  } catch {}
+
+  try {
+    const settings = await getPricingSettings()
+    progress.value.pricing = Boolean(settings && (settings.defaultMarginPercent ?? 0) > 0)
+  } catch {}
+
+  try {
+    const { fetchSuppliers, suppliers } = useSuppliers()
+    await fetchSuppliers({ limit: 5 })
+    progress.value.import = suppliers.value.some(s => (s.importedProductsCount ?? 0) > 0 || !!s.lastImportDate)
+    if (!progress.value.import) progress.value.import = progress.value.product
+  } catch {
+    progress.value.import = progress.value.product
+  }
+
+  try {
+    const { fetchInvoices, pagination } = useInvoices()
+    await fetchInvoices({ limit: 1 })
+    progress.value.sale = (pagination.value.total || 0) > 0
+  } catch {}
+
+  try {
+    const flag = localStorage.getItem('ps_help_completed')
+    progress.value.help = flag === 'true'
+  } catch {}
+})
 </script>
 
 <style scoped>
 .home-view { padding-bottom: 2rem; }
-.home-card { overflow: hidden; }
+.home-card { overflow: hidden; position: relative; }
 .home-card { will-change: transform, opacity; }
 .home-cards { display:grid; grid-template-columns: 1fr; gap: 1.25rem; }
 .home-card__body { display:flex; align-items:flex-start; gap:1.5rem; padding:1.25rem 1.5rem; }
@@ -191,6 +342,12 @@ onMounted(() => {
 .home-card__actions { margin-top:.75rem; }
 
 .home-card:hover { transform: translateY(-2px); transition: transform .18s ease-out; }
+
+.home-card__progress { position:absolute; top:8px; right:8px; display:flex; align-items:center; gap:6px; pointer-events:none; }
+.home-card__progress-icon { display:inline-flex; align-items:center; justify-content:center; color:#9CA3AF; }
+.home-card__progress-icon--ok { color:#10B981; }
+.home-card__progress-icon--pending { color:#9CA3AF; }
+.home-card__progress-text { font-size:12px; color: var(--ps-text-secondary); }
 
 @media (max-width: 768px) {
   .home-card__body { flex-direction: column; }
