@@ -1,6 +1,5 @@
 <template>
   <DashboardLayout :key="$route.fullPath">
-    <div class="dashboard space-y-6 bg-gray-50 dark:bg-[#0C1322] p-4 sm:p-6">
       <!-- Encabezado -->
       <div class="flex items-center justify-between">
         <div>
@@ -19,31 +18,31 @@
       </div>
 
       <!-- Acciones rápidas (tarjetas debajo del título) -->
-      <div class="space-y-3">
+      <div class="space-y-3 mt-6">
         <h2 class="text-base font-semibold text-gray-900 dark:text-white">Acciones rápidas</h2>
         <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          <button class="card flex items-center gap-3 hover:shadow-md transition" @click="goTo('/sales/new')">
+          <button class="card card--animated flex items-center gap-3 hover:shadow-md transition" style="animation-delay: 0ms" @click="goTo('/sales/new')">
             <DocumentTextIcon class="h-6 w-6 text-[#3B82F6]" />
             <div>
               <div class="font-semibold text-gray-900 dark:text-white">Nueva Venta</div>
               <div class="text-xs text-gray-500 dark:text-[#9CA3AF]">Crear una venta para cliente</div>
             </div>
           </button>
-          <button class="card flex items-center gap-3 hover:shadow-md transition" @click="goTo('/company/pricing')">
+          <button class="card card--animated flex items-center gap-3 hover:shadow-md transition" style="animation-delay: 100ms" @click="goTo('/company/pricing')">
             <BoltIcon class="h-6 w-6 text-[#3B82F6]" />
             <div>
               <div class="font-semibold text-gray-900 dark:text-white">Analizar Precios</div>
               <div class="text-xs text-gray-500 dark:text-[#9CA3AF]">Ejecutar IA de pricing</div>
             </div>
           </button>
-          <button class="card flex items-center gap-3 hover:shadow-md transition" @click="goTo('/inventory')">
+          <button class="card card--animated flex items-center gap-3 hover:shadow-md transition" style="animation-delay: 200ms" @click="goTo('/inventory')">
             <CubeIcon class="h-6 w-6 text-[#10B981]" />
             <div>
               <div class="font-semibold text-gray-900 dark:text-white">Cargar Stock</div>
               <div class="text-xs text-gray-500 dark:text-[#9CA3AF]">Actualizar inventario y productos</div>
             </div>
           </button>
-          <button class="card flex items-center gap-3 hover:shadow-md transition" @click="goTo('/invoices')">
+          <button class="card card--animated flex items-center gap-3 hover:shadow-md transition" style="animation-delay: 300ms" @click="goTo('/invoices')">
             <ChartBarIcon class="h-6 w-6 text-[#3B82F6]" />
             <div>
               <div class="font-semibold text-gray-900 dark:text-white">Ver Reportes</div>
@@ -54,9 +53,9 @@
       </div>
 
       <!-- TOP ROW - 4 Metric Cards -->
-      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mt-6">
         <!-- Ventas Hoy -->
-        <div class="card hover:shadow-lg transition-shadow">
+        <div class="card card--animated hover:shadow-lg transition-shadow" style="animation-delay: 0ms">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
               <CurrencyDollarIcon class="h-6 w-6 text-green-600" />
@@ -71,7 +70,7 @@
         </div>
 
         <!-- IA en Uso -->
-        <div class="card hover:shadow-lg transition-shadow">
+        <div class="card card--animated hover:shadow-lg transition-shadow" style="animation-delay: 100ms">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
               <BoltIcon class="h-6 w-6 text-indigo-600" />
@@ -86,7 +85,7 @@
         </div>
 
         <!-- Alertas Críticas -->
-        <div class="card hover:shadow-lg transition-shadow">
+        <div class="card card--animated hover:shadow-lg transition-shadow" style="animation-delay: 200ms">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
               <ExclamationTriangleIcon class="h-6 w-6 text-red-600" />
@@ -101,7 +100,7 @@
         </div>
 
         <!-- Margen Promedio -->
-        <div class="card hover:shadow-lg transition-shadow">
+        <div class="card card--animated hover:shadow-lg transition-shadow" style="animation-delay: 300ms">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
               <ChartBarIcon class="h-6 w-6 text-blue-600" />
@@ -126,7 +125,7 @@
       </div>
 
       <!-- MAIN CONTENT - Tabla Análisis IA -->
-      <div class="card">
+      <div class="card card--animated mt-6" style="animation-delay: 400ms">
         <div class="flex items-center justify-between mb-4">
           <div>
             <h2 class="text-lg font-semibold text-gray-900 dark:text-white">🤖 Análisis IA Recientes - Oportunidades de Pricing</h2>
@@ -181,7 +180,7 @@
       <!-- 4 Widgets -->
       <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <!-- Gráfico ventas 7 días -->
-        <div class="card">
+        <div class="card card--animated" style="animation-delay: 500ms">
           <div class="flex items-center justify-between mb-2">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white">📊 Performance Ventas (7 días)</h3>
             <span class="text-xs text-gray-600 dark:text-[#9CA3AF]">Pico: Lunes $18k | Bajo: Dom $8k</span>
@@ -193,7 +192,7 @@
         </div>
 
         <!-- Top 5 productos del mes -->
-        <div class="card">
+        <div class="card card--animated" style="animation-delay: 600ms">
           <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">🏆 Top 5 Productos del Mes</h3>
           <ul class="space-y-2">
             <li v-for="(p, i) in topProducts" :key="p.name" class="flex items-center justify-between">
@@ -209,7 +208,7 @@
 
 
         <!-- Alertas priorizadas -->
-        <div class="card">
+        <div class="card card--animated" style="animation-delay: 700ms">
           <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">🔔 Alertas Priorizadas</h3>
           <div class="space-y-4">
             <div>
@@ -235,7 +234,7 @@
         </div>
 
         <!-- Últimos movimientos / acciones -->
-        <div class="card">
+        <div class="card card--animated" style="animation-delay: 800ms">
           <div class="flex items-center justify-between mb-3">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white">📝 Últimos movimientos</h3>
             <button class="text-sm text-[#3B82F6] hover:underline" @click="goTo('/invoices')">Ver todos</button>
@@ -269,7 +268,6 @@
           </div>
         </div>
       </div>
-    </div>
   </DashboardLayout>
 </template>
 
@@ -483,6 +481,7 @@ const goTo = (path: string) => router.push(path)
   box-shadow: 0 4px 12px rgba(0,0,0,0.08);
   padding: 1rem; /* p-4 */
   transition: transform .2s ease, box-shadow .2s ease;
+  will-change: transform, box-shadow, opacity;
 }
 .dark .card {
   background-color: #141C2E; /* dark */
@@ -496,6 +495,9 @@ const goTo = (path: string) => router.push(path)
   box-shadow: 0 8px 20px rgba(0,0,0,0.12);
 }
 .dark .card:hover { box-shadow: 0 8px 20px rgba(0,0,0,0.3); }
+
+.card--animated { opacity: 0; animation: fadeUpIn .24s ease-out forwards; }
+@keyframes fadeUpIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 .btn-primary {
   background-color: #3B82F6; /* acento azul */
   color: #0B1220;

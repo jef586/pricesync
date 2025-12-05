@@ -253,7 +253,7 @@ const router = createRouter({
     {
       path: '/pos',
       name: 'SalesPOS',
-      component: SalesPOSView,
+      redirect: '/sales/new',
       meta: { requiresAuth: true }
     },
     {
@@ -266,7 +266,7 @@ const router = createRouter({
       path: '/sales/new',
       name: 'SalesNew',
       component: SalesNewView,
-      meta: { requiresAuth: false }
+      meta: { requiresAuth: true }
     },
     {
       path: '/articles',
