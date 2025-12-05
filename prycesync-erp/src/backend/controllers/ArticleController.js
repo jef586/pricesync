@@ -1,4 +1,5 @@
 import prisma from '../config/database.js';
+import AuditService from '../services/AuditService.js'
 import fs from 'fs';
 import path from 'path';
 import sharp from 'sharp';
@@ -527,14 +528,14 @@ class ArticleController {
         return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'pricePublic debe ser >= 0' });
       }
       if (stockMax != null && stockMin != null && parseInt(stockMax) < parseInt(stockMin)) {
-        return res.status(409).json({ error: 'CONFLICT', message: 'stockMax debe ser >= stockMin' });
+        return res.status(400).json({ error: 'VALIDATION_ERROR', code: 'STOCK_LIMITS_INVALID', message: 'stockMax debe ser >= stockMin' });
       }
 
       // Validar categoría si se envía
       if (categoryId) {
         const category = await prisma.category.findFirst({ where: { id: categoryId, companyId, deletedAt: null } });
         if (!category) {
-          return res.status(404).json({ error: 'NOT_FOUND', message: 'Categoría no encontrada' });
+          return res.status(422).json({ error: 'INVALID_FOREIGN_KEY', code: 'INVALID_CATEGORY', message: 'Categoría no encontrada' });
         }
       }
 
@@ -702,7 +703,7 @@ class ArticleController {
       if (categoryId) {
         const category = await prisma.category.findFirst({ where: { id: categoryId, companyId, deletedAt: null } });
         if (!category) {
-          return res.status(404).json({ error: 'NOT_FOUND', message: 'Categoría no encontrada' });
+          return res.status(422).json({ error: 'INVALID_FOREIGN_KEY', code: 'INVALID_CATEGORY', message: 'Categoría no encontrada' });
         }
       }
 
@@ -713,7 +714,7 @@ class ArticleController {
         return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'pricePublic debe ser >= 0' });
       }
       if (stockMax != null && stockMin != null && parseInt(stockMax) < parseInt(stockMin)) {
-        return res.status(409).json({ error: 'CONFLICT', message: 'stockMax debe ser >= stockMin' });
+        return res.status(400).json({ error: 'VALIDATION_ERROR', code: 'STOCK_LIMITS_INVALID', message: 'stockMax debe ser >= stockMin' });
       }
 
       const updateData = {};
@@ -742,6 +743,7 @@ class ArticleController {
 
       // Resolver componentes entrantes
       const incomingComponents = Array.isArray(bundleComponentsRaw ?? comboComponents) ? (bundleComponentsRaw ?? comboComponents) : []
+      const hasIncomingComponents = Array.isArray(bundleComponentsRaw) || Array.isArray(comboComponents)
       const normalizedComponents = []
       for (const c of incomingComponents) {
         if (!c) continue
@@ -799,7 +801,7 @@ class ArticleController {
           include: { category: { select: { id: true, name: true } } }
         })
 
-        if (componentsProvided) {
+        if (hasIncomingComponents) {
           // Sincronizar componentes: eliminar los que no estén, actualizar qty y crear nuevos
           const existingComps = await tx.articleBundleComponent.findMany({ where: { articleId: id } })
           const incomingMap = new Map(normalizedComponents.map(c => [c.articleId, c.qty]))
@@ -826,13 +828,32 @@ class ArticleController {
         return updated
       })
 
+      try {
+        const actor = req.user || {}
+        const diff = {}
+        for (const k of Object.keys(updateData)) {
+          diff[k] = { before: existing[k], after: article[k] }
+        }
+        await AuditService.log({
+          actorId: actor.id,
+          actorName: actor.name,
+          targetId: id,
+          targetName: article.name,
+          actionType: 'ARTICLE_UPDATE',
+          payloadDiff: diff,
+          companyId: companyId,
+          ip: req.ip,
+          userAgent: req.headers['user-agent']
+        })
+      } catch {}
+
       res.json(article);
     } catch (error) {
       console.error('Error updating article:', error);
       if (error.code === 'P2002') {
-        return res.status(409).json({ error: 'CONFLICT', message: 'SKU o código de barras duplicado' });
+        return res.status(409).json({ error: 'CONFLICT', code: 'ARTICLE_UNIQUE_CONFLICT', message: 'SKU o código de barras duplicado' });
       }
-      res.status(500).json({ error: 'SERVER_ERROR', message: 'No se pudo actualizar el artículo' });
+      res.status(500).json({ error: 'SERVER_ERROR', code: 'UPDATE_ARTICLE_FAILED', message: 'No se pudo actualizar el artículo' });
     }
   }
 

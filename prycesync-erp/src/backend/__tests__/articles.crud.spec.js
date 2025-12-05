@@ -27,10 +27,12 @@ const db = {
 }
 let nextId = 1
 
-vi.mock('../config/database.js', () => {
-  const prisma = {
-    article: {
+  vi.mock('../config/database.js', () => {
+    const prisma = {
+      article: {
       async create({ data, include }) {
+        const conflict = db.articles.find(a => a.companyId === data.companyId && (a.sku === data.sku || (data.barcode && a.barcode === data.barcode)))
+        if (conflict) throw Object.assign(new Error('Unique constraint failed'), { code: 'P2002' })
         const id = data.id || `art-${nextId++}`
         const record = { id, deletedAt: null, ...data }
         db.articles.push(record)
@@ -55,11 +57,16 @@ vi.mock('../config/database.js', () => {
       async update({ where, data, include }) {
         const idx = db.articles.findIndex(a => a.id === where.id)
         if (idx === -1) throw Object.assign(new Error('Not found'), { code: 'P2025' })
-        const merged = { ...db.articles[idx], ...data }
+        const target = db.articles[idx]
+        const newSku = data.sku ?? target.sku
+        const newBarcode = data.barcode ?? target.barcode
+        const conflict = db.articles.find(a => a.id !== target.id && a.companyId === (target.companyId || data.companyId) && (a.sku === newSku || (newBarcode && a.barcode === newBarcode)))
+        if (conflict) throw Object.assign(new Error('Unique constraint failed'), { code: 'P2002' })
+        const merged = { ...target, ...data }
         db.articles[idx] = merged
         return include?.category ? { ...merged, category: merged.categoryId ? { id: merged.categoryId, name: 'Cat' } : null } : merged
       }
-    },
+      },
     category: {
       async findFirst({ where }) {
         return db.categories.find(c => c.id === where.id && c.companyId === where.companyId && c.deletedAt == null) || null
@@ -144,6 +151,34 @@ describe('CRUD de Artículos', () => {
     const body = await res.json()
     expect(body.pricePublic).toBe(242)
     expect(body.gainPct).toBe(100)
+  })
+
+  it('conflicto por sku duplicado (409)', async () => {
+    await fetch(`${baseURL}/api/articles`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'Articulo 2', cost: 100, taxRate: 21, sku: 'DUP-1' })
+    })
+    const listRes = await fetch(`${baseURL}/api/articles`)
+    const listBody = await listRes.json()
+    const id = listBody.data[0].id
+    const res = await fetch(`${baseURL}/api/articles/${id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sku: 'DUP-1' })
+    })
+    expect(res.status).toBe(409)
+    const body = await res.json()
+    expect(body.code).toBe('ARTICLE_UNIQUE_CONFLICT')
+  })
+
+  it('stockMax < stockMin retorna 400', async () => {
+    const listRes = await fetch(`${baseURL}/api/articles`)
+    const listBody = await listRes.json()
+    const id = listBody.data[0].id
+    const res = await fetch(`${baseURL}/api/articles/${id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stockMin: 10, stockMax: 5 })
+    })
+    expect(res.status).toBe(400)
   })
 
   it('actualiza stock', async () => {
