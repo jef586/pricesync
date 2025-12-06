@@ -22,8 +22,10 @@ const DEFAULT_SETTINGS: ListenerSettings = {
   preventInInputs: true,
 }
 
-// Allowed printable characters
-const ALLOWED_RE = /[A-Za-z0-9._-]/
+// Allowed printable characters (single-key only)
+const ALLOWED_RE = /^[A-Za-z0-9._-]$/
+// Keys to ignore (modifiers and control keys) so they don't reset bursts
+const IGNORE_KEYS = new Set(['Shift', 'Control', 'Alt', 'Meta', 'CapsLock'])
 
 // Helpers
 function isEditableTarget(target: EventTarget | null): boolean {
@@ -63,6 +65,7 @@ export function useBarcodeListener(settings?: Partial<ListenerSettings>): {
   }
 
   const emitCode = (code: string, target: EventTarget | null) => {
+    console.log('BarcodeListener:emit', { code })
     callbacks.forEach((cb) => {
       try { cb(code) } catch (_) {}
     })
@@ -97,10 +100,16 @@ export function useBarcodeListener(settings?: Partial<ListenerSettings>): {
     }
 
     const isSuffix = key === cfg.suffix && cfg.suffix !== 'none'
-    const isPrintable = ALLOWED_RE.test(key)
+    const isPrintable = key.length === 1 && ALLOWED_RE.test(key)
+    const isIgnoredControl = IGNORE_KEYS.has(key) || (cfg.suffix === 'none' && (key === 'Enter' || key === 'Tab'))
 
-    // Non-printable and not suffix => reset
+    // Non-printable and not suffix => ignore if control, else reset
     if (!isPrintable && !isSuffix) {
+      if (isIgnoredControl) {
+        // Keep burst active; do not modify buffer
+        lastTs = now
+        return
+      }
       reset()
       return
     }
@@ -131,6 +140,7 @@ export function useBarcodeListener(settings?: Partial<ListenerSettings>): {
     const tsOk = lastTs != null ? now - lastTs >= (cfg.suffix === 'none' ? 0 : cfg.windowMsMin) && now - lastTs <= cfg.interKeyTimeout : false
     if (lastTs == null) {
       // First key of a potential burst
+      if (inEditable && cfg.preventInInputs) { e.preventDefault() }
       buffer.push(key)
       timestamps.push(now)
       lastTs = now
@@ -157,6 +167,7 @@ export function useBarcodeListener(settings?: Partial<ListenerSettings>): {
       }
     } else if (tsOk) {
       // Valid inter-key timing
+      if (inEditable && cfg.preventInInputs) { e.preventDefault() }
       buffer.push(key)
       timestamps.push(now)
       lastTs = now
@@ -206,6 +217,7 @@ export function useBarcodeListener(settings?: Partial<ListenerSettings>): {
       }
       // Reset and treat this key as new start
       reset()
+      if (inEditable && cfg.preventInInputs) { e.preventDefault() }
       buffer.push(key)
       timestamps.push(now)
       lastTs = now
@@ -214,6 +226,7 @@ export function useBarcodeListener(settings?: Partial<ListenerSettings>): {
 
   const start = () => {
     if (isRunning.value) return
+    console.log('BarcodeListener:start')
     window.addEventListener('keydown', handler, { passive: false })
     isRunning.value = true
   }

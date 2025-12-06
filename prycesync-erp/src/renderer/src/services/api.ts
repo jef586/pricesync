@@ -26,8 +26,20 @@ apiClient.interceptors.request.use(
 
 // Response interceptor for error handling
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    try {
+      const rid = (response.headers?.['x-request-id'] || response.headers?.['X-Request-Id']) as any
+      // stash for debugging
+      ;(response as any).__requestId = rid
+    } catch {}
+    return response
+  },
   (error) => {
+    try {
+      const hdrs = error?.response?.headers || {}
+      const rid = hdrs['x-request-id'] || hdrs['X-Request-Id']
+      ;(error as any).requestId = rid
+    } catch {}
     console.log('🚨 API Error:', error.response?.status, error.response?.data);
     if (error.response?.status === 401) {
       console.log('🚨 401 Unauthorized - redirecting to /auth');

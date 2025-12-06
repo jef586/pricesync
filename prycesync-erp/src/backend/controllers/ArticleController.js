@@ -6,6 +6,7 @@ import sharp from 'sharp';
 import { getCompanyPricing, computeSalePrice, directPricing, inversePricing, forCombo } from '../services/PricingService.js'
 import StockService from '../services/StockService.js'
 import UomService from '../services/UomService.js'
+import { recordLookupOk, recordLookupNotFound, recordLookupError, recordLookupLatencyMs } from '../observability/deprecationMetrics.js'
 
 class ArticleController {
   // Buscar artículos
@@ -1314,7 +1315,8 @@ class ArticleController {
   static async resolveArticle(req, res) {
     try {
       const { barcode, sku, supplierId, supplierSku } = req.query || {};
-      const companyId = req.user.company.id;
+      const companyId = req.user?.company?.id || req.user?.companyId;
+      console.log('articles.resolve start', { barcode, sku, supplierId, supplierSku, companyId })
 
       const articleSelect = {
         id: true,
@@ -1333,35 +1335,87 @@ class ArticleController {
 
       // 1) Por barcode exacto (campo principal o tabla secundaria)
       if (barcode) {
+        console.log('articles.resolve try barcode', barcode)
+        const code = barcode.toString().trim()
         const byBarcode = await prisma.article.findFirst({
           where: {
             companyId,
             deletedAt: null,
             OR: [
-              { barcode: barcode.toString().trim() },
-              { barcodes: { some: { code: barcode.toString().trim() } } }
+              { barcode: code },
+              { barcodes: { some: { code } } }
             ]
           },
           select: articleSelect
         })
         if (byBarcode) {
+          console.log('articles.resolve found by barcode', byBarcode?.id)
           return res.json({ success: true, data: byBarcode })
+        }
+
+        const byBarcodeLike = await prisma.article.findFirst({
+          where: {
+            companyId,
+            deletedAt: null,
+            OR: [
+              { barcode: { contains: code } },
+              { barcodes: { some: { code: { contains: code } } } }
+            ]
+          },
+          select: articleSelect
+        })
+        if (byBarcodeLike) {
+          console.log('articles.resolve found by barcode LIKE', byBarcodeLike?.id)
+          return res.json({ success: true, data: byBarcodeLike })
+        }
+
+        const tokens = code.replace(/[^A-Za-z0-9]/g, ' ').split(/\s+/).filter(Boolean)
+        if (tokens.length >= 2) {
+          console.log('articles.resolve try tokenized barcode', tokens)
+          const tokenized = await prisma.article.findFirst({
+            where: {
+              companyId,
+              deletedAt: null,
+              OR: [
+                { AND: tokens.map((t) => ({ barcode: { contains: t } })) },
+                { barcodes: { some: { AND: tokens.map((t) => ({ code: { contains: t } })) } } }
+              ]
+            },
+            select: articleSelect
+          })
+          if (tokenized) {
+            console.log('articles.resolve found by tokenized barcode', tokenized?.id)
+            return res.json({ success: true, data: tokenized })
+          }
         }
       }
 
       // 2) Por SKU/código
       if (sku) {
+        console.log('articles.resolve try sku', sku)
+        const skuStr = sku.toString().trim()
         const bySku = await prisma.article.findFirst({
-          where: { companyId, deletedAt: null, sku: sku.toString().trim() },
+          where: { companyId, deletedAt: null, sku: skuStr },
           select: articleSelect
         })
         if (bySku) {
+          console.log('articles.resolve found by sku', bySku?.id)
           return res.json({ success: true, data: bySku })
+        }
+
+        const bySkuLike = await prisma.article.findFirst({
+          where: { companyId, deletedAt: null, sku: { contains: skuStr } },
+          select: articleSelect
+        })
+        if (bySkuLike) {
+          console.log('articles.resolve found by sku LIKE', bySkuLike?.id)
+          return res.json({ success: true, data: bySkuLike })
         }
       }
 
       // 3) Por equivalencia de proveedor (estricto supplierId + supplierSku)
       if (supplierId && supplierSku) {
+        console.log('articles.resolve try supplier link', { supplierId, supplierSku })
         const bySupplier = await prisma.articleSupplier.findFirst({
           where: {
             supplierId: supplierId.toString().trim(),
@@ -1373,10 +1427,12 @@ class ArticleController {
           }
         })
         if (bySupplier?.article) {
+          console.log('articles.resolve found by supplier link', bySupplier?.article?.id)
           return res.json({ success: true, data: bySupplier.article })
         }
       }
 
+      console.log('articles.resolve not found')
       return res.status(404).json({ success: false, message: 'Artículo no encontrado' })
     } catch (error) {
       console.error('Error resolving article:', error)
@@ -1384,192 +1440,105 @@ class ArticleController {
     }
   }
 
-  // --- NUEVO: Lookup enriquecido de artículo ---
   static async lookupArticle(req, res) {
+    const started = Date.now()
     try {
-      const { id, barcode, sku, supplierId, supplierSku, q } = req.query || {}
-      const companyId = req.user.company.id
-
-      // Política de visibilidad de costo: admins/supervisores/técnicos pueden ver costo
-      const role = String(req.user.role || '').toUpperCase()
-      const canSeeCost = ['SUPERADMIN', 'ADMIN', 'SUPERVISOR', 'TECHNICIAN'].includes(role)
-
-      const articleInclude = {
-        category: { select: { id: true, name: true } },
-        barcodes: true,
-        suppliers: { include: { supplier: { select: { id: true, code: true, name: true } } } },
-        wholesaleTiers: { select: { id: true, uom: true, minQty: true, price: true, discountPct: true, active: true, validFrom: true, validTo: true } },
-        ArticleBulkPricing: { select: { id: true, uom: true, minQty: true, mode: true, unitPrice: true, percentOff: true, priority: true, active: true, validFrom: true, validTo: true } },
-        image: true
+      const companyId = req.user?.company?.id || req.user?.companyId
+      if (!companyId) {
+        recordLookupError()
+        recordLookupLatencyMs(Date.now() - started)
+        return res.status(403).json({ error: 'COMPANY_NOT_SET' })
       }
+      const raw = req.query?.barcode
+      if (raw == null) {
+        recordLookupError()
+        recordLookupLatencyMs(Date.now() - started)
+        return res.status(422).json({ error: 'INVALID_CODE' })
+      }
+      const code = String(raw)
+      if (code.length < 1 || code.length > 64) {
+        recordLookupError()
+        recordLookupLatencyMs(Date.now() - started)
+        return res.status(422).json({ error: 'INVALID_CODE' })
+      }
+      const normalized = code.trim().replace(/\s+/g, '')
 
-      const baseSelect = {
+      const select = {
         id: true,
         sku: true,
         name: true,
-        description: true,
-        type: true,
-        active: true,
-        cost: true,
-        gainPct: true,
         pricePublic: true,
-        pointsPerUnit: true,
-        stock: true,
+        barcode: true,
         taxRate: true,
-        internalTaxType: true,
-        internalTaxValue: true,
-        category: true,
-        barcodes: true,
-        suppliers: true,
-        wholesaleTiers: true,
-        ArticleBulkPricing: true,
-        image: true,
-        barcode: true
+        stock: true
       }
 
-      let article = null
-
-      // Prioridades de resolución: id > barcode > sku > supplierId+supplierSku > q (búsqueda ligera)
-      if (id) {
-        article = await prisma.article.findFirst({ where: { id: String(id), companyId, deletedAt: null }, select: baseSelect, include: articleInclude })
+      console.log('articles.lookup start', { requestId: req.requestId, companyId, code: normalized })
+      let found = await prisma.article.findFirst({ where: { companyId, deletedAt: null, barcode: normalized }, select })
+      if (!found) {
+        const b = await prisma.articleBarcode.findFirst({ where: { code: normalized } })
+        if (b?.articleId) {
+          found = await prisma.article.findFirst({ where: { id: b.articleId, companyId, deletedAt: null }, select })
+        }
+      }
+      if (!found) {
+        const s = await prisma.articleSupplier.findFirst({ where: { supplierSku: normalized } })
+        if (s?.articleId) {
+          found = await prisma.article.findFirst({ where: { id: s.articleId, companyId, deletedAt: null }, select })
+        }
       }
 
-      if (!article && barcode) {
-        const code = barcode.toString().trim()
-        article = await prisma.article.findFirst({
-          where: {
-            companyId,
-            deletedAt: null,
-            OR: [
-              { barcode: code },
-              { barcodes: { some: { code } } }
-            ]
-          },
-          select: baseSelect,
-          include: articleInclude
-        })
+      // Intento adicional: comparar eliminando caracteres no alfanuméricos (ej. guiones)
+      if (!found) {
+        const compact = normalized.replace(/[^A-Za-z0-9]/g, '')
+        if (compact && compact !== normalized) {
+          let f2 = await prisma.article.findFirst({ where: { companyId, deletedAt: null, barcode: compact }, select })
+          if (!f2) {
+            const b2 = await prisma.articleBarcode.findFirst({ where: { code: compact } })
+            if (b2?.articleId) {
+              f2 = await prisma.article.findFirst({ where: { id: b2.articleId, companyId, deletedAt: null }, select })
+            }
+          }
+          if (!f2) {
+            const s2 = await prisma.articleSupplier.findFirst({ where: { supplierSku: compact } })
+            if (s2?.articleId) {
+              f2 = await prisma.article.findFirst({ where: { id: s2.articleId, companyId, deletedAt: null }, select })
+            }
+          }
+          if (!f2) {
+            f2 = await prisma.article.findFirst({ where: { companyId, deletedAt: null, sku: compact }, select })
+          }
+          found = f2 || found
+        }
+      }
+      if (!found) {
+        found = await prisma.article.findFirst({ where: { companyId, deletedAt: null, sku: normalized }, select })
       }
 
-      if (!article && sku) {
-        article = await prisma.article.findFirst({ where: { companyId, deletedAt: null, sku: sku.toString().trim() }, select: baseSelect, include: articleInclude })
+      if (!found) {
+        recordLookupNotFound()
+        recordLookupLatencyMs(Date.now() - started)
+        return res.status(404).json({ error: 'ARTICLE_NOT_FOUND' })
       }
 
-      if (!article && supplierId && supplierSku) {
-        const link = await prisma.articleSupplier.findFirst({
-          where: {
-            supplierId: supplierId.toString().trim(),
-            supplierSku: supplierSku.toString().trim(),
-            article: { companyId, deletedAt: null }
-          },
-          include: { article: { select: baseSelect, include: articleInclude } }
-        })
-        article = link?.article || null
-      }
-
-      if (!article && q && String(q).length >= 2) {
-        const results = await prisma.article.findMany({
-          where: {
-            companyId,
-            deletedAt: null,
-            OR: [
-              { name: { contains: q.toString(), mode: 'insensitive' } },
-              { sku: { contains: q.toString(), mode: 'insensitive' } },
-              { barcode: { contains: q.toString(), mode: 'insensitive' } },
-              { description: { contains: q.toString(), mode: 'insensitive' } },
-              { barcodes: { some: { code: { contains: q.toString(), mode: 'insensitive' } } } },
-              { suppliers: { some: { supplierSku: { contains: q.toString(), mode: 'insensitive' } } } }
-            ]
-          },
-          select: baseSelect,
-          include: articleInclude,
-          take: 1,
-          orderBy: { name: 'asc' }
-        })
-        article = results?.[0] || null
-      }
-
-      if (!article) {
-        return res.status(404).json({ success: false, message: 'Artículo no encontrado' })
-      }
-
-      // Preparar datos auxiliares
-      const imageUrl = article.image?.thumbnailUrl || article.image?.imageUrl || article.imageUrl || null
-      const barcodes = [article.barcode, ...(Array.isArray(article.barcodes) ? article.barcodes.map(b => b.code) : [])].filter(Boolean)
-      const suppliers = (Array.isArray(article.suppliers) ? article.suppliers : []).map((l) => ({
-        id: l.id,
-        supplierId: l.supplierId,
-        supplierCode: l.supplier?.code,
-        supplierName: l.supplier?.name,
-        supplierSku: l.supplierSku,
-        isPrimary: !!l.isPrimary
-      }))
-      const primarySupplier = suppliers.find(s => s.isPrimary) || null
-
-      // Cálculo de precio público y desglose
-      const numericCost = Number(article.cost || 0)
-      const numericGain = Number(article.gainPct ?? NaN)
-      const numericTaxRate = Number(article.taxRate || 0)
-      const useGainPct = Number.isFinite(numericGain) ? numericGain : (await getCompanyPricing(companyId)).defaultMarginPercent
-
-      const internalTaxType = article.internalTaxType || 'NONE'
-      const internalTaxValue = Number(article.internalTaxValue || 0)
-
-      // compute internal tax amount
-      const internalTaxAmount = (() => {
-        const c = numericCost
-        const val = internalTaxValue
-        if (!internalTaxType || internalTaxType === 'NONE') return 0
-        if (internalTaxType === 'FIXED' || internalTaxType === 'ABS') return Number(val)
-        if (internalTaxType === 'PERCENT') return c * (Number(val) / 100)
-        return 0
-      })()
-
-      const baseWithMargin = numericCost * (1 + useGainPct / 100)
-      const netBeforeVAT = baseWithMargin + internalTaxAmount
-      const vatAmount = netBeforeVAT * (numericTaxRate / 100)
-      const { pricePublic: computedPricePublic } = directPricing({ cost: numericCost, gainPct: useGainPct, taxRate: numericTaxRate, internalTaxType, internalTaxValue })
-
-      const pricing = {
-        taxRate: numericTaxRate,
-        gainPct: useGainPct,
-        internalTaxType,
-        internalTaxValue,
-        internalTaxAmount: Number(internalTaxAmount.toFixed(2)),
-        netBeforeVAT: Number(netBeforeVAT.toFixed(2)),
-        vatAmount: Number(vatAmount.toFixed(2)),
-        pricePublicStored: Number(article.pricePublic),
-        pricePublicComputed: Number(computedPricePublic)
-      }
-
+      recordLookupOk()
+      recordLookupLatencyMs(Date.now() - started)
       const payload = {
-        id: article.id,
-        sku: article.sku,
-        name: article.name,
-        description: article.description,
-        type: article.type,
-        active: article.active,
-        stock: article.stock,
-        pointsPerUnit: article.pointsPerUnit,
-        category: article.category,
-        imageUrl,
-        barcodes,
-        suppliers,
-        primarySupplier,
-        taxRate: numericTaxRate,
-        internalTaxType,
-        internalTaxValue,
-        canSeeCost,
-        // Sólo incluir costo si el rol puede verlo
-        cost: canSeeCost ? Number(article.cost || 0) : undefined,
-        pricePublic: Number(article.pricePublic),
-        pricing,
-        wholesaleTiers: article.wholesaleTiers,
-        bulkPricing: article.ArticleBulkPricing
+        id: found.id,
+        name: found.name,
+        sku: found.sku,
+        barcode: found.barcode,
+        pricePublic: Number(found.pricePublic),
+        taxRate: Number(found.taxRate),
+        uom: 'UN',
+        stock: Number(found.stock || 0)
       }
-
-      return res.json({ success: true, data: payload })
+      console.log('articles.lookup success', { requestId: req.requestId, id: payload.id })
+      return res.json(payload)
     } catch (error) {
-      console.error('Error in lookupArticle:', error)
+      recordLookupError()
+      recordLookupLatencyMs(Date.now() - started)
+      console.error('articles.lookup error', { requestId: req.requestId, error })
       res.status(500).json({ error: 'Error interno del servidor' })
     }
   }

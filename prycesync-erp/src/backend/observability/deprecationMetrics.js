@@ -4,12 +4,16 @@
 const state = {
   legacyRequests: 0,
   articlesRequests: 0,
+  lookupOk: 0,
+  lookupNotFound: 0,
+  lookupError: 0,
   // counters by {route|method|status}
   requestsByLabel: new Map(),
   // callers counter by id
   callers: new Map(),
   // store latency samples (ms)
   latencies: [],
+  lookupLatencies: [],
   maxLatencySamples: 5000
 }
 
@@ -33,6 +37,27 @@ export function recordLegacyRequest({ route, method, status, caller, durationMs 
 
 export function recordArticleRequest() {
   state.articlesRequests += 1
+}
+
+export function recordLookupOk() {
+  state.lookupOk += 1
+}
+
+export function recordLookupNotFound() {
+  state.lookupNotFound += 1
+}
+
+export function recordLookupError() {
+  state.lookupError += 1
+}
+
+export function recordLookupLatencyMs(ms) {
+  if (typeof ms === 'number') {
+    state.lookupLatencies.push(ms)
+    if (state.lookupLatencies.length > state.maxLatencySamples) {
+      state.lookupLatencies.splice(0, state.lookupLatencies.length - state.maxLatencySamples)
+    }
+  }
 }
 
 function percentile(values, p) {
@@ -64,6 +89,9 @@ export function getDeprecationState() {
   const p95 = percentile(state.latencies, 95)
   const p50 = percentile(state.latencies, 50)
   const p99 = percentile(state.latencies, 99)
+  const lp50 = percentile(state.lookupLatencies, 50)
+  const lp95 = percentile(state.lookupLatencies, 95)
+  const lp99 = percentile(state.lookupLatencies, 99)
 
   return {
     legacyRequests: state.legacyRequests,
@@ -76,6 +104,17 @@ export function getDeprecationState() {
       p50,
       p95,
       p99
+    },
+    lookup: {
+      ok: state.lookupOk,
+      notFound: state.lookupNotFound,
+      error: state.lookupError,
+      latency: {
+        samples: state.lookupLatencies.length,
+        p50: lp50,
+        p95: lp95,
+        p99: lp99
+      }
     }
   }
 }
@@ -85,8 +124,8 @@ export function getMetricsText() {
   const lines = []
   // Counters
   for (const [key, count] of state.requestsByLabel.entries()) {
-    const [route, method, status] = key.split('|')
-    const labels = `route="${route}",method="${method}",status="${status}"`
+    const [keyRoute, keyMethod, keyStatus] = key.split('|')
+    const labels = `route="${keyRoute}",method="${keyMethod}",status="${keyStatus}"`
     lines.push(`legacy_products_requests_total{${labels}} ${count}`)
   }
   for (const [caller, count] of state.callers.entries()) {
@@ -100,6 +139,19 @@ export function getMetricsText() {
   lines.push(`legacy_products_latency_ms{quantile="0.95"} ${s.latency.p95}`)
   lines.push(`legacy_products_latency_ms{quantile="0.99"} ${s.latency.p99}`)
   lines.push(`legacy_products_latency_ms_count ${s.latency.samples}`)
+
+  // Lookup counters and latency
+  lines.push(`# TYPE lookup_ok_total counter`)
+  lines.push(`lookup_ok_total ${s.lookup.ok}`)
+  lines.push(`# TYPE lookup_not_found_total counter`)
+  lines.push(`lookup_not_found_total ${s.lookup.notFound}`)
+  lines.push(`# TYPE lookup_error_total counter`)
+  lines.push(`lookup_error_total ${s.lookup.error}`)
+  lines.push(`# TYPE lookup_latency_ms summary`)
+  lines.push(`lookup_latency_ms{quantile="0.5"} ${s.lookup.latency.p50}`)
+  lines.push(`lookup_latency_ms{quantile="0.95"} ${s.lookup.latency.p95}`)
+  lines.push(`lookup_latency_ms{quantile="0.99"} ${s.lookup.latency.p99}`)
+  lines.push(`lookup_latency_ms_count ${s.lookup.latency.samples}`)
 
   // Legacy vs articles
   lines.push(`legacy_products_total ${state.legacyRequests}`)

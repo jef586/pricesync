@@ -362,8 +362,8 @@ model Article {
   active Boolean     @default(true)
 
   // Identificación
-  sku         String       @unique
-  barcode     String?      @unique
+  sku         String
+  barcode     String?
   barcodeType BarcodeType? @map("barcode_type")
 
   // Clasificación
@@ -432,6 +432,10 @@ model Article {
   @@index([imageId], map: "idx_articles_image")
   @@index([companyId], map: "idx_articles_company")
   @@index([categoryId], map: "idx_articles_category")
+  @@index([sku], map: "idx_articles_sku")
+  @@index([barcode], map: "idx_articles_barcode")
+  @@unique([companyId, sku], map: "uniq_articles_company_sku")
+  @@unique([companyId, barcode], map: "uniq_articles_company_barcode")
   @@map("articles")
 }
 
@@ -459,12 +463,13 @@ model ArticleBarcode {
   id        String      @id @default(cuid())
   articleId String      @map("article_id")
   article   Article     @relation(fields: [articleId], references: [id], onDelete: Cascade)
-  code      String      @unique
+  code      String
   type      BarcodeType
 
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("article_barcodes")
+  @@index([code], map: "idx_article_barcodes_code")
 }
 
 model ArticleSupplier {
@@ -478,6 +483,7 @@ model ArticleSupplier {
 
   @@unique([articleId, supplierId])
   @@unique([supplierId, supplierSku])
+  @@index([supplierSku], map: "idx_article_suppliers_supplierSku")
   @@map("article_suppliers")
 }
 

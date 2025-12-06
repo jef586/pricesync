@@ -28,6 +28,7 @@ import salesRoutes from './routes/sales.js';
 import stockRoutes from './routes/stock.js';
 import stockEstimatorRoutes from './routes/stock-estimator.js';
 import rubrosRoutes from './routes/rubros.js';
+import { randomUUID } from 'crypto';
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -47,12 +48,21 @@ const allowedOrigins = String(process.env.CORS_ORIGIN || 'http://localhost:5173,
   .filter(Boolean)
 app.use(cors({
   origin: allowedOrigins,
-  credentials: true
+  credentials: true,
+  exposedHeaders: ['x-request-id']
 }));
 
 // Middleware para parsing JSON
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Middleware de requestId
+app.use((req, res, next) => {
+  const rid = req.headers['x-request-id'] || randomUUID();
+  req.requestId = rid;
+  res.setHeader('x-request-id', rid);
+  next();
+});
 
 // Static route to serve article images
 app.use('/static/articles', express.static(ARTICLES_ASSETS_DIR, {

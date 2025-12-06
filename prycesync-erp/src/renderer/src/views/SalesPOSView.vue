@@ -256,17 +256,21 @@ let barcodeCtrl: ReturnType<typeof useBarcodeListener> | null = null
 onMounted(async () => {
   const raw = await getPosBarcodeSettings()
   const settings: any = {
-    enabled: raw?.enabled ?? true,
-    windowMsMin: raw?.windowMsMin ?? 50,
-    interKeyTimeout: (raw as any)?.interKeyTimeout ?? raw?.windowMsMax ?? 200,
-    minLength: raw?.minLength ?? 6,
-    suffix: (raw as any)?.suffix ?? 'none',
-    preventInInputs: raw?.preventInInputs ?? true,
-    forceFocus: (raw as any)?.forceFocus ?? true,
+    enabled: true,
+    // Permitir ráfagas muy rápidas de lectores HID
+    windowMsMin: 0,
+    interKeyTimeout: 300,
+    minLength: (raw?.minLength ?? 6),
+    // Emitir por inactividad, no requiere Enter
+    suffix: 'none',
+    preventInInputs: true,
+    forceFocus: true,
     autoSelectSingle: (raw as any)?.autoSelectSingle ?? true,
   }
+  console.log('POS:init barcode listener', settings)
   barcodeCtrl = useBarcodeListener(settings)
   barcodeCtrl.onScan(async (code) => {
+    console.log('POS:onScan', code)
     productQuery.value = code
     if (settings.forceFocus) {
       const el = document.getElementById('pos-product-search') as HTMLInputElement | null

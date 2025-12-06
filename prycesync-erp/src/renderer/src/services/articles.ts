@@ -202,7 +202,9 @@ export async function updateFixedPrices(articleId: string, payload: Partial<{
 export async function getPricingPreview(articleId: string, qty: number, priceList: 'l1'|'l2'|'l3'):
   Promise<{ baseUnitPrice: number; finalUnitPrice: number; appliedPromo: any | null }>
 {
+  console.log('API:getPricingPreview', { articleId, qty, priceList })
   const resp = await apiClient.get(`/pricing/preview?articleId=${encodeURIComponent(String(articleId))}&qty=${Number(qty)}&priceList=${priceList}`)
+  console.log('API:getPricingPreview status', resp?.status)
   const data = resp.data?.data || resp.data
   return {
     baseUnitPrice: Number(data?.baseUnitPrice || 0),
@@ -225,9 +227,12 @@ export async function resolveArticle(params: {
   if (params.supplierSku) query.append('supplierSku', params.supplierSku)
 
   try {
+    console.log('API:resolveArticle GET', query.toString())
     const resp = await apiClient.get(`/articles/resolve?${query.toString()}`)
+    console.log('API:resolveArticle status', resp?.status)
     return (resp.data?.data || resp.data) as ArticleDTO
   } catch (err: any) {
+    console.log('API:resolveArticle error', err?.response?.status, err?.message)
     if (err?.response?.status === 404) return null
     throw err
   }
@@ -266,9 +271,12 @@ export async function lookup(params: {
   if (params.q) query.append('q', String(params.q))
 
   try {
+    console.log('API:lookup GET', query.toString())
     const resp = await apiClient.get(`/articles/lookup?${query.toString()}`)
+    console.log('API:lookup status', resp?.status)
     return resp.data?.data || resp.data
   } catch (err: any) {
+    console.log('API:lookup error', err?.response?.status, err?.message)
     if (err?.response?.status === 404) return null
     throw err
   }

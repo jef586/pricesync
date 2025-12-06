@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <!-- Layout principal: diseÃ±o compacto con encabezado a ancho completo -->
   <div class="h-full grid grid-cols-1 xl:grid-cols-12 xl:grid-rows-[auto_1fr] items-stretch gap-6 font-inter">
     <!-- Encabezado (full width) -->
@@ -104,7 +104,7 @@
         </div>
         <div class="w-36 shrink-0">
           <label class="block text-xs text-slate-600 dark:text-slate-300">Código de barras</label>
-          <input id="pos-barcode-input" type="text" v-model="barcode" placeholder="Escanear / escribir" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100" aria-label="Código de barras" tabindex="8" />
+          <input id="pos-barcode-input" type="text" v-model="barcode" @keydown="onBarcodeKeyDown" @input="onBarcodeInput" @blur="onBarcodeBlur" placeholder="Escanear / escribir" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100" aria-label="Código de barras" tabindex="8" />
         </div>
         <div class="w-16 shrink-0">
           <label class="block text-xs text-slate-600 dark:text-slate-300">Cantidad</label>
@@ -301,6 +301,8 @@
     </div>
   </div>
 
+  
+
   <!-- Toast -->
   <div v-if="toast.show" class="fixed bottom-4 right-4 px-3 py-2 rounded-md bg-slate-900 text-white shadow-md">{{ toast.message }}</div>
 </template>
@@ -313,6 +315,7 @@ import { usePadronStore } from '@/stores/modules/padron'
 import CustomerSearchModal from '@/components/molecules/CustomerSearchModal.vue'
 import { useBarcodeListener } from '@/composables/useBarcodeListener'
 import { getPosBarcodeSettings } from '@/services/posBarcodeSettings'
+import { getPricingPreview, lookup, resolveArticle } from '@/services/articles'
 
 type PriceList = { id: string; name: string; multiplier?: number; priceMap?: Record<string, number> }
 type Row = { id: string; sku: string; desc: string; qty: number; price: number; manualLocked: boolean; disc?: number; productId?: string; discountType?: 'PERCENT' | 'ABS'; discountValue?: number; isDiscountable?: boolean }
@@ -467,16 +470,50 @@ const basePriceForSku = (sku: string): number => {
   return map[sku] ?? 1500
 }
 
-const addRowFromBarcode = () => {
-  if (!barcode.value) return
-  const sku = barcode.value
-  const desc = 'Producto por código'
-  const pl = selectedPriceList.value
-  const price = computePriceForSku(sku, pl)
-  rows.value.push({ id: cryptoRandom(), sku, desc, qty: newQty.value || 1, price, manualLocked: false, disc: 0 })
+const addRowFromBarcode = async () => {
+  const sanitizeScannedCode = (raw: string) => String(raw || '')
+    .replace(/(Shift|Enter|Tab)/gi, '')
+    .replace(/\s+/g, '')
+    .trim()
+  const code = sanitizeScannedCode(String(barcode.value || ''))
+  console.log('POS:addRowFromBarcode', { raw: String(barcode.value || ''), code })
+  if (!code) return
+  try {
+    console.log('POS:lookup', code)
+    const art = await lookup({ barcode: code })
+    console.log('POS:lookup result', !!art, art?.id)
+    if (!art) { showToast('No se encontró el artículo'); return }
+    await addRowFromResolvedArticle(art)
+  } catch (_) {
+    const status = (_ as any)?.response?.status
+    const rid = (_ as any)?.requestId || (_ as any)?.response?.headers?.['x-request-id']
+    console.log('POS:lookup error', status, rid)
+    if (status === 422) showToast('Código inválido')
+    else if (status >= 500) { showToast('Error del servidor'); console.error('POS:lookup requestId', rid) }
+    else showToast('Error resolviendo artículo')
+  }
+}
+
+async function addRowFromResolvedArticle(art: any) {
+  const qty = newQty.value || 1
+  const list = String(selectedPriceListId.value || '').toLowerCase()
+  let unitPrice = Number(art?.pricePublic || 0)
+  if (['l1', 'l2', 'l3'].includes(list)) {
+    try {
+      const prev = await getPricingPreview(String(art.id), qty, list as 'l1'|'l2'|'l3')
+      unitPrice = Number(prev.finalUnitPrice || prev.baseUnitPrice || unitPrice)
+    } catch (_) {}
+  }
+  const row = { id: cryptoRandom(), sku: art?.sku || art?.id, desc: art?.name || 'Artículo', qty, price: Math.round(unitPrice), manualLocked: false, disc: 0, productId: String(art.id) }
+  console.log('SalesForm:push row', row)
+  rows.value.push(row)
   barcode.value = ''
+  newQty.value = 1
+  selectedImageUrl.value = (art?.imageUrl || '') as string
   syncTotals()
 }
+
+
 
 const addRowFromProduct = (product: any) => {
   const sku = product.sku || product.code || product.id
@@ -572,14 +609,29 @@ const handlePriceListChange = () => {
 }
 const modalCancel = () => { modal.value.show = false }
 const modalConfirm = () => { applyNewPriceList(); modal.value.show = false }
-const applyNewPriceList = () => {
-  const pl = priceLists.value.find(p => p.id === selectedPriceListId.value)
+const applyNewPriceList = async () => {
+  const nextId = String(selectedPriceListId.value || '').toLowerCase()
   let affected = 0
-  rows.value = rows.value.map(r => {
+  const updated = await Promise.all(rows.value.map(async (r) => {
     if (r.manualLocked) return r
-    affected++
-    return { ...r, price: computePriceForSku(r.sku, pl) }
-  })
+    let price = r.price
+    if (r.productId && ['l1','l2','l3'].includes(nextId)) {
+      try {
+        const prev = await getPricingPreview(String(r.productId), r.qty, nextId as 'l1'|'l2'|'l3')
+        price = Number(prev.finalUnitPrice || prev.baseUnitPrice || price)
+        affected++
+        return { ...r, price: Math.round(price) }
+      } catch (_) {
+        affected++
+        return r
+      }
+    } else {
+      affected++
+      return r
+    }
+  }))
+  rows.value = updated
+  const pl = priceLists.value.find(p => p.id === selectedPriceListId.value)
   showToast(`Precios actualizados por ${pl?.name ?? '—'} · ${affected} filas`)
 }
 
@@ -592,6 +644,10 @@ const showToast = (msg: string) => {
 
 // Sincronizar totales (placeholder por si luego hay side-effects)
 const syncTotals = () => {/* no-op, computeds se actualizan solos */}
+
+watch(rows, (nv) => {
+  console.log('SalesForm:rows changed', nv.length)
+}, { deep: true })
 
 // Acciones
 const removeRow = (idx: number) => { rows.value.splice(idx, 1) }
@@ -730,20 +786,25 @@ onMounted(async () => {
       suffix: 'none',
       // Evita que el escaneo escriba en otros inputs durante la rÃ¡faga
       preventInInputs: true,
-      // No forzar foco en el input de barras
-      forceFocus: false,
+      // Forzar foco al input de barras para capturar en el campo correcto
+      forceFocus: true,
       autoSelectSingle: (raw as any)?.autoSelectSingle ?? true,
     }
+    console.log('SalesForm:init barcode listener', settings)
     barcodeCtrl = useBarcodeListener(settings)
     barcodeCtrl.onScan((code) => {
-      // Completar input sin cambiar el foco actual
+      console.log('SalesForm:onScan', code)
       barcode.value = code
-      // Agregar automÃ¡ticamente si estÃ¡ habilitado
       if (settings.autoSelectSingle) {
         addRowFromBarcode()
       }
     })
     barcodeCtrl.start()
+    // Asegurar foco inicial al campo de barras
+    try {
+      const el = document.getElementById('pos-barcode-input') as HTMLInputElement | null
+      el?.focus()
+    } catch (_) {}
   } catch (err) {
     console.error('Barcode listener init failed:', err)
   }
@@ -763,10 +824,30 @@ onDeactivated(() => {
 onActivated(() => {
   try { window.addEventListener('keydown', handleKey) } catch (_) {}
   try { barcodeCtrl?.start() } catch (_) {}
+  try {
+    const el = document.getElementById('pos-barcode-input') as HTMLInputElement | null
+    el?.focus()
+  } catch (_) {}
 })
 
 // Utils
 const cryptoRandom = () => Math.random().toString(36).slice(2)
+
+let barcodeInputTimer: any = null
+const onBarcodeKeyDown = (e: KeyboardEvent) => {
+  if (e.key === 'Enter') { e.preventDefault(); console.log('SalesForm:onBarcodeKeyDown Enter'); addRowFromBarcode() }
+}
+const onBarcodeInput = () => {
+  if (barcodeInputTimer) clearTimeout(barcodeInputTimer)
+  barcodeInputTimer = setTimeout(() => {
+    const code = String(barcode.value || '')
+    if (code.length >= 6) { console.log('SalesForm:onBarcodeInput burst', code); addRowFromBarcode() }
+  }, 180)
+}
+const onBarcodeBlur = () => {
+  const code = String(barcode.value || '')
+  if (code.length >= 6) { console.log('SalesForm:onBarcodeBlur', code); addRowFromBarcode() }
+}
 
 // Exponer mÃ©todos para control desde la barra superior en SalesNewView
 defineExpose({ confirmAndCharge, cancelSale, saveSale })
@@ -775,7 +856,3 @@ defineExpose({ confirmAndCharge, cancelSale, saveSale })
 <style scoped>
 .font-inter { font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji'; }
 </style>
-
-
-
-
