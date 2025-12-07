@@ -1,5 +1,5 @@
 <template>
-  <DashboardLayout>
+  <DashboardLayout :contentScrollable="false">
     <div class="sales-pos-view">
       <PageHeader
         title="Ventas (POS)"
@@ -80,7 +80,7 @@
         <template #header>
           <h3 class="text-lg font-medium text-gray-900">Carrito</h3>
         </template>
-        <div class="overflow-x-auto">
+        <div class="overflow-x-auto h-full" :class="{ 'overflow-y-auto': cartItems.length >= 9 }">
           <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
               <tr>

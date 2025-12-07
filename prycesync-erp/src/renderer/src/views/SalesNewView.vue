@@ -1,6 +1,6 @@
 <template>
-  <DashboardLayout>
-    <div class="h-full flex flex-col">
+  <DashboardLayout :contentScrollable="false">
+    <div class="h-full min-h-0 flex flex-col">
     <!-- Breadcrumb y acciones -->
     <div class="flex items-center justify-between mb-4">
       <nav class="text-sm text-slate-600 dark:text-slate-300" aria-label="Breadcrumb">
@@ -40,7 +40,7 @@
     </div>
 
     <!-- Formulario unificado: siempre se renderiza el mismo componente -->
-    <div class="rounded-xl ring-2 ring-emerald-500 border border-emerald-500 p-3 flex-1 min-h-0">
+    <div class="rounded-xl ring-2 ring-emerald-500 border border-emerald-500 p-3 flex-1 min-h-0 overflow-hidden">
       <keep-alive>
         <SalesForm :key="activeTabId" ref="activeFormRef" @sale-success="onSaleSuccess" />
       </keep-alive>
@@ -355,4 +355,6 @@ watch(() => selectedPriceListId.value, () => { header.value; /* keep header sync
 
 <style scoped>
 .font-inter { font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji'; }
+</style>
+<style scoped>
 </style>

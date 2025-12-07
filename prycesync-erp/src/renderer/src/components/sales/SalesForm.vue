@@ -1,6 +1,6 @@
 <template>
   <!-- Layout principal: diseÃ±o compacto con encabezado a ancho completo -->
-  <div class="h-full grid grid-cols-1 xl:grid-cols-12 xl:grid-rows-[auto_1fr] items-stretch gap-6 font-inter">
+  <div class="h-full min-h-0 grid grid-cols-1 xl:grid-cols-12 xl:grid-rows-[auto_1fr] items-stretch gap-6 font-inter overflow-hidden">
     <!-- Encabezado (full width) -->
     <section class="xl:col-span-9 bg-white dark:bg-slate-900 rounded-xl shadow-md border border-slate-200 dark:border-slate-800 p-4" aria-label="Encabezado del comprobante">
       <div class="flex items-center justify-between mb-3">
@@ -69,7 +69,7 @@
     </section>
 
     <!-- Card B: Productos (izquierda) -->
-    <section class="xl:col-span-3 bg-white dark:bg-slate-900 rounded-xl shadow-md border border-slate-200 dark:border-slate-800 p-4 flex flex-col" aria-label="Productos">
+    <section class="xl:col-span-3 bg-white dark:bg-slate-900 rounded-xl shadow-md border border-slate-200 dark:border-slate-800 p-4 flex flex-col min-h-0 overflow-hidden" aria-label="Productos">
       <div class="flex items-end gap-2 mb-3">
         <div class="flex-1 min-w-[140px] relative">
           <label class="block text-xs text-slate-600 dark:text-slate-300">Buscar producto</label>
@@ -140,10 +140,10 @@
     </section>
 
     <!-- Card D: Tabla de productos (centro) -->
-    <section class="xl:col-span-6 bg-white dark:bg-slate-900 rounded-xl shadow-md border border-slate-200 dark:border-slate-800 p-4 flex flex-col" aria-label="Tabla de productos">
+    <section class="xl:col-span-6 bg-white dark:bg-slate-900 rounded-xl shadow-md border border-slate-200 dark:border-slate-800 p-4 flex flex-col min-h-0 overflow-hidden" aria-label="Tabla de productos">
       <div v-if="rows.length === 0" class="text-sm text-slate-600 dark:text-slate-300">Sin productos</div>
       <!-- El scroll DEBE estar dentro del div de la tabla -->
-      <div v-else class="flex-1 min-h-0 overflow-x-auto overflow-y-auto">
+      <div v-else :class="['flex-1 min-h-0 h-full overflow-x-auto', rows.length >= 9 ? 'overflow-y-auto' : '']">
         <table class="min-w-full text-sm">
           <thead>
             <tr class="text-left text-slate-600 dark:text-slate-300">
@@ -189,7 +189,7 @@
     </section>
 
     <!-- Card C: Resumen / Pago (derecha) -->
-  <section class="xl:col-span-3 xl:row-span-2 xl:row-start-1 xl:col-start-10 h-full bg-white dark:bg-slate-900 rounded-xl shadow-md border border-slate-200 dark:border-slate-800 p-4 flex flex-col" aria-label="Resumen y pago">
+  <section class="xl:col-span-3 xl:row-span-2 xl:row-start-1 xl:col-start-10 h-full bg-white dark:bg-slate-900 rounded-xl shadow-md border border-slate-200 dark:border-slate-800 p-4 flex flex-col min-h-0 overflow-hidden" aria-label="Resumen y pago">
       <h2 class="text-base font-semibold text-slate-900 dark:text-slate-100 mb-3">Resumen</h2>
       <div class="space-y-2">
         <div class="flex items-center justify-between text-sm">

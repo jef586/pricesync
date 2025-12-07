@@ -172,7 +172,7 @@
     <main class="dashboard-main" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
       <!-- Header de la aplicación con área draggable -->
       <AppHeader :onToggleSidebar="toggleSidebar" />
-      <div class="dashboard-content" :key="$route.fullPath">
+      <div class="dashboard-content" :class="{ 'no-scroll': !contentScrollable }" :key="$route.fullPath">
         <slot />
       </div>
     </main>
@@ -190,6 +190,9 @@ import logoUrl from '@/assets/iberasoft-logo.png'
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+
+const props = defineProps<{ contentScrollable?: boolean }>()
+const contentScrollable = props.contentScrollable ?? true
 
 const sidebarCollapsed = ref(true)
 
@@ -414,6 +417,10 @@ const userInitials = computed(() => {
   /* Firefox */
   scrollbar-width: thin;
   scrollbar-color: var(--ps-border) transparent;
+}
+
+.dashboard-content.no-scroll {
+  overflow-y: hidden;
 }
 
 /* Estilo de scrollbar (WebKit) dentro del área de contenido */
