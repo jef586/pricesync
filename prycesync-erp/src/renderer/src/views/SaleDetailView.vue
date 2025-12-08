@@ -10,27 +10,27 @@
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <BaseCard class="md:col-span-2">
           <template #header>
-            <h3 class="text-lg font-medium">Ítems</h3>
+            <h3 class="text-lg font-medium text-slate-900 dark:text-slate-100">Ítems</h3>
           </template>
           <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-              <thead class="bg-gray-50">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
+              <thead class="bg-gray-50 dark:bg-slate-800">
                 <tr>
-                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Descripción</th>
-                  <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Cant.</th>
-                  <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Precio</th>
-                  <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Total</th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-slate-600 dark:text-slate-300 uppercase">Descripción</th>
+                  <th class="px-4 py-2 text-right text-xs font-medium text-slate-600 dark:text-slate-300 uppercase">Cant.</th>
+                  <th class="px-4 py-2 text-right text-xs font-medium text-slate-600 dark:text-slate-300 uppercase">Precio</th>
+                  <th class="px-4 py-2 text-right text-xs font-medium text-slate-600 dark:text-slate-300 uppercase">Total</th>
                 </tr>
               </thead>
-              <tbody class="bg-white divide-y divide-gray-200">
+              <tbody class="bg-white divide-y divide-gray-200 dark:bg-slate-900 dark:divide-slate-700">
                 <tr v-for="it in items" :key="it.id || it.tempId">
-                  <td class="px-4 py-2 text-sm">{{ it.description || it.product?.name || '—' }}</td>
-                  <td class="px-4 py-2 text-right text-sm">{{ it.quantity }}</td>
-                  <td class="px-4 py-2 text-right text-sm">{{ fmt(it.unitPrice) }}</td>
-                  <td class="px-4 py-2 text-right text-sm">{{ fmt((it.quantity || 0) * (it.unitPrice || 0)) }}</td>
+                  <td class="px-4 py-2 text-sm text-slate-900 dark:text-slate-100">{{ it.description || it.product?.name || '—' }}</td>
+                  <td class="px-4 py-2 text-right text-sm text-slate-900 dark:text-slate-100">{{ it.quantity }}</td>
+                  <td class="px-4 py-2 text-right text-sm text-slate-900 dark:text-slate-100">{{ fmt(it.unitPrice) }}</td>
+                  <td class="px-4 py-2 text-right text-sm text-slate-900 dark:text-slate-100">{{ fmt((it.quantity || 0) * (it.unitPrice || 0)) }}</td>
                 </tr>
                 <tr v-if="items.length === 0">
-                  <td colspan="4" class="px-4 py-2 text-center text-gray-500">Sin ítems</td>
+                  <td colspan="4" class="px-4 py-2 text-center text-gray-500 dark:text-slate-400">Sin ítems</td>
                 </tr>
               </tbody>
             </table>
@@ -39,9 +39,9 @@
 
         <BaseCard>
           <template #header>
-            <h3 class="text-lg font-medium">Resumen</h3>
+            <h3 class="text-lg font-medium text-slate-900 dark:text-slate-100">Resumen</h3>
           </template>
-          <div class="space-y-2 text-sm">
+          <div class="space-y-2 text-sm text-slate-900 dark:text-slate-100">
             <div class="flex justify-between"><span>Subtotal</span><span>{{ fmt(sale?.subtotal) }}</span></div>
             <div class="flex justify-between"><span>Impuestos</span><span>{{ fmt(sale?.taxAmount || sale?.tax) }}</span></div>
             <div class="flex justify-between font-semibold"><span>Total</span><span>{{ fmt(sale?.total) }}</span></div>

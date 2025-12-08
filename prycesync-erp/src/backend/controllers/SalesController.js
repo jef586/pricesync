@@ -509,6 +509,83 @@ class SalesController {
       return res.status(status).json(body);
     }
   }
+
+  static async list(req, res) {
+    try {
+      const companyId = req.user?.company?.id;
+      if (!companyId) {
+        return res.status(403).json({ success: false, message: 'Empresa no determinada para el usuario' });
+      }
+
+      const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc', q, dateFrom, dateTo, status } = req.query;
+
+      const where = { companyId };
+      if (status) {
+        const mapped = status === 'void' ? 'cancelled' : status;
+        Object.assign(where, { status: mapped });
+      }
+      if (q) {
+        Object.assign(where, {
+          OR: [
+            { number: { contains: String(q), mode: 'insensitive' } },
+            { customer: { name: { contains: String(q), mode: 'insensitive' } } }
+          ]
+        });
+      }
+      if (dateFrom || dateTo) {
+        Object.assign(where, {
+          createdAt: {
+            ...(dateFrom ? { gte: new Date(String(dateFrom)) } : {}),
+            ...(dateTo ? { lte: new Date(String(dateTo)) } : {})
+          }
+        });
+      }
+
+      const orderBy = (() => {
+        if (sortBy === 'total') return { total: sortOrder };
+        if (sortBy === 'number') return { number: sortOrder };
+        return { createdAt: sortOrder };
+      })();
+
+      const skip = (Number(page) - 1) * Number(limit);
+      const take = Number(limit);
+
+      const [rows, total] = await Promise.all([
+        prisma.salesOrder.findMany({
+          where,
+          select: {
+            id: true,
+            number: true,
+            status: true,
+            subtotal: true,
+            total: true,
+            totalRounded: true,
+            createdAt: true,
+            customer: { select: { id: true, name: true } }
+          },
+          orderBy,
+          skip,
+          take
+        }),
+        prisma.salesOrder.count({ where })
+      ]);
+
+      const items = rows.map(r => ({
+        id: r.id,
+        number: r.number,
+        status: r.status,
+        subtotal: Number(r.subtotal || 0),
+        total: Number(r.totalRounded || r.total || 0),
+        createdAt: r.createdAt,
+        customerName: r.customer?.name || undefined
+      }));
+
+      return res.json({ items, page: Number(page), limit: Number(limit), total });
+    } catch (error) {
+      const { status, body } = mapErrorToHttp(error, 'Error interno listando ventas');
+      return res.status(status).json(body);
+    }
+  }
 }
 
 export default SalesController;

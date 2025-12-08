@@ -159,3 +159,40 @@ export const validateAddPayments = (req, res, next) => {
   req.body = parsed.data;
   next();
 }
+
+const SortByEnum = z.enum(["createdAt", "total", "number"]);
+const SortOrderEnum = z.enum(["asc", "desc"]);
+const StatusFilterEnum = z.enum([
+  "draft",
+  "completed",
+  "void",
+  "cancelled",
+  "open",
+  "paid",
+  "parked",
+  "partially_paid"
+]);
+
+const ListSalesQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(10),
+  sortBy: SortByEnum.default("createdAt"),
+  sortOrder: SortOrderEnum.default("desc"),
+  q: z.string().min(1).optional(),
+  dateFrom: z.string().datetime().optional(),
+  dateTo: z.string().datetime().optional(),
+  status: StatusFilterEnum.optional()
+});
+
+export const validateListSales = (req, res, next) => {
+  const parsed = ListSalesQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    return res.status(400).json({
+      success: false,
+      message: "Parámetros inválidos",
+      errors: parsed.error.errors.map(e => ({ field: e.path.join('.'), message: e.message }))
+    });
+  }
+  req.query = parsed.data;
+  next();
+}

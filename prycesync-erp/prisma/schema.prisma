@@ -895,6 +895,8 @@ model SalesOrder {
   @@unique([companyId, number])
   @@unique([parkToken], map: "uniq_sales_orders_park_token")
   @@index([parkedAt], map: "idx_sales_orders_parked_at")
+  @@index([companyId, createdAt], map: "idx_sales_orders_company_created")
+  @@index([companyId, status], map: "idx_sales_orders_company_status")
   @@map("sales_orders")
 }
 
