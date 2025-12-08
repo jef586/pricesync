@@ -18,6 +18,8 @@ import CustomerNewView from '../views/CustomerNewView.vue'
 import CustomerEditView from '../views/CustomerEditView.vue'
 import CustomerDetailView from '../views/CustomerDetailView.vue'
 import InvoicesView from '../views/InvoicesView.vue'
+import SalesView from '../views/SalesView.vue'
+import SaleDetailView from '../views/SaleDetailView.vue'
 import InvoiceNewView from '../views/InvoiceNewView.vue'
 import InvoiceEditView from '../views/InvoiceEditView.vue'
 import InvoiceDetailView from '../views/InvoiceDetailView.vue'
@@ -224,6 +226,18 @@ const router = createRouter({
       path: '/invoices',
       name: 'Invoices',
       component: InvoicesView,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/sales',
+      name: 'Sales',
+      component: SalesView,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/sales/:id',
+      name: 'SalesDetail',
+      component: SaleDetailView,
       meta: { requiresAuth: true }
     },
     {

@@ -61,6 +61,18 @@
           </li>
 
           <li class="nav-item">
+            <router-link to="/sales" class="nav-link" :class="{ active: $route.path.startsWith('/sales') && !$route.path.startsWith('/sales/new') }" :title="sidebarCollapsed ? 'Ventas' : ''">
+              <svg class="nav-icon" :title="sidebarCollapsed ? 'Ventas' : ''" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 3H21V7H3V3Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M7 21L5 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M17 21L19 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M9 11H15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span v-if="!sidebarCollapsed" class="nav-text">Ventas</span>
+            </router-link>
+          </li>
+
+          <li class="nav-item">
             <router-link to="/sales/new" class="nav-link" :class="{ active: $route.path.startsWith('/sales/new') }" :title="sidebarCollapsed ? 'Nueva venta' : ''">
               <svg class="nav-icon" :title="sidebarCollapsed ? 'Nueva venta' : ''" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M3 3H21V7H3V3Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>

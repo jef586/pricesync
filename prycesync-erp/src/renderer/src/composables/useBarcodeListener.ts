@@ -140,7 +140,7 @@ export function useBarcodeListener(settings?: Partial<ListenerSettings>): {
     const tsOk = lastTs != null ? now - lastTs >= (cfg.suffix === 'none' ? 0 : cfg.windowMsMin) && now - lastTs <= cfg.interKeyTimeout : false
     if (lastTs == null) {
       // First key of a potential burst
-      if (inEditable && cfg.preventInInputs) { e.preventDefault() }
+      
       buffer.push(key)
       timestamps.push(now)
       lastTs = now
@@ -167,7 +167,7 @@ export function useBarcodeListener(settings?: Partial<ListenerSettings>): {
       }
     } else if (tsOk) {
       // Valid inter-key timing
-      if (inEditable && cfg.preventInInputs) { e.preventDefault() }
+      
       buffer.push(key)
       timestamps.push(now)
       lastTs = now
@@ -217,7 +217,6 @@ export function useBarcodeListener(settings?: Partial<ListenerSettings>): {
       }
       // Reset and treat this key as new start
       reset()
-      if (inEditable && cfg.preventInInputs) { e.preventDefault() }
       buffer.push(key)
       timestamps.push(now)
       lastTs = now

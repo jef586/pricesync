@@ -28,11 +28,9 @@
       </PageHeader>
     </div>
 
-    <div v-if="useUnified" class="pt-4 px-4">
-      <ArticleForm :mode="formMode" :initial="initialArticle" @saved="onSaved" @cancel="goBack" />
-    </div>
+    
 
-    <main v-else class="pt-4 px-4 flex-1">
+    <main class="pt-4 px-4 flex-1">
       <div class="grid grid-cols-3 gap-5 items-stretch h-full">
         <!-- Columna 1: Básicos, Códigos, Imagen -->
         <div class="col-span-1 grid grid-rows-[minmax(200px,auto)_minmax(260px,auto)_auto] gap-4 h-full">
@@ -300,6 +298,10 @@
               </div>
             </div>
             <div class="grid grid-cols-2 gap-1 mt-1">
+              <div>
+                <label class="text-xs font-semibold">Stock actual</label>
+                <input type="number" min="0" v-model.number="stock.current" class="w-full mt-1 px-2 py-1 text-xs rounded-md border-default" placeholder="0" />
+              </div>
               <div>
                 <label class="text-xs font-semibold">Días de stock</label>
                 <input type="number" min="0" v-model.number="stock.days" class="w-full mt-1 px-2 py-1 text-xs rounded-md border-default" placeholder="0" />
@@ -588,9 +590,7 @@
   </BaseModal>
 </template>
 <script setup lang="ts">
-import ArticleForm from '@/components/articles/ArticleForm.vue'
-const useUnified = computed(() => !editId.value)
-const onSaved = (id: string) => { router.push(`/articles/${id}/edit`) }
+// Vista de edición se usa para nuevo y editar
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import DashboardLayout from '@/components/organisms/DashboardLayout.vue';
 import BaseModal from '@/components/atoms/BaseModal.vue';
@@ -615,6 +615,7 @@ import { useArticleStore } from '@/stores/articles';
   const formMode = computed(() => editId.value ? 'edit' : 'create')
   const pageTitle = computed(() => editId.value ? 'Editar artículo' : 'Nuevo artículo')
   const initialArticle = ref<any | null>(null)
+  const useUnified = computed(() => false)
   const isDirty = ref(false);
   const isSaving = ref(false);
   const { suppliers, fetchSuppliers, isLoading: suppliersLoading } = useSuppliers();
@@ -711,7 +712,7 @@ const fiscal = ref({ iibbRetPerc: false, gananciasRet: false, percIva: false });
 // (Simulador eliminado)
 
 // Stock & UoM
-const stock = ref({ min: 0, max: 0, days: 0, byWeight: false });
+const stock = ref({ min: 0, max: 0, days: 0, byWeight: false, current: 0 });
 const uom = ref({
   bu: { factor: 12, decimals: 0 },
   kg: { factor: 1, decimals: 3 },
@@ -939,6 +940,7 @@ function normalizePayload() {
       : 'NONE',
     stockMin: stock.value.min || undefined,
     stockMax: stock.value.max || undefined,
+    stock: (stock.value.current ?? undefined),
     pointsPerUnit: pointsPerUnit.value || undefined,
     comboOwnPrice: false
   }
@@ -1042,6 +1044,7 @@ onMounted(() => {
       calc.value.internalTax = Number(art?.internalTaxValue ?? 0)
       stock.value.min = Number(art?.stockMin ?? stock.value.min)
       stock.value.max = Number(art?.stockMax ?? stock.value.max)
+      stock.value.current = Number(art?.stock ?? stock.value.current)
       pointsPerUnit.value = Number(art?.pointsPerUnit ?? pointsPerUnit.value)
       lastCreatedArticleId.value = String(art?.id || '')
   const img = (art as any)?.image?.thumbnailUrl || (art as any)?.image?.imageUrl || (art as any)?.imageUrl || (art as any)?.thumbnailUrl || ''
