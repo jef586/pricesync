@@ -124,7 +124,7 @@
     </div>
 
     <!-- Pagination -->
-    <div v-if="paginated && totalItems > pageSize" class="data-table__pagination">
+    <div v-if="paginated" class="data-table__pagination">
 <div class="data-table__pagination-info" aria-live="polite">
         Mostrando {{ startItem }} - {{ endItem }} de {{ totalItems }} registros
       </div>
@@ -196,7 +196,7 @@ interface Emits {
 
 const props = withDefaults(defineProps<Props>(), {
   paginated: true,
-  pageSize: 10,
+  pageSize: 8,
   showHeader: true,
   clickableRows: false,
   rowKey: 'id',

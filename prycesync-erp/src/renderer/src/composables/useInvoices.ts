@@ -141,7 +141,7 @@ export function useInvoices() {
   const error = ref<string | null>(null)
   const pagination = ref({
     page: 1,
-    limit: 10,
+    limit: 8,
     total: 0,
     totalPages: 0
   })
@@ -185,9 +185,9 @@ export function useInvoices() {
         invoices.value = list
         pagination.value = {
           page: Number(pag.page) || Number(filters.page) || 1,
-          limit: Number(pag.limit) || Number(filters.limit) || 10,
+          limit: Number(pag.limit) || Number(filters.limit) || 8,
           total: Number(pag.total) || list.length,
-          totalPages: Number(pag.pages) || Number(pag.totalPages) || Math.max(1, Math.ceil((Number(pag.total) || list.length) / (Number(pag.limit) || Number(filters.limit) || 10)))
+          totalPages: Number(pag.pages) || Number(pag.totalPages) || Math.max(1, Math.ceil((Number(pag.total) || list.length) / (Number(pag.limit) || Number(filters.limit) || 8)))
         }
       } else {
         throw new Error(response.data?.message || 'Error al cargar facturas')

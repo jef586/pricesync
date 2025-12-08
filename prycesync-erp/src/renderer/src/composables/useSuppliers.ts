@@ -41,7 +41,7 @@ export function useSuppliers() {
   const error = ref<string | null>(null)
   const pagination = ref<Pagination>({
     page: 1,
-    limit: 10,
+    limit: 8,
     total: 0,
     totalPages: 0
   })

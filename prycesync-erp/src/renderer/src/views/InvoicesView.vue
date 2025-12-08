@@ -232,7 +232,7 @@ const filters = ref<InvoiceFilters>({
   dateFrom: '',
   dateTo: '',
   page: 1,
-  limit: 10,
+  limit: 8,
   sortBy: 'createdAt',
   sortOrder: 'desc'
 })
@@ -305,7 +305,7 @@ const clearFilters = () => {
     dateFrom: '',
     dateTo: '',
     page: 1,
-    limit: 10,
+    limit: 8,
     sortBy: 'createdAt',
     sortOrder: 'desc'
   }

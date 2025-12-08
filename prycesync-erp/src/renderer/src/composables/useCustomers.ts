@@ -95,7 +95,7 @@ export function useCustomers() {
   const error = ref<string | null>(null)
   const pagination = ref({
     page: 1,
-    limit: 10,
+    limit: 8,
     total: 0,
     totalPages: 0
   })

@@ -258,7 +258,7 @@ const syncUrlWithFilters = () => {
   if (store.filters.sort !== 'name') query.sort = store.filters.sort
   if (store.filters.order !== 'asc') query.order = store.filters.order
   if (store.pagination.page !== 1) query.page = store.pagination.page
-  if (store.pagination.size !== 20) query.size = store.pagination.size
+  if (store.pagination.size !== 8) query.size = store.pagination.size
   
   router.replace({ query })
 }

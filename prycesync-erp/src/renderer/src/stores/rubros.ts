@@ -8,7 +8,7 @@ export const useRubrosStore = defineStore('rubros', {
     selectedNode: null as RubroNode | null,
     items: [] as RubroDTO[],
     filters: { q: '', status: 'active', sort: 'name', order: 'asc' } as RubroFilters,
-    pagination: { page: 1, size: 20, total: 0, pages: 0 },
+    pagination: { page: 1, size: 8, total: 0, pages: 0 },
     loading: false,
     error: null as string | null
   }),
@@ -170,7 +170,7 @@ export const useRubrosStore = defineStore('rubros', {
       this.tree = []
       this.items = []
       this.selectedNode = null
-      this.pagination = { page: 1, size: 10, total: 0, pages: 0 }
+      this.pagination = { page: 1, size: 8, total: 0, pages: 0 }
       this.error = null
     },
 

@@ -70,7 +70,7 @@ vi.mock('@/services/articles', () => {
     listArticles: vi.fn(async () => ({
       items: sample,
       page: 1,
-      pageSize: 10,
+      pageSize: 8,
       total: sample.length,
       totalPages: 1
     } satisfies Paginated<ArticleDTO>)),
@@ -134,11 +134,11 @@ describe('useArticleStore', () => {
     const store = useArticleStore()
     expect(store.items.length).toBe(0)
 
-    await store.list({ q: 'art', page: 1, pageSize: 10 })
+    await store.list({ q: 'art', page: 1, pageSize: 8 })
 
     expect(store.items.length).toBeGreaterThan(0)
     expect(store.page).toBe(1)
-    expect(store.pageSize).toBe(10)
+    expect(store.pageSize).toBe(8)
     expect(store.total).toBe(store.items.length)
     expect(store.error).toBeNull()
   })
@@ -207,7 +207,7 @@ describe('useArticleStore', () => {
     store.reset()
     expect(store.items.length).toBe(0)
     expect(store.page).toBe(1)
-    expect(store.pageSize).toBe(10)
+    expect(store.pageSize).toBe(8)
     expect(store.total).toBe(0)
     expect(store.error).toBeNull()
   })

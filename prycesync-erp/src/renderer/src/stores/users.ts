@@ -8,7 +8,7 @@ export const useUsersStore = defineStore('users', {
     items: [] as UserDTO[],
     total: 0,
     page: 1,
-    pageSize: 20,
+    pageSize: 8,
     loading: false,
     error: null as string | null,
     loadingIds: [] as string[],
@@ -184,7 +184,7 @@ export const useUsersStore = defineStore('users', {
       this.items = []
       this.total = 0
       this.page = 1
-      this.pageSize = 20
+      this.pageSize = 8
       this.error = null
       this.filters = { q: '', role: undefined, status: undefined, sortBy: 'createdAt', sortOrder: 'desc', deleted: false }
     }

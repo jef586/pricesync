@@ -235,7 +235,7 @@ const filters = ref<CustomerFilters>({
   status: '',
   type: '',
   page: 1,
-  limit: 10,
+  limit: 8,
   sortBy: 'name',
   sortOrder: 'asc'
 })
@@ -303,7 +303,7 @@ const clearFilters = () => {
     status: '',
     type: '',
     page: 1,
-    limit: 10,
+    limit: 8,
     sortBy: 'name',
     sortOrder: 'asc'
   }

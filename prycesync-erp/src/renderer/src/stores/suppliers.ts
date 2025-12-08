@@ -8,7 +8,7 @@ export const useSuppliersStore = defineStore('suppliers', () => {
   const items = ref<Supplier[]>([])
   const total = ref(0)
   const page = ref(1)
-  const limit = ref(10)
+  const limit = ref(8)
   const loading = ref(false)
   const error = ref<string | null>(null)
   
@@ -148,7 +148,7 @@ export const useSuppliersStore = defineStore('suppliers', () => {
     items.value = []
     total.value = 0
     page.value = 1
-    limit.value = 10
+    limit.value = 8
     loading.value = false
     error.value = null
     filters.value = { q: '', status: undefined, sort: 'name', order: 'asc' }

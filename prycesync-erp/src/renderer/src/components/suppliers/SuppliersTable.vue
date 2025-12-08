@@ -312,7 +312,7 @@ const props = withDefaults(defineProps<Props>(), {
   suppliers: () => [],
   loading: false,
   currentPage: 1,
-  pageSize: 10,
+  pageSize: 8,
   totalItems: 0,
   totalPages: 1
 })

@@ -202,7 +202,7 @@ const filters = ref({
   status: '',
   lowStock: false,
   page: 1,
-  limit: 10,
+  limit: 8,
   sortBy: 'name',
   sortOrder: 'asc' as 'asc' | 'desc'
 })

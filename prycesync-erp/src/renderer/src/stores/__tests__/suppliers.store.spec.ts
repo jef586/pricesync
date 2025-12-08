@@ -31,7 +31,7 @@ describe('useSuppliersStore', () => {
       expect(store.items).toEqual([])
       expect(store.total).toBe(0)
       expect(store.page).toBe(1)
-      expect(store.limit).toBe(10)
+      expect(store.limit).toBe(8)
       expect(store.loading).toBe(false)
       expect(store.error).toBe(null)
       expect(store.filters).toEqual({
@@ -99,7 +99,7 @@ describe('useSuppliersStore', () => {
           sort: 'name',
           order: 'asc',
           page: 1,
-          limit: 10
+          limit: 8
         })
 
         expect(store.items).toEqual(mockResponse.items)
@@ -264,7 +264,7 @@ describe('useSuppliersStore', () => {
       expect(store.items).toEqual([])
       expect(store.total).toBe(0)
       expect(store.page).toBe(1)
-      expect(store.limit).toBe(10)
+      expect(store.limit).toBe(8)
       expect(store.loading).toBe(false)
       expect(store.error).toBe(null)
       expect(store.filters).toEqual({

@@ -107,7 +107,7 @@ export function useProducts() {
   const error = ref<string | null>(null)
   const pagination = ref({
     page: 1,
-    limit: 10,
+    limit: 8,
     total: 0,
     totalPages: 0
   })
@@ -185,16 +185,16 @@ export function useProducts() {
       
       // Fallback robusto si la API no entrega 'pagination'
       const rawPagination = raw?.pagination || raw?.meta?.pagination || null
-      const limit = rawPagination?.limit ?? filters.limit ?? 10
+      const limit = rawPagination?.limit ?? filters.limit ?? 8
       const total = rawPagination?.total ?? (Array.isArray(arr) ? arr.length : 0)
       const pages = rawPagination?.pages ?? rawPagination?.totalPages ?? Math.ceil(total / (limit || 10))
 
-      pagination.value = {
-        page: rawPagination?.page ?? filters.page ?? 1,
-        limit,
-        total,
-        totalPages: pages
-      }
+    pagination.value = {
+      page: rawPagination?.page ?? filters.page ?? 1,
+      limit,
+      total,
+      totalPages: pages
+    }
     } catch (err: any) {
       console.error('useProducts - fetchProducts error:', err)
       error.value = err.response?.data?.message || err.message || 'Error al cargar productos'
@@ -424,7 +424,7 @@ export function useProducts() {
     loading.value = false
     pagination.value = {
       page: 1,
-      limit: 10,
+      limit: 8,
       total: 0,
       totalPages: 0
     }

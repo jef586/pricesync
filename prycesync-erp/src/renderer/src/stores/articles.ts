@@ -9,7 +9,7 @@ export const useArticleStore = defineStore('articles', {
     items: [] as ArticleDTO[],
     total: 0,
     page: 1,
-    pageSize: 10,
+    pageSize: 8,
     loading: false,
     error: null as string | null,
     filters: {
@@ -133,7 +133,7 @@ export const useArticleStore = defineStore('articles', {
       this.items = []
       this.total = 0
       this.page = 1
-      this.pageSize = 10
+      this.pageSize = 8
       this.loading = false
       this.error = null
       this.filters = { q: '', rubroId: undefined, active: undefined, controlStock: undefined }

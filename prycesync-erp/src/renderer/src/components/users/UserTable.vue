@@ -136,7 +136,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  pageSize: 20,
+  pageSize: 8,
   loading: false,
   clickableRows: true,
   loadingIds: () => [],
