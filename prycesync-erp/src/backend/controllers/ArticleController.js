@@ -639,6 +639,19 @@ class ArticleController {
         // Backfill UoM base UN
         await tx.articleUom.create({ data: { articleId: created.id, uom: 'UN', factor: 1 } }).catch(() => {})
 
+        // Crear balance de stock inicial en depósito por defecto
+        try {
+          if (created.controlStock && (created.stock || 0) > 0) {
+            const whId = await (await import('../services/StockService.js')).default.resolveWarehouseId(tx, companyId, null)
+            const existingBal = await tx.stockBalance.findFirst({ where: { companyId, articleId: created.id, warehouseId: whId } })
+            if (!existingBal) {
+              await tx.stockBalance.create({ data: { companyId, articleId: created.id, warehouseId: whId, onHandUn: Number(created.stock || 0) } })
+            }
+          }
+        } catch (e) {
+          console.warn('Seed initial stock balance failed', e?.message || e)
+        }
+
         if (normalizedComponents.length > 0) {
           for (const nc of normalizedComponents) {
             await tx.articleBundleComponent.create({

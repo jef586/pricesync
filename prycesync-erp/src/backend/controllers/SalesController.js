@@ -8,8 +8,10 @@ import TaxService from "../services/TaxService.js";
 import LoyaltyService from "../services/LoyaltyService.js";
 
 class SalesController {
+  static metrics = { sale_create_ok_total: 0, sale_create_error_total: 0, stock_movement_created_total: 0, sale_create_latency_ms: 0 }
   static async create(req, res) {
     try {
+      const startedAt = Date.now();
       const companyId = req.user?.company?.id;
       if (!companyId) {
         return res.status(403).json({ success: false, message: "Empresa no determinada para el usuario" });
@@ -195,11 +197,13 @@ class SalesController {
         });
 
         try {
-          await StockService.createSaleOutForOrder(tx, {
+          const resSm = await StockService.createSaleOutForOrder(tx, {
             companyId,
             saleId: sale.id,
+            warehouseId: req.body?.warehouseId || null,
             createdBy: req.user?.id || 'system'
           })
+          SalesController.metrics.stock_movement_created_total += Number(resSm?.movementsCreated || 0)
         } catch (err) {
           throw Object.assign(err, { httpCode: err?.httpCode || 500 })
         }
@@ -221,12 +225,16 @@ class SalesController {
         return sale;
       });
 
+      SalesController.metrics.sale_create_ok_total += 1;
+      SalesController.metrics.sale_create_latency_ms = Date.now() - startedAt;
       return res.status(201).json({ success: true, data: created });
     } catch (error) {
       const errorRef = `SALE_CREATE-${Date.now()}`;
-      console.error("Error creando venta:", { errorRef, message: error?.message, code: error?.code, meta: error?.meta });
+      const requestId = req.headers['x-request-id'] || randomUUID();
+      console.error("Error creando venta:", { errorRef, requestId, message: error?.message, code: error?.code, meta: error?.meta });
+      SalesController.metrics.sale_create_error_total += 1;
       const { status, body } = mapErrorToHttp(error, "Error interno creando venta");
-      return res.status(status).json({ ...body, errorRef });
+      return res.status(status).json({ ...body, errorRef, requestId });
     }
   }
 

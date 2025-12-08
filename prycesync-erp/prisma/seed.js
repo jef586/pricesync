@@ -71,6 +71,24 @@ async function ensureCompanyAndUsers() {
     }
   })
 
+  // Asegurar warehouse por defecto para la compañía
+  const existingWh = await prisma.warehouse.findFirst({ where: { companyId: company.id } })
+  let defaultWhId = existingWh?.id
+  if (!defaultWhId) {
+    const createdWh = await prisma.warehouse.create({ data: { name: 'Depósito Principal', code: 'MAIN', companyId: company.id } })
+    defaultWhId = createdWh.id
+  }
+  // Guardar en fiscalConfig.inventory.defaultWarehouseId
+  const currentCfg = company.fiscalConfig || {}
+  const mergedCfg = {
+    ...(typeof currentCfg === 'object' ? currentCfg : {}),
+    inventory: {
+      ...((typeof currentCfg?.inventory === 'object') ? currentCfg.inventory : {}),
+      defaultWarehouseId: defaultWhId
+    }
+  }
+  await prisma.company.update({ where: { id: company.id }, data: { fiscalConfig: mergedCfg } })
+
   // Usuarios base
   const devPass = DEFAULT_ADMIN_PASS
   const hash = await bcrypt.hash(devPass, 10)

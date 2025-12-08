@@ -1098,6 +1098,7 @@ model StockMovement {
   @@unique([companyId, clientOperationId], map: "uniq_stock_movements_client_op")
   @@index([articleId, createdAt], map: "idx_stock_movements_article_created")
   @@index([warehouseId, articleId], map: "idx_stock_movements_wh_article")
+  @@index([articleId, warehouseId, createdAt], map: "idx_stock_movements_article_wh_created")
   @@map("stock_movements")
 }
 

@@ -59,6 +59,7 @@ const SurchargeSchema = z.object({
 const CreateSaleSchema = z.object({
   customerId: z.string().cuid(),
   items: z.array(SaleItemSchema).min(1),
+  warehouseId: z.string().cuid().optional(),
   finalDiscount: FinalDiscountSchema,
   surcharge_type: DiscountTypeEnum.optional(),
   surcharge_value: z.number().min(0).optional().default(0),

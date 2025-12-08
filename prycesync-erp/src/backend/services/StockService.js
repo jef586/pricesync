@@ -15,9 +15,35 @@ export default class StockService {
     return qtyNorm.mul(factor).toDecimalPlaces(3)
   }
 
+  static async resolveWarehouseId(tx, companyId, providedWarehouseId) {
+    if (providedWarehouseId) {
+      const exists = await tx.warehouse.findFirst({ where: { id: providedWarehouseId, companyId } })
+      if (!exists) throw Object.assign(new Error('warehouseId inexistente'), { httpCode: 409 })
+      return providedWarehouseId
+    }
+    const cfg = await tx.company.findUnique({ where: { id: companyId }, select: { fiscalConfig: true } })
+    const defaultId = cfg?.fiscalConfig?.inventory?.defaultWarehouseId || null
+    if (defaultId) {
+      const exists = await tx.warehouse.findFirst({ where: { id: defaultId, companyId } })
+      if (exists) return defaultId
+    }
+    const first = await tx.warehouse.findFirst({ where: { companyId }, orderBy: { createdAt: 'asc' } })
+    if (first?.id) return first.id
+    throw Object.assign(new Error('No existe depósito por defecto'), { httpCode: 422 })
+  }
+
   static async upsertBalance(tx, { companyId, articleId, warehouseId = null, deltaUn, override = false }) {
     const delta = toDecimal(deltaUn)
-    const existing = await tx.stockBalance.findFirst({ where: { companyId, articleId, warehouseId } })
+    if (!warehouseId) {
+      warehouseId = await StockService.resolveWarehouseId(tx, companyId, null)
+    }
+    let existing = await tx.stockBalance.findFirst({ where: { companyId, articleId, warehouseId } })
+    if (!existing) {
+      const legacy = await tx.stockBalance.findFirst({ where: { companyId, articleId, warehouseId: null } })
+      if (legacy) {
+        existing = await tx.stockBalance.update({ where: { id: legacy.id }, data: { warehouseId } })
+      }
+    }
 
     let newOnHand
     if (existing) {
@@ -27,10 +53,12 @@ export default class StockService {
       }
       await tx.stockBalance.update({ where: { id: existing.id }, data: { onHandUn: newOnHand.toNumber() } })
     } else {
-      if (delta.lessThan(0) && !override) {
+      const artInit = await tx.article.findFirst({ where: { id: articleId }, select: { stock: true } })
+      const baseOnHand = toDecimal(artInit?.stock || 0)
+      newOnHand = baseOnHand.add(delta)
+      if (newOnHand.lessThan(0) && !override) {
         throw Object.assign(new Error('Stock insuficiente'), { httpCode: 409 })
       }
-      newOnHand = delta
       await tx.stockBalance.create({ data: { companyId, articleId, warehouseId, onHandUn: newOnHand.toNumber() } })
     }
 
@@ -96,28 +124,19 @@ export default class StockService {
     return { movement, balance }
   }
 
-  static async createSaleOutForOrder(tx, { companyId, saleId, createdBy }) {
-    // Cargar items con artículos + componentes de combo
-    const sale = await tx.salesOrder.findFirst({
-      where: { id: saleId, companyId },
-      include: {
-        items: true,
-        // Se consultan artículos por separado para combos
-      }
-    })
+  static async createSaleOutForOrder(tx, { companyId, saleId, warehouseId = null, createdBy }) {
+    const whId = await StockService.resolveWarehouseId(tx, companyId, warehouseId)
+    const sale = await tx.salesOrder.findFirst({ where: { id: saleId, companyId }, include: { items: true } })
     if (!sale) throw Object.assign(new Error('Venta no encontrada'), { httpCode: 404 })
 
     const items = await tx.salesOrderItem.findMany({
       where: { salesOrderId: saleId },
-      include: {
-        article: {
-          include: { bundleComponents: { include: { componentArticle: true } } }
-        }
-      },
+      include: { article: { include: { bundleComponents: { include: { componentArticle: true } } } } },
       orderBy: { createdAt: 'asc' }
     })
 
     let idx = 0
+    let createdCount = 0
     for (const it of items) {
       idx += 1
       const qty = toDecimal(it.quantity)
@@ -126,16 +145,15 @@ export default class StockService {
       if (!article) continue
       if (article.type === 'SERVICE') continue
 
-      // Combos: consumir componentes
       const components = article.bundleComponents || []
       if (components.length > 0) {
         for (const comp of components) {
           const compQty = toDecimal(comp.qty).mul(qty)
           const clientId = `COMBO_CONSUME:${saleId}:${idx}:${comp.componentArticleId}`
-          await StockService.createMovement(tx, {
+          const r = await StockService.createMovement(tx, {
             companyId,
             articleId: comp.componentArticleId,
-            warehouseId: null,
+            warehouseId: whId,
             uom: 'UN',
             qty: compQty.toNumber(),
             direction: 'OUT',
@@ -147,16 +165,16 @@ export default class StockService {
             clientOperationId: clientId,
             createdBy
           })
+          if (!r.skipped) createdCount += 1
         }
         continue
       }
 
-      // Artículo normal
       const clientId = `SALE_OUT:${saleId}:${idx}`
-      await StockService.createMovement(tx, {
+      const r2 = await StockService.createMovement(tx, {
         companyId,
         articleId: it.articleId,
-        warehouseId: null,
+        warehouseId: whId,
         uom,
         qty: qty.toNumber(),
         direction: 'OUT',
@@ -168,9 +186,10 @@ export default class StockService {
         clientOperationId: clientId,
         createdBy
       })
+      if (!r2.skipped) createdCount += 1
     }
 
-    return { ok: true, saleId }
+    return { ok: true, saleId, movementsCreated: createdCount }
   }
 
   static async createRevertForOrder(tx, { companyId, saleId, createdBy }) {
@@ -342,10 +361,12 @@ export default class StockService {
       }
 
       const requestedQtyUn = await StockService.normalizeQtyUn(articleId, uom, qty)
-      const bal = await prisma.stockBalance.findFirst({
-        where: { companyId, articleId, warehouseId }
-      })
-      const availableUn = toDecimal(bal?.onHandUn || 0)
+      const bal = await prisma.stockBalance.findFirst({ where: { companyId, articleId, warehouseId } })
+      let availableUn = toDecimal(bal?.onHandUn || 0)
+      if (!bal) {
+        const art2 = await prisma.article.findFirst({ where: { id: articleId, companyId }, select: { stock: true } })
+        availableUn = toDecimal(art2?.stock || 0)
+      }
       const ok = availableUn.greaterThanOrEqualTo(requestedQtyUn)
       results.push({
         articleId,

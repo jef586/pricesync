@@ -37,7 +37,7 @@ export class AppError extends Error {
    */
   getHttpStatus() {
     const statusMap = {
-      'VALIDATION_ERROR': 400,
+      'VALIDATION_ERROR': 422,
       'FORBIDDEN': 403,
       'NOT_FOUND': 404,
       'CONFLICT': 409,
@@ -187,6 +187,16 @@ export function mapErrorToHttp(err) {
       status: err.getHttpStatus(),
       body: err.toHttpResponse()
     };
+  }
+
+  if (typeof err?.httpCode === 'number' && err.httpCode >= 400) {
+    return {
+      status: err.httpCode,
+      body: {
+        error: err.message || 'Error',
+        code: err.httpCode === 422 ? 'VALIDATION_ERROR' : (err.httpCode === 409 ? 'CONFLICT' : 'INTERNAL_ERROR')
+      }
+    }
   }
 
   // Handle Prisma errors
