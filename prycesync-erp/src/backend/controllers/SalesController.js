@@ -124,7 +124,10 @@ class SalesController {
       const totals = SalesService.calculateTotals(preparedItems, finalDiscount, surcharge);
       const computedItems = totals.items || preparedItems;
 
-      // Generar número secuencial de venta
+      // Generación de códigos: número interno legacy y humanCode VN-YYYY-######
+      const now = new Date()
+      const year = now.getFullYear()
+      const branchId = req.user?.branch?.id || null
       const nextNumber = await prisma.$transaction(async (tx) => {
         const last = await tx.salesOrder.findFirst({
           where: { companyId },
@@ -135,6 +138,15 @@ class SalesController {
         const nextSeq = seq + 1;
         return `SO-${String(nextSeq).padStart(8, "0")}`;
       });
+      const seqRow = await prisma.$transaction(async (tx) => {
+        return tx.salesSequence.upsert({
+          where: { companyId_branchId_year: { companyId, branchId, year } },
+          update: { next: { increment: 1 } },
+          create: { companyId, branchId, year, next: 2 }
+        })
+      })
+      const assignedSeq = Number(seqRow.next) - 1
+      const humanCode = SalesService.formatSaleCode(companyId, branchId, year, assignedSeq)
 
             // Validación de precio mínimo eliminada: artículos no tienen minPrice
 
@@ -148,6 +160,9 @@ class SalesController {
         const sale = await tx.salesOrder.create({
           data: {
             number: nextNumber,
+            humanCode,
+            origin: 'POS',
+            branchId,
             companyId,
             customerId,
             subtotal: totals.subtotal.toNumber(),
@@ -256,9 +271,12 @@ class SalesController {
         return res.status(404).json({ success: false, message: "Venta no encontrada" });
       }
 
-      // Agregar campos calculados al response (line_total_net)
+      const displayCode = SalesService.computeDisplayCode({ sale, invoice: null })
       const data = {
         ...sale,
+        displayCode,
+        state: sale.status === 'paid' ? 'paid' : (sale.status === 'cancelled' ? 'cancelled' : 'open'),
+        origin: sale.origin || 'POS',
         items: (sale.items || []).map(it => ({
           ...it,
           line_total_net: Number(it.subtotal || 0)
@@ -528,6 +546,7 @@ class SalesController {
         Object.assign(where, {
           OR: [
             { number: { contains: String(q), mode: 'insensitive' } },
+            { humanCode: { contains: String(q), mode: 'insensitive' } },
             { customer: { name: { contains: String(q), mode: 'insensitive' } } }
           ]
         });
@@ -556,6 +575,8 @@ class SalesController {
           select: {
             id: true,
             number: true,
+            humanCode: true,
+            origin: true,
             status: true,
             subtotal: true,
             total: true,
@@ -573,6 +594,8 @@ class SalesController {
       const items = rows.map(r => ({
         id: r.id,
         number: r.number,
+        displayCode: r.humanCode || r.number,
+        origin: r.origin || 'POS',
         status: r.status,
         subtotal: Number(r.subtotal || 0),
         total: Number(r.totalRounded || r.total || 0),

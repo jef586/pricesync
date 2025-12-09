@@ -853,9 +853,18 @@ enum DiscountType {
   ABS
 }
 
+enum SalesOrigin {
+  POS
+  WEB
+}
+
 model SalesOrder {
   id     String @id @default(cuid())
   number String @unique
+
+  humanCode String? @map("human_code")
+  origin    SalesOrigin @default(POS)
+  branchId  String? @map("branch_id")
 
   // Importes
   subtotal        Decimal       @db.Decimal(10, 2)
@@ -893,6 +902,7 @@ model SalesOrder {
   LoyaltyMovement LoyaltyMovement[]
 
   @@unique([companyId, number])
+  @@unique([companyId, branchId, humanCode], map: "uniq_sales_human_code_scope")
   @@unique([parkToken], map: "uniq_sales_orders_park_token")
   @@index([parkedAt], map: "idx_sales_orders_parked_at")
   @@index([companyId, createdAt], map: "idx_sales_orders_company_created")
@@ -948,6 +958,16 @@ model SalesPayment {
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("sales_payments")
+}
+
+model SalesSequence {
+  companyId String  @map("company_id")
+  branchId  String? @map("branch_id")
+  year      Int
+  next      Int      @default(1)
+
+  @@id([companyId, branchId, year], map: "pk_sales_sequences_scope")
+  @@map("sales_sequences")
 }
 
 // ============================================================================

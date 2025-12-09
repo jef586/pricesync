@@ -148,6 +148,24 @@ class SalesService {
       totalRounded
     };
   }
+
+  static formatSaleCode(companyId, branchId, year, seq) {
+    const y = String(year)
+    const s = String(seq).padStart(6, '0')
+    return `VN-${y}-${s}`
+  }
+
+  static computeDisplayCode({ sale, invoice }) {
+    if (invoice && typeof invoice.number === 'string') {
+      const m = invoice.number.match(/^([A-Z])-(\d{4})-(\d{1,})$/)
+      if (m) {
+        const [, letter, ptovta, nro] = m
+        return `F${letter}${ptovta}-${nro}`
+      }
+      return `F${invoice.number}`
+    }
+    return sale?.humanCode || sale?.number || ''
+  }
 }
 
 export default SalesService;

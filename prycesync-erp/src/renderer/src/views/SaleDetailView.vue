@@ -1,9 +1,29 @@
 <template>
   <DashboardLayout>
     <div class="sale-detail-view">
-      <PageHeader :title="`Venta ${sale?.id || ''}`" subtitle="Detalle de venta">
+      <nav class="text-sm text-slate-600 dark:text-slate-300 mb-2" aria-label="Breadcrumb">
+        <ol class="list-reset flex">
+          <li><a href="#" class="hover:underline" @click.prevent="router.push('/sales')">Ventas</a></li>
+          <li class="mx-2">/</li>
+          <li>{{ createdYear }}</li>
+          <li class="mx-2">/</li>
+          <li>{{ createdMonth }}</li>
+          <li class="mx-2">/</li>
+          <li class="font-semibold">{{ sale?.displayCode || sale?.humanCode || sale?.number || '—' }}</li>
+        </ol>
+      </nav>
+
+      <PageHeader
+        :title="`Venta ${sale?.displayCode || sale?.humanCode || sale?.number || ''}`"
+        :subtitle="subtitle"
+        :badges="headerBadges"
+      >
         <template #actions>
-          <BaseButton variant="secondary" @click="goBack">Volver</BaseButton>
+          <BaseButton variant="ghost" @click="copyCode" title="Copiar Nº">Copiar Nº</BaseButton>
+          <BaseButton variant="outline" @click="duplicate" title="Duplicar">Duplicar</BaseButton>
+          <BaseButton variant="secondary" @click="openPdf">PDF</BaseButton>
+          <BaseButton variant="primary" @click="printTicket">Imprimir ticket</BaseButton>
+          <BaseButton variant="ghost" @click="showTech=true" title="Ver detalles técnicos">⋯</BaseButton>
         </template>
       </PageHeader>
 
@@ -49,18 +69,22 @@
             <div class="flex justify-between"><span>Cliente</span><span>{{ sale?.customer?.name || sale?.customerName || '—' }}</span></div>
             <div class="flex justify-between"><span>Fecha</span><span>{{ formatDate(sale?.createdAt) }}</span></div>
           </div>
-          <div class="mt-3 flex gap-2">
-            <BaseButton variant="primary" @click="printTicket">Imprimir Ticket</BaseButton>
-            <BaseButton variant="secondary" @click="openPdf">PDF</BaseButton>
-          </div>
+          <div class="mt-3 flex gap-2"></div>
         </BaseCard>
       </div>
+      <BaseModal v-model="showTech" title="Detalles técnicos" size="lg">
+        <div class="space-y-3">
+          <div class="text-sm">ID (UUID): <span class="font-mono">{{ sale?.id }}</span></div>
+          <pre class="text-xs overflow-auto max-h-[50vh] p-2 rounded border" v-if="isDev">{{ JSON.stringify(sale, null, 2) }}</pre>
+          <div v-else class="text-xs text-slate-500">No disponible fuera de entorno de desarrollo</div>
+        </div>
+      </BaseModal>
     </div>
   </DashboardLayout>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import DashboardLayout from '@/components/organisms/DashboardLayout.vue'
 import PageHeader from '@/components/molecules/PageHeader.vue'
@@ -68,11 +92,13 @@ import BaseCard from '@/components/atoms/BaseCard.vue'
 import BaseButton from '@/components/atoms/BaseButton.vue'
 import { apiClient } from '@/services/api'
 import { fetchSalePdf } from '@/services/salesService'
+import BaseModal from '@/components/atoms/BaseModal.vue'
 
 const route = useRoute()
 const router = useRouter()
 const sale = ref<any | null>(null)
 const items = ref<any[]>([])
+const showTech = ref(false)
 
 function fmt(n: number) { return (Number(n || 0)).toLocaleString('es-AR', { style: 'currency', currency: 'ARS' }) }
 function formatDate(d: any) { if (!d) return '—'; const dt = new Date(d); return dt.toLocaleString('es-AR') }
@@ -94,6 +120,44 @@ async function openPdf() {
   const url = URL.createObjectURL(blob)
   window.open(url, '_blank')
 }
+
+function copyCode() {
+  const code = sale.value?.displayCode || sale.value?.humanCode
+  if (!code) return
+  try { navigator.clipboard.writeText(String(code)) } catch (_) {}
+}
+
+async function duplicate() {
+  console.log('Duplicate sale', sale.value?.id)
+}
+
+const isDev = import.meta.env.DEV
+const createdYear = computed(() => sale.value?.createdAt ? new Date(sale.value.createdAt).getFullYear() : '—')
+const createdMonth = computed(() => {
+  if (!sale.value?.createdAt) return '—'
+  const m = new Date(sale.value.createdAt).toLocaleString('es-AR', { month: 'long' })
+  return m.charAt(0).toUpperCase() + m.slice(1)
+})
+const subtitle = computed(() => {
+  if (!sale.value) return 'Detalle de venta'
+  const dt = sale.value.createdAt ? formatDate(sale.value.createdAt) : '—'
+  const cust = sale.value.customer?.name || '—'
+  const pay = Array.isArray(sale.value.payments) && sale.value.payments.length ? sale.value.payments[0]?.method || '—' : '—'
+  const seller = sale.value.cashier || sale.value.user || '—'
+  const list = sale.value.listName || '—'
+  const branch = sale.value.branchName || '—'
+  return `${dt} · ${cust} · ${pay} · ${seller} · ${list} · ${branch}`
+})
+const headerBadges = computed(() => {
+  const s = (sale.value?.state || 'open')
+  const stateLabel = s === 'paid' ? 'Pagada' : (s === 'cancelled' ? 'Anulada' : 'Open')
+  const stateVar = s === 'paid' ? 'success' : (s === 'cancelled' ? 'danger' : 'neutral')
+  const origin = (sale.value?.origin || 'POS')
+  return [
+    { label: stateLabel, variant: stateVar as any },
+    { label: origin.toUpperCase(), variant: 'neutral' as any }
+  ]
+})
 
 async function printTicket() {
   const id = String(sale.value?.id || '')

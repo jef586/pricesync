@@ -11,7 +11,7 @@
       <FilterBar
         v-model="filters"
         :status-options="statusOptions"
-        search-placeholder="Buscar por cliente o ID"
+        search-placeholder="Buscar por cliente o N°"
         @filter-change="applyFilters"
         @search="debouncedSearch"
         class="mb-6"
@@ -27,8 +27,8 @@
         @row-click="handleRowClick"
         @sort="onSort"
       >
-        <template #cell-id="{ item }">
-          <div class="font-mono text-sm">{{ item.id }}</div>
+        <template #cell-displayCode="{ item }">
+          <div class="font-mono text-sm">{{ item.displayCode }}</div>
         </template>
         <template #cell-customer="{ item }">
           <div>
@@ -100,7 +100,7 @@ const statusOptions = [
   { value: 'cancelled', label: 'Cancelada' }
 ]
 const tableColumns = [
-  { key: 'id', label: 'ID', sortable: true },
+  { key: 'displayCode', label: 'N° venta', sortable: false },
   { key: 'customer', label: 'Cliente', sortable: false },
   { key: 'subtotal', label: 'Subtotal', sortable: true, class: 'text-right' },
   { key: 'total', label: 'Total', sortable: true, class: 'text-right' },
@@ -130,6 +130,7 @@ async function load() {
     const items = payload.items || []
     rows.value = items.map((it: any) => ({
       id: it.id || it.saleId || it._id || it.number || '—',
+      displayCode: it.displayCode || it.humanCode || it.number || '—',
       customer: it.customer || { name: it.customerName || '—', taxId: it.customerTaxId || undefined },
       customerName: it.customerName,
       subtotal: Number(it.subtotal ?? it.net ?? 0),

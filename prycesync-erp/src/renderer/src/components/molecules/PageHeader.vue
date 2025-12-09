@@ -3,6 +3,9 @@
     <div class="page-header__content">
       <h1 class="page-header__title">{{ title }}</h1>
       <p v-if="subtitle" class="page-header__subtitle">{{ subtitle }}</p>
+      <div v-if="badges && badges.length" class="page-header__badges">
+        <BaseBadge v-for="(b, i) in badges" :key="i" :variant="b.variant || 'neutral'">{{ b.label }}</BaseBadge>
+      </div>
     </div>
     <div v-if="$slots.actions" class="page-header__actions">
       <slot name="actions" />
@@ -11,9 +14,12 @@
 </template>
 
 <script setup lang="ts">
+import BaseBadge from '@/components/atoms/BaseBadge.vue'
+interface HeaderBadge { label: string; variant?: 'neutral' | 'success' | 'warning' | 'danger' }
 interface Props {
   title: string
   subtitle?: string
+  badges?: HeaderBadge[]
   dense?: boolean
 }
 
@@ -60,6 +66,8 @@ withDefaults(defineProps<Props>(), { dense: false })
   gap: 0.75rem;
   flex-shrink: 0;
 }
+
+.page-header__badges { display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.5rem; }
 
 /* Responsive */
 @media (max-width: 768px) {
