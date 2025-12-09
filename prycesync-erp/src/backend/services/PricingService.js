@@ -63,7 +63,11 @@ function computeInternalTax(cost, internalTaxType, internalTaxValue) {
   return 0
 }
 
-// Calcula precio público directo en base a costo, margen y impuestos
+function roundHalfUp(n, decimals = 2) {
+  const factor = Math.pow(10, decimals)
+  return Math.round(n * factor + Number.EPSILON) / factor
+}
+
 export function directPricing({ cost, gainPct = 0, taxRate = 21, internalTaxType = null, internalTaxValue = null }) {
   const c = Number(cost || 0)
   const g = Number(gainPct || 0)
@@ -71,7 +75,7 @@ export function directPricing({ cost, gainPct = 0, taxRate = 21, internalTaxType
   const internalTax = computeInternalTax(c, internalTaxType, internalTaxValue)
   const baseWithMargin = c * (1 + g / 100)
   const net = baseWithMargin + internalTax
-  const pricePublic = Number((net * (1 + v / 100)).toFixed(2))
+  const pricePublic = roundHalfUp(net * (1 + v / 100), 2)
   return { pricePublic }
 }
 
@@ -107,12 +111,12 @@ export function inversePricing({ pricePublic, cost, taxRate = 21, internalTaxTyp
   const c = Number(cost || 0)
   const v = Number(taxRate || 0)
   if (!(c > 0)) {
-    return { gainPct: 0, pricePublic: Number(p.toFixed(2)) }
+    return { gainPct: null, pricePublic: roundHalfUp(p, 2) }
   }
   const internalTax = computeInternalTax(c, internalTaxType, internalTaxValue)
   const netWithoutVAT = p / (1 + v / 100)
   const baseWithMargin = netWithoutVAT - internalTax
   const g = ((baseWithMargin / c) - 1) * 100
-  const gainPct = Number(g.toFixed(2))
-  return { gainPct, pricePublic: Number(p.toFixed(2)) }
+  const gainPct = roundHalfUp(g, 2)
+  return { gainPct, pricePublic: roundHalfUp(p, 2) }
 }

@@ -1,5 +1,6 @@
 import express from 'express';
 import ArticleController from '../controllers/ArticleController.js';
+import { validateCreateArticle, validateUpdateArticle } from '../middleware/articlesValidation.js';
 import { authenticate } from '../middleware/auth.js';
 import { requireScopes } from '../middleware/scopes.js';
 import { rateLimit } from '../middleware/rateLimit.js';
@@ -87,8 +88,8 @@ const requireWrite = requireScopes('article:write')
 router.get('/search', legacyDeprecation, requireRead, readLimit, ArticleController.searchArticles);
 router.get('/', legacyDeprecation, requireRead, readLimit, ArticleController.getArticles);
 router.get('/:id', legacyDeprecation, requireRead, readLimit, ArticleController.getArticleById);
-router.post('/', legacyDeprecation, requireWrite, writeLimit, ArticleController.createArticle);
-router.put('/:id', legacyDeprecation, requireWrite, writeLimit, ArticleController.updateArticle);
+router.post('/', legacyDeprecation, requireWrite, writeLimit, validateCreateArticle, ArticleController.createArticle);
+router.put('/:id', legacyDeprecation, requireWrite, writeLimit, validateUpdateArticle, ArticleController.updateArticle);
 router.delete('/:id', legacyDeprecation, requireWrite, writeLimit, ArticleController.deleteArticle);
 
 // Adaptación mínima de body para compatibilidad del endpoint de stock

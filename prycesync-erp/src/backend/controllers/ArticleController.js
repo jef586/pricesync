@@ -599,13 +599,18 @@ class ArticleController {
         finalCost = finalCost != null ? finalCost : parseFloat(cost)
       }
 
+      if (finalPricePublic < 0) {
+        return res.status(422).json({ error: 'UNPROCESSABLE_ENTITY', code: 'PRICE_NEGATIVE', message: 'El precio público calculado resulta negativo' })
+      }
+
       // Generar SKU si no se envía o está vacío
       const rawSku = sku?.toString().trim()
       const finalSku = rawSku && rawSku.length > 0
         ? rawSku
         : `SKU-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,6)}`
 
-      const article = await prisma.$transaction(async (tx) => {
+      const useTx = typeof prisma.$transaction === 'function'
+      const article = useTx ? await prisma.$transaction(async (tx) => {
         const created = await tx.article.create({
           data: {
             name: name.trim(),
@@ -617,7 +622,7 @@ class ArticleController {
             barcodeType: barcodeType || null,
           taxRate: parseFloat(tax) || 21,
           cost: finalCost != null ? finalCost : parseFloat(cost),
-          gainPct: finalGainPct != null ? finalGainPct : 0,
+          gainPct: finalGainPct,
           pricePublic: finalPricePublic,
             stock: parseInt(stock) || 0,
             stockMin: stockMin != null ? parseInt(stockMin) : null,
@@ -625,7 +630,7 @@ class ArticleController {
             controlStock: !!controlStock,
             categoryId: categoryId || null,
             companyId,
-            internalTaxType: (internalTaxType && internalTaxType !== 'NONE' ? 'FIXED' : 'NONE'),
+            internalTaxType: internalTaxType || 'NONE',
             internalTaxValue: internalTaxValue != null ? parseFloat(internalTaxValue) : 0,
             subjectIIBB: !!subjectIIBB,
             subjectGanancias: !!subjectGanancias,
@@ -661,7 +666,38 @@ class ArticleController {
         }
 
         return created
-      })
+      }) : await (async () => {
+        const created = await prisma.article.create({
+          data: {
+            name: name.trim(),
+            description: description?.trim() || null,
+            type,
+            active: !!active,
+            sku: finalSku,
+            barcode: barcode?.trim() || null,
+            barcodeType: barcodeType || null,
+            taxRate: parseFloat(tax) || 21,
+            cost: finalCost != null ? finalCost : parseFloat(cost),
+            gainPct: finalGainPct,
+            pricePublic: finalPricePublic,
+            stock: parseInt(stock) || 0,
+            stockMin: stockMin != null ? parseInt(stockMin) : null,
+            stockMax: stockMax != null ? parseInt(stockMax) : null,
+            controlStock: !!controlStock,
+            categoryId: categoryId || null,
+            companyId,
+            internalTaxType: internalTaxType || 'NONE',
+            internalTaxValue: internalTaxValue != null ? parseFloat(internalTaxValue) : 0,
+            subjectIIBB: !!subjectIIBB,
+            subjectGanancias: !!subjectGanancias,
+            subjectPercIVA: !!subjectPercIVA,
+            imageUrl: imageUrl || null,
+            ...(pointsPerUnit != null ? { pointsPerUnit: Number(pointsPerUnit) } : {})
+          },
+          include: { category: { select: { id: true, name: true } } }
+        })
+        return created
+      })()
 
       res.status(201).json(article)
     } catch (error) {
@@ -747,7 +783,7 @@ class ArticleController {
       if (stockMax !== undefined) updateData.stockMax = stockMax != null ? parseInt(stockMax) : null;
       if (controlStock !== undefined) updateData.controlStock = !!controlStock;
       if (categoryId !== undefined) updateData.categoryId = categoryId || null;
-      if (internalTaxType !== undefined) updateData.internalTaxType = (internalTaxType && internalTaxType !== 'NONE' ? 'FIXED' : 'NONE');
+      if (internalTaxType !== undefined) updateData.internalTaxType = internalTaxType || 'NONE';
       if (internalTaxValue !== undefined) updateData.internalTaxValue = internalTaxValue != null ? parseFloat(internalTaxValue) : 0;
       if (subjectIIBB !== undefined) updateData.subjectIIBB = !!subjectIIBB;
       if (subjectGanancias !== undefined) updateData.subjectGanancias = !!subjectGanancias;
@@ -808,7 +844,12 @@ class ArticleController {
         updateData.pricePublic = dir.pricePublic
       }
 
-      const article = await prisma.$transaction(async (tx) => {
+      if (updateData.pricePublic != null && updateData.pricePublic < 0) {
+        return res.status(422).json({ error: 'UNPROCESSABLE_ENTITY', code: 'PRICE_NEGATIVE', message: 'El precio público calculado resulta negativo' })
+      }
+
+      const useTx = typeof prisma.$transaction === 'function'
+      const article = useTx ? await prisma.$transaction(async (tx) => {
         const updated = await tx.article.update({
           where: { id },
           data: updateData,
@@ -816,17 +857,13 @@ class ArticleController {
         })
 
         if (hasIncomingComponents) {
-          // Sincronizar componentes: eliminar los que no estén, actualizar qty y crear nuevos
           const existingComps = await tx.articleBundleComponent.findMany({ where: { articleId: id } })
           const incomingMap = new Map(normalizedComponents.map(c => [c.articleId, c.qty]))
-
-          // Eliminar
           for (const ex of existingComps) {
             if (!incomingMap.has(ex.componentArticleId)) {
               await tx.articleBundleComponent.delete({ where: { id: ex.id } })
             }
           }
-          // Actualizar o crear
           for (const [compId, qty] of incomingMap.entries()) {
             const found = existingComps.find(e => e.componentArticleId === compId)
             if (found) {
@@ -838,9 +875,16 @@ class ArticleController {
             }
           }
         }
-
         return updated
-      })
+      }) : await (async () => {
+        const updated = await prisma.article.update({
+          where: { id },
+          data: updateData,
+          include: { category: { select: { id: true, name: true } } }
+        })
+        // Fallback no transaction: no sincroniza componentes
+        return updated
+      })()
 
       try {
         const actor = req.user || {}

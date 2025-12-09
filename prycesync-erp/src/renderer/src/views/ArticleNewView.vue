@@ -207,6 +207,8 @@
               <div>
                 <label class="text-xs font-semibold">Margen %</label>
                 <input type="number" v-model.number="calc.marginPct" class="w-full mt-1 px-2 py-1 text-xs rounded-md border-default" />
+                <p class="mt-1 text-[10px] text-secondary">admite -100 a 100</p>
+                <p v-if="validation.marginOutOfRange" class="mt-1 text-[10px] text-red-600">Margen fuera de rango (-100 a 100)</p>
               </div>
               <div class="col-span-2">
                 <label class="text-xs font-semibold">Precio público</label>
@@ -784,7 +786,7 @@ function addComponent() {
 }
 
 // Validation flags
-const validation = ref({ eanDuplicate: false, stockInvalid: false, uomInvalid: false, aliasDuplicate: false });
+const validation = ref({ eanDuplicate: false, stockInvalid: false, uomInvalid: false, aliasDuplicate: false, marginOutOfRange: false });
 
 // Funciones para cargar rubros y subrubros
 const loadRubros = async () => {
@@ -954,6 +956,12 @@ const save = async () => {
       notificationError('Complete Nombre y Rubro antes de guardar')
       return
     }
+    const m = Number(calc.value.marginPct)
+    validation.value.marginOutOfRange = !(m >= -100 && m <= 100)
+    if (validation.value.marginOutOfRange) {
+      notificationError('Margen debe estar entre -100 y 100')
+      return
+    }
     const payload = normalizePayload();
 
     let articleId: string | undefined
@@ -1002,7 +1010,9 @@ const save = async () => {
     isDirty.value = false;
     success('Artículo guardado correctamente')
   } catch (err) {
-    error('Error guardando artículo', (err as any)?.message)
+    const resp = (err as any)?.response?.data || {}
+    const msg = resp?.message || (err as any)?.message || 'Error'
+    error('Error guardando artículo', msg)
   } finally {
     isSaving.value = false;
   }

@@ -1,6 +1,6 @@
 import express from 'express'
 import ArticleController from '../controllers/ArticleController.js'
-import { validateUpdateArticle } from '../middleware/articlesValidation.js'
+import { validateUpdateArticle, validateCreateArticle } from '../middleware/articlesValidation.js'
 import { authenticate } from '../middleware/auth.js'
 import { requireScopes } from '../middleware/scopes.js'
 import { rateLimit } from '../middleware/rateLimit.js'
@@ -47,7 +47,7 @@ router.get('/resolve', requireResolve, readLimit, ArticleController.resolveArtic
 
 // CRUD
 router.get('/:id', requireRead, readLimit, ArticleController.getArticleById)
-router.post('/', requireWrite, writeLimit, ArticleController.createArticle)
+router.post('/', requireWrite, writeLimit, validateCreateArticle, ArticleController.createArticle)
 router.put('/:id', requireWrite, writeLimit, validateUpdateArticle, ArticleController.updateArticle)
 router.delete('/:id', requireWrite, writeLimit, ArticleController.deleteArticle)
 

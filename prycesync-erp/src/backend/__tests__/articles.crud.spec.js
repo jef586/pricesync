@@ -115,6 +115,18 @@ describe('CRUD de Artículos', () => {
     expect(body.pricePublic).toBe(121)
   })
 
+  it('crea artículo con margen negativo directo', async () => {
+    const res = await fetch(`${baseURL}/api/articles`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'Articulo Neg', cost: 2000, taxRate: 21, gainPct: -10 })
+    })
+    expect(res.status).toBe(201)
+    const body = await res.json()
+    expect(body.pricePublic).toBe(2178)
+    expect(body.gainPct).toBe(-10)
+  })
+
   it('obtiene listado con paginación', async () => {
     const res = await fetch(`${baseURL}/api/articles?page=1&limit=10`)
     expect(res.status).toBe(200)
@@ -151,6 +163,33 @@ describe('CRUD de Artículos', () => {
     const body = await res.json()
     expect(body.pricePublic).toBe(242)
     expect(body.gainPct).toBe(100)
+  })
+
+  it('actualiza inverso con pricePublic y persiste margen negativo', async () => {
+    const createRes = await fetch(`${baseURL}/api/articles`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'Articulo Inv', cost: 2000, taxRate: 21 })
+    })
+    const created = await createRes.json()
+    const res = await fetch(`${baseURL}/api/articles/${created.id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pricePublic: 1500 })
+    })
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.pricePublic).toBe(1500)
+    expect(body.gainPct).toBeLessThan(0)
+  })
+
+  it('cost=0 y pricePublic=100 → guarda con gainPct=null', async () => {
+    const res = await fetch(`${baseURL}/api/articles`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'Gratis', cost: 0, taxRate: 21, pricePublic: 100 })
+    })
+    expect(res.status).toBe(201)
+    const body = await res.json()
+    expect(body.pricePublic).toBe(100)
+    expect(body.gainPct).toBe(null)
   })
 
   it('conflicto por sku duplicado (409)', async () => {
