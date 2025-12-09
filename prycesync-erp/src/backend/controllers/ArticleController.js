@@ -190,37 +190,140 @@ class ArticleController {
       }
 
       const skip = (pageNum - 1) * perPage;
-      const [items, total] = await Promise.all([
-        prisma.article.findMany({
-          where: finalWhere,
-          select: {
-            id: true,
-            sku: true,
-            name: true,
-            description: true,
-            type: true,
-            active: true,
-            cost: true,
-            pricePublic: true,
-            pointsPerUnit: true,
-            stock: true,
-            stockMin: true,
-            stockMax: true,
-            controlStock: true,
-            taxRate: true,
-            categoryId: true,
-            category: { select: { id: true, name: true } },
-            createdAt: true,
-            updatedAt: true
-          },
-          skip,
-          take: perPage,
-          orderBy
-        }),
-        prisma.article.count({ where: finalWhere })
-      ]);
+      let items, total
+      try {
+        const res = await Promise.all([
+          prisma.article.findMany({
+            where: finalWhere,
+            select: {
+              id: true,
+              sku: true,
+              name: true,
+              description: true,
+              type: true,
+              active: true,
+              cost: true,
+              pricePublic: true,
+              pointsPerUnit: true,
+              stock: true,
+              stockMin: true,
+              stockMax: true,
+              controlStock: true,
+              taxRate: true,
+              internalTaxType: true,
+              internalTaxValue: true,
+              categoryId: true,
+              category: { select: { id: true, name: true } },
+              fixedPrices: { select: { l1MarginPct: true, l2MarginPct: true, l3MarginPct: true, l1FinalPrice: true, l2FinalPrice: true, l3FinalPrice: true, l1Locked: true, l2Locked: true, l3Locked: true } },
+              qtyPromotions: { select: { active: true, priceListIds: true, tiers: { select: { minQtyUn: true, pricePerUnit: true } } } },
+              createdAt: true,
+              updatedAt: true
+            },
+            skip,
+            take: perPage,
+            orderBy
+          }),
+          prisma.article.count({ where: finalWhere })
+        ])
+        items = res[0]; total = res[1]
+      } catch (err) {
+        if (err?.code === 'P2021') {
+          const res2 = await Promise.all([
+            prisma.article.findMany({
+              where: finalWhere,
+              select: {
+                id: true,
+                sku: true,
+                name: true,
+                description: true,
+                type: true,
+                active: true,
+                cost: true,
+                pricePublic: true,
+                pointsPerUnit: true,
+                stock: true,
+                stockMin: true,
+                stockMax: true,
+                controlStock: true,
+                taxRate: true,
+                internalTaxType: true,
+                internalTaxValue: true,
+                categoryId: true,
+                category: { select: { id: true, name: true } },
+                createdAt: true,
+                updatedAt: true
+              },
+              skip,
+              take: perPage,
+              orderBy
+            }),
+            prisma.article.count({ where: finalWhere })
+          ])
+          items = res2[0]; total = res2[1]
+        } else {
+          throw err
+        }
+      }
 
-      return res.json({ items, page: pageNum, pageSize: perPage, total });
+      // Mapear listas de precios calculadas y bloque de impuestos
+      const mapped = items.map((a) => {
+        const ivaPct = Number(a.taxRate || 0)
+        const tax = { ivaPct, internalTaxType: a.internalTaxType || 'NONE', internalTaxValue: Number(a.internalTaxValue || 0) }
+        const fp = a.fixedPrices || {}
+        const lists = {}
+        const missing = []
+        const computeList = (margin) => {
+          if (margin == null) return null
+          const res = directPricing({ cost: Number(a.cost || 0), gainPct: Number(margin || 0), taxRate: ivaPct, internalTaxType: tax.internalTaxType, internalTaxValue: tax.internalTaxValue })
+          return Number(res.pricePublic || 0)
+        }
+        const defaultMargins = { l1: 20, l2: 15, l3: 10 }
+        const l1 = (fp.l1FinalPrice != null || fp.l1Locked) ? Number(fp.l1FinalPrice) : computeList(fp.l1MarginPct ?? defaultMargins.l1)
+        const l2 = (fp.l2FinalPrice != null || fp.l2Locked) ? Number(fp.l2FinalPrice) : computeList(fp.l2MarginPct ?? defaultMargins.l2)
+        const l3 = (fp.l3FinalPrice != null || fp.l3Locked) ? Number(fp.l3FinalPrice) : computeList(fp.l3MarginPct ?? defaultMargins.l3)
+        if (l1 == null) missing.push('L1')
+        if (l2 == null) missing.push('L2')
+        if (l3 == null) missing.push('L3')
+        lists.L1 = l1
+        lists.L2 = l2
+        lists.L3 = l3
+        // L4: tomar primera promo activa con pricePerUnit y mínimo de cantidad
+        let L4 = null
+        try {
+          const promos = Array.isArray(a.qtyPromotions) ? a.qtyPromotions : []
+          const valid = promos.filter(p => p.active)
+          // Filtrar por listas asociadas: admitir variantes de texto
+          const matchesList4 = (lst) => {
+            try { const arr = Array.isArray(lst) ? lst : []; return arr.some(x => String(x).toUpperCase().includes('4')) } catch { return false }
+          }
+          const forList4 = valid.filter(p => matchesList4(p.priceListIds))
+          let chosen = null
+          for (const p of forList4) {
+            for (const t of (Array.isArray(p.tiers) ? p.tiers : [])) {
+              if (t.pricePerUnit != null) {
+                if (!chosen || Number(t.minQtyUn) < Number(chosen.minQtyUn)) {
+                  chosen = { minQtyUn: Number(t.minQtyUn || 0), pricePerUnit: Number(t.pricePerUnit || 0) }
+                }
+              }
+            }
+          }
+          if (chosen) {
+            L4 = { price: Number(chosen.pricePerUnit || 0), minQty: Number(chosen.minQtyUn || 0) }
+          }
+        } catch {}
+        const out = {
+          ...a,
+          tax,
+          priceLists: { L1: lists.L1, L2: lists.L2, L3: lists.L3, L4 },
+          missingPriceLists: missing
+        }
+        // Remover relaciones para limpiar payload
+        delete out.fixedPrices
+        delete out.qtyPromotions
+        return out
+      })
+
+      return res.json({ items: mapped, page: pageNum, pageSize: perPage, total });
     } catch (error) {
       console.error('Error searching articles:', error);
       res.status(500).json({
@@ -1527,6 +1630,9 @@ class ArticleController {
         pricePublic: true,
         barcode: true,
         taxRate: true,
+        internalTaxType: true,
+        internalTaxValue: true,
+        cost: true,
         stock: true
       }
 
@@ -1580,15 +1686,77 @@ class ArticleController {
 
       recordLookupOk()
       recordLookupLatencyMs(Date.now() - started)
+      // Calcular listas de precios y bloque de impuestos
+      const ivaPct = Number(found.taxRate || 0)
+      const tax = { ivaPct, internalTaxType: found.internalTaxType || 'NONE', internalTaxValue: Number(found.internalTaxValue || 0) }
+      let fp = null
+      let tableFixedExists = true
+      try {
+        const reg = await prisma.$queryRaw`SELECT to_regclass('public.article_prices_fixed') as r`
+        const row = Array.isArray(reg) ? reg[0] : reg
+        tableFixedExists = !!(row?.r || row?.r !== null)
+      } catch (_) {
+        tableFixedExists = false
+      }
+      if (tableFixedExists) {
+        try {
+          fp = await prisma.articlePricesFixed.findUnique({ where: { articleId: found.id }, select: { l1MarginPct: true, l2MarginPct: true, l3MarginPct: true, l1FinalPrice: true, l2FinalPrice: true, l3FinalPrice: true, l1Locked: true, l2Locked: true, l3Locked: true } })
+        } catch (err) {
+          fp = null
+        }
+      }
+      const computeList = (margin) => {
+        if (margin == null) return null
+        const res = directPricing({ cost: Number(found.cost || 0), gainPct: Number(margin || 0), taxRate: ivaPct, internalTaxType: tax.internalTaxType, internalTaxValue: tax.internalTaxValue })
+        return Number(res.pricePublic || 0)
+      }
+      const defaultMargins = { l1: 20, l2: 15, l3: 10 }
+      const l1 = (fp && (fp.l1FinalPrice != null || fp.l1Locked)) ? Number(fp?.l1FinalPrice) : computeList(fp?.l1MarginPct ?? defaultMargins.l1)
+      const l2 = (fp && (fp.l2FinalPrice != null || fp.l2Locked)) ? Number(fp?.l2FinalPrice) : computeList(fp?.l2MarginPct ?? defaultMargins.l2)
+      const l3 = (fp && (fp.l3FinalPrice != null || fp.l3Locked)) ? Number(fp?.l3FinalPrice) : computeList(fp?.l3MarginPct ?? defaultMargins.l3)
+      const missing = []
+      if (l1 == null) missing.push('L1')
+      if (l2 == null) missing.push('L2')
+      if (l3 == null) missing.push('L3')
+      // L4 desde promos por cantidad (precio fijo + minQty)
+      let L4 = null
+      let tablePromoExists = true
+      try {
+        const regP = await prisma.$queryRaw`SELECT to_regclass('public.article_quantity_promotions') as r`
+        const rowP = Array.isArray(regP) ? regP[0] : regP
+        tablePromoExists = !!(rowP?.r || rowP?.r !== null)
+      } catch (_) {
+        tablePromoExists = false
+      }
+      if (tablePromoExists) {
+        try {
+          const promo = await prisma.articleQuantityPromotion.findFirst({ where: { articleId: found.id, active: true }, include: { tiers: true } })
+          if (promo && Array.isArray(promo.tiers)) {
+            let chosen = null
+            for (const t of promo.tiers) {
+              if (t.pricePerUnit != null) {
+                if (!chosen || Number(t.minQtyUn) < Number(chosen.minQtyUn)) {
+                  chosen = { minQtyUn: Number(t.minQtyUn || 0), pricePerUnit: Number(t.pricePerUnit || 0) }
+                }
+              }
+            }
+            if (chosen) L4 = { price: Number(chosen.pricePerUnit || 0), minQty: Number(chosen.minQtyUn || 0) }
+          }
+        } catch (_) {}
+      }
       const payload = {
         id: found.id,
         name: found.name,
         sku: found.sku,
         barcode: found.barcode,
         pricePublic: Number(found.pricePublic),
+        cost: Number(found.cost || 0),
         taxRate: Number(found.taxRate),
         uom: 'UN',
-        stock: Number(found.stock || 0)
+        stock: Number(found.stock || 0),
+        tax,
+        priceLists: { L1: l1, L2: l2, L3: l3, L4 },
+        missingPriceLists: missing
       }
       console.log('articles.lookup success', { requestId: req.requestId, id: payload.id })
       return res.json(payload)

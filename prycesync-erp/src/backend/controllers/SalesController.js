@@ -97,6 +97,7 @@ class SalesController {
           discountType,
           discountValue,
           isDiscountable,
+          // omit priceListUsed when column may be missing in DB
         });
       }
 

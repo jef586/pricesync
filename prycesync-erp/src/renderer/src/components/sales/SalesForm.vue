@@ -167,7 +167,9 @@
               <td class="py-2 pr-4">
                 <div class="flex items-center gap-2">
                   <input type="number" min="0" v-model.number="r.price" @change="lockPrice(r)" :title="priceOriginTitle(r)" data-testid="row-price-input" class="w-28 px-2 py-1 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-saira" aria-label="Precio" />
-                  <span v-if="r.manualLocked" class="inline-flex items-center px-2 py-1 text-xs rounded-md bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300" title="🔒 Origen: Manual">🔒</span>
+                  <span v-if="r.manualLocked" class="inline-flex items-center px-2 py-1 text-xs rounded-md bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300" title="Precio manual">🔒</span>
+                  <span v-if="!r.manualLocked && r.priceListUsed" class="inline-flex items-center px-2 py-1 text-xs rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300" :title="`Lista usada: ${r.priceListUsed}`">{{ r.priceListUsed === 'L4' ? 'L4 Promo' : r.priceListUsed }}</span>
+                  <span v-if="r.fallbackOf" class="inline-flex items-center px-2 py-1 text-xs rounded-md bg-amber-50 text-amber-700 border border-amber-200" :title="`Sin precio en ${r.fallbackOf}, usando Público`">Sin precio en {{ r.fallbackOf }}, usando Público</span>
                 </div>
               </td>
               <td class="py-2 pr-4">
@@ -293,10 +295,10 @@
   <div v-if="modal.show" class="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
     <div class="bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 p-4 w-[90%] max-w-md">
       <h3 class="text-base font-semibold text-slate-900 dark:text-slate-100 mb-2">Cambiar Lista de Precios</h3>
-      <p class="text-sm text-slate-600 dark:text-slate-300">Cambiar la lista actualizará los precios no editados. ¿Continuar?</p>
+      <p class="text-sm text-slate-600 dark:text-slate-300">¿Actualizar precios de {{ rows.filter(r => !r.manualLocked).length }} ítems a la lista {{ selectedPriceList?.name || '—' }}?</p>
       <div class="mt-4 flex justify-end gap-2">
-        <button class="px-3 py-2 rounded-md bg-slate-200 hover:bg-slate-300 text-slate-900 dark:bg-slate-800 dark:text-slate-100" @click="modalCancel">Cancelar</button>
-        <button class="px-3 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white" @click="modalConfirm">Continuar</button>
+        <button class="px-3 py-2 rounded-md bg-slate-200 hover:bg-slate-300 text-slate-900 dark:bg-slate-800 dark:text-slate-100" @click="modalCancel">Mantener</button>
+        <button class="px-3 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white" @click="modalConfirm">Actualizar</button>
       </div>
     </div>
   </div>
@@ -316,9 +318,10 @@ import CustomerSearchModal from '@/components/molecules/CustomerSearchModal.vue'
 import { useBarcodeListener } from '@/composables/useBarcodeListener'
 import { getPosBarcodeSettings } from '@/services/posBarcodeSettings'
 import { getPricingPreview, lookup, resolveArticle } from '@/services/articles'
+import { computePriceForRowFromLists, type PriceMeta } from '@/utils/posPricing'
 
 type PriceList = { id: string; name: string; multiplier?: number; priceMap?: Record<string, number> }
-type Row = { id: string; sku: string; desc: string; qty: number; price: number; manualLocked: boolean; disc?: number; productId?: string; discountType?: 'PERCENT' | 'ABS'; discountValue?: number; isDiscountable?: boolean }
+type Row = { id: string; sku: string; desc: string; qty: number; price: number; manualLocked: boolean; disc?: number; productId?: string; discountType?: 'PERCENT' | 'ABS'; discountValue?: number; isDiscountable?: boolean; priceListUsed?: 'L1'|'L2'|'L3'|'L4'|'PUBLIC'; fallbackOf?: 'L1'|'L2'|'L3'|'L4' }
 
 // Estado encabezado
 const header = ref({
@@ -337,7 +340,8 @@ const priceLists = ref<PriceList[]>([
   { id: 'l3', name: 'Lista 3', multiplier: 1.2 },
   { id: 'l4', name: 'Lista 4', multiplier: 1.3, priceMap: { 'SKU-001': 1200, 'SKU-XYZ': 9900 } }
 ])
-const selectedPriceListId = ref<string>('')
+const selectedPriceListId = ref<string>('l1')
+const lastNonPromoListId = ref<'l1'|'l2'|'l3'>('l1')
 const selectedPriceList = computed(() => priceLists.value.find(p => p.id === selectedPriceListId.value))
 
 // Productos y filas
@@ -497,29 +501,20 @@ const addRowFromBarcode = async () => {
 async function addRowFromResolvedArticle(art: any) {
   const qty = newQty.value || 1
   const list = String(selectedPriceListId.value || '').toLowerCase()
-  let unitPrice = Number(art?.pricePublic || 0)
-  if (['l1', 'l2', 'l3'].includes(list)) {
-    try {
-      const prev = await getPricingPreview(String(art.id), qty, list as 'l1'|'l2'|'l3')
-      unitPrice = Number(prev.finalUnitPrice || prev.baseUnitPrice || unitPrice)
-    } catch (_) {}
-  }
+  priceListsByArticle[String(art.id)] = { priceLists: art?.priceLists || {}, pricePublic: Number(art?.pricePublic || 0), cost: Number(art?.cost || 0), tax: art?.tax }
+  const meta = computePriceForRow(String(art.id), qty, list)
+  const unitPrice = Math.round(Number(meta?.price || art?.pricePublic || 0))
   const keySku = art?.sku || art?.id
   const idx = rows.value.findIndex(r => r.productId === String(art.id) || r.sku === keySku)
   if (idx >= 0) {
     const current = rows.value[idx]
     const nextQty = (current.qty || 0) + qty
-    let nextPrice = current.price
-    if (!current.manualLocked && ['l1', 'l2', 'l3'].includes(list)) {
-      try {
-        const prev = await getPricingPreview(String(art.id), nextQty, list as 'l1'|'l2'|'l3')
-        nextPrice = Math.round(Number(prev.finalUnitPrice || prev.baseUnitPrice || nextPrice))
-      } catch (_) {}
-    }
-    rows.value[idx] = { ...current, qty: nextQty, price: nextPrice }
+    const m2 = computePriceForRow(String(art.id), nextQty, list)
+    const nextPrice = Math.round(Number(m2?.price || unitPrice))
+    rows.value[idx] = { ...current, qty: nextQty, price: nextPrice, priceListUsed: m2?.used || current.priceListUsed, fallbackOf: m2?.fallbackOf }
     console.log('SalesForm:accumulate row', rows.value[idx])
   } else {
-    const row = { id: cryptoRandom(), sku: keySku, desc: art?.name || 'Artículo', qty, price: Math.round(unitPrice), manualLocked: false, disc: 0, productId: String(art.id) }
+    const row = { id: cryptoRandom(), sku: keySku, desc: art?.name || 'Artículo', qty, price: unitPrice, manualLocked: false, disc: 0, productId: String(art.id), priceListUsed: meta?.used || 'PUBLIC', fallbackOf: meta?.fallbackOf }
     console.log('SalesForm:push row', row)
     rows.value.push(row)
   }
@@ -634,28 +629,17 @@ const modalCancel = () => { modal.value.show = false }
 const modalConfirm = () => { applyNewPriceList(); modal.value.show = false }
 const applyNewPriceList = async () => {
   const nextId = String(selectedPriceListId.value || '').toLowerCase()
+  if (['l1','l2','l3'].includes(nextId)) lastNonPromoListId.value = nextId as any
   let affected = 0
-  const updated = await Promise.all(rows.value.map(async (r) => {
+  const updated = rows.value.map((r) => {
     if (r.manualLocked) return r
-    let price = r.price
-    if (r.productId && ['l1','l2','l3'].includes(nextId)) {
-      try {
-        const prev = await getPricingPreview(String(r.productId), r.qty, nextId as 'l1'|'l2'|'l3')
-        price = Number(prev.finalUnitPrice || prev.baseUnitPrice || price)
-        affected++
-        return { ...r, price: Math.round(price) }
-      } catch (_) {
-        affected++
-        return r
-      }
-    } else {
-      affected++
-      return r
-    }
-  }))
+    const meta = computePriceForRow(r.productId, r.qty, nextId)
+    if (meta) { affected++; return { ...r, price: Math.round(meta.price), priceListUsed: meta.used, fallbackOf: meta.fallbackOf } }
+    affected++; return r
+  })
   rows.value = updated
   const pl = priceLists.value.find(p => p.id === selectedPriceListId.value)
-  showToast(`Precios actualizados por ${pl?.name ?? '—'} · ${affected} filas`)
+  showToast(`Precios actualizados · ${affected} filas a ${pl?.name ?? '—'}`)
 }
 
 // Toast simple
@@ -668,8 +652,32 @@ const showToast = (msg: string) => {
 // Sincronizar totales (placeholder por si luego hay side-effects)
 const syncTotals = () => {/* no-op, computeds se actualizan solos */}
 
-watch(rows, (nv) => {
-  console.log('SalesForm:rows changed', nv.length)
+const priceListsByArticle: Record<string, any> = {}
+const computePriceForRow = (articleId: string | undefined, qty: number, listIdLower: string): PriceMeta | null => {
+  if (!articleId) return null
+  const lists = priceListsByArticle[articleId]
+  return computePriceForRowFromLists(lists, qty, listIdLower, lastNonPromoListId.value)
+}
+
+watch(rows, (nv, ov) => {
+  try {
+    if (String(selectedPriceListId.value || '').toLowerCase() === 'l4') {
+      nv.forEach((r, idx) => {
+        const prev = ov?.[idx]
+        if (!prev || r.manualLocked) return
+        if (Number(r.qty) !== Number(prev.qty)) {
+          const meta = computePriceForRow(r.productId, r.qty, 'l4')
+          if (!meta) return
+          const changed = r.priceListUsed !== meta.used
+          rows.value[idx] = { ...r, price: Math.round(meta.price), priceListUsed: meta.used, fallbackOf: meta.fallbackOf }
+          if (changed) {
+            if (meta.used === 'L4') showToast('Aplicada promoción L4')
+            else showToast('Cantidad debajo del mínimo: precio normal')
+          }
+        }
+      })
+    }
+  } catch (_) {}
 }, { deep: true })
 
 // Acciones
@@ -719,6 +727,7 @@ const saveSale = async () => {
       if (dType) item.discount_type = dType
       if (dValue) item.discount_value = dValue
       if (r.productId) item.productId = r.productId
+      if (r.priceListUsed) item.priceListUsed = r.priceListUsed
       return item
     })
     const finalDiscount = summary.value.finalDiscountType === 'NONE' ? undefined : { type: summary.value.finalDiscountType, value: summary.value.finalDiscountValue || 0 }
@@ -762,6 +771,7 @@ const confirmAndCharge = async () => {
       if (dType) item.discount_type = dType
       if (dValue) item.discount_value = dValue
       if (r.productId) item.productId = r.productId
+      if (r.priceListUsed) item.priceListUsed = r.priceListUsed
       return item
     })
     const finalDiscount = summary.value.finalDiscountType === 'NONE' ? undefined : { type: summary.value.finalDiscountType, value: summary.value.finalDiscountValue || 0 }

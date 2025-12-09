@@ -930,6 +930,9 @@ model SalesOrderItem {
   taxAmount Decimal @map("tax_amount") @db.Decimal(10, 2)
   total     Decimal @db.Decimal(10, 2)
 
+  // Lista de precios usada en la línea (POS)
+  priceListUsed String? @map("price_list_used")
+
   // Relaciones
   salesOrderId String     @map("sales_order_id")
   salesOrder   SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
@@ -966,7 +969,8 @@ model SalesSequence {
   year      Int
   next      Int      @default(1)
 
-  @@id([companyId, branchId, year], map: "pk_sales_sequences_scope")
+  @@id([companyId, year], map: "pk_sales_sequences_scope")
+  @@index([branchId], map: "idx_sales_sequences_branch")
   @@map("sales_sequences")
 }
 
