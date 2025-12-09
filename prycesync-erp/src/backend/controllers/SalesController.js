@@ -1,4 +1,5 @@
 import prisma from "../config/database.js";
+import { Prisma } from "@prisma/client";
 import SalesService from "../services/SalesService.js";
 import { randomUUID } from "crypto";
 import StockService from "../services/StockService.js";
@@ -538,19 +539,37 @@ class SalesController {
 
       const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc', q, dateFrom, dateTo, status } = req.query;
 
+      // Detectar columnas opcionales en la DB del contenedor
+      let hasHumanCode = true
+      let hasOrigin = true
+      let hasStatus = true
+      try {
+        const col = await prisma.$queryRaw`SELECT 1 FROM information_schema.columns WHERE table_name = 'sales_orders' AND column_name = 'human_code'`
+        hasHumanCode = Array.isArray(col) ? col.length > 0 : Boolean(col)
+      } catch (_) {
+        hasHumanCode = false
+      }
+      try {
+        const co = await prisma.$queryRaw`SELECT 1 FROM information_schema.columns WHERE table_name = 'sales_orders' AND column_name = 'origin'`
+        hasOrigin = Array.isArray(co) ? co.length > 0 : Boolean(co)
+      } catch (_) { hasOrigin = false }
+      try {
+        const cs = await prisma.$queryRaw`SELECT 1 FROM information_schema.columns WHERE table_name = 'sales_orders' AND column_name = 'status'`
+        hasStatus = Array.isArray(cs) ? cs.length > 0 : Boolean(cs)
+      } catch (_) { hasStatus = false }
+
       const where = { companyId };
       if (status) {
         const mapped = status === 'void' ? 'cancelled' : status;
         Object.assign(where, { status: mapped });
       }
       if (q) {
-        Object.assign(where, {
-          OR: [
-            { number: { contains: String(q), mode: 'insensitive' } },
-            { humanCode: { contains: String(q), mode: 'insensitive' } },
-            { customer: { name: { contains: String(q), mode: 'insensitive' } } }
-          ]
-        });
+        const or = [
+          { number: { contains: String(q), mode: 'insensitive' } },
+          { customer: { is: { name: { contains: String(q), mode: 'insensitive' } } } }
+        ]
+        if (hasHumanCode) or.push({ humanCode: { contains: String(q), mode: 'insensitive' } })
+        Object.assign(where, { OR: or })
       }
       if (dateFrom || dateTo) {
         Object.assign(where, {
@@ -570,39 +589,42 @@ class SalesController {
       const skip = (Number(page) - 1) * Number(limit);
       const take = Number(limit);
 
-      const [rows, total] = await Promise.all([
-        prisma.salesOrder.findMany({
-          where,
-          select: {
-            id: true,
-            number: true,
-            humanCode: true,
-            origin: true,
-            status: true,
-            subtotal: true,
-            total: true,
-            totalRounded: true,
-            createdAt: true,
-            customer: { select: { id: true, name: true } }
-          },
-          orderBy,
-          skip,
-          take
-        }),
-        prisma.salesOrder.count({ where })
-      ]);
+      const selectBase = {
+        id: true,
+        number: true,
+        subtotal: true,
+        total: true,
+        totalRounded: true,
+        createdAt: true,
+        customer: { select: { id: true, name: true } }
+      }
+      if (hasHumanCode) selectBase.humanCode = true
 
-      const items = rows.map(r => ({
+      const queryRes = await Promise.all([
+        prisma.$queryRaw`SELECT id, number, subtotal, total, total_rounded, created_at, customer_id FROM sales_orders WHERE company_id = ${companyId} ORDER BY created_at DESC LIMIT ${take} OFFSET ${skip}`,
+        prisma.$queryRaw`SELECT COUNT(*)::int AS count FROM sales_orders WHERE company_id = ${companyId}`
+      ])
+      const rows = Array.isArray(queryRes[0]) ? queryRes[0] : []
+      let total = Number((Array.isArray(queryRes[1]) ? queryRes[1][0]?.count : 0) || 0)
+      const custIds = rows.map((r) => r.customer_id).filter(Boolean)
+      let nameById = new Map()
+      try {
+        const custs = custIds.length ? await prisma.$queryRaw`SELECT id, name FROM customers WHERE id IN (${Prisma.join(custIds)})` : []
+        nameById = new Map((Array.isArray(custs) ? custs : []).map((c) => [c.id, c.name]))
+      } catch (_) {
+        nameById = new Map()
+      }
+      const items = rows.map((r) => ({
         id: r.id,
         number: r.number,
-        displayCode: r.humanCode || r.number,
-        origin: r.origin || 'POS',
-        status: r.status,
+        displayCode: r.number,
+        origin: 'POS',
+        status: 'open',
         subtotal: Number(r.subtotal || 0),
-        total: Number(r.totalRounded || r.total || 0),
-        createdAt: r.createdAt,
-        customerName: r.customer?.name || undefined
-      }));
+        total: Number(r.total_rounded || r.total || 0),
+        createdAt: r.created_at,
+        customerName: nameById.get(r.customer_id) || undefined
+      }))
 
       return res.json({ items, page: Number(page), limit: Number(limit), total });
     } catch (error) {
