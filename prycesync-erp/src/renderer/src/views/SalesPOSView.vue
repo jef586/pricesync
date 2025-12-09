@@ -387,25 +387,34 @@ const selectCustomer = (cust: any) => {
 }
 
 const addProductToCart = async (prod: any) => {
-  // Keep local behavior for manual add, but also sync store for consistency
-  const item: any = {
-    tempId: Math.random().toString(36).slice(2),
-    productId: prod.id,
-    articleId: prod.id, // asegurar payload con articleId
-    name: prod.name,
-    code: prod.code,
-    quantity: 1,
-    unitPrice: prod.salePrice || 0,
-    basePrice: prod.salePrice || 0,
-    uom: 'UN',
-    discount: 0,
-    _unitPriceEdited: false
+  const idx = cartItems.value.findIndex(it => it.productId === prod.id || it.code === prod.code)
+  let targetItem: any
+  if (idx >= 0) {
+    const current = cartItems.value[idx]
+    const updated = { ...current, quantity: (Number(current.quantity || 0) + 1) }
+    cartItems.value[idx] = updated
+    targetItem = updated
+  } else {
+    const item: any = {
+      tempId: Math.random().toString(36).slice(2),
+      productId: prod.id,
+      articleId: prod.id,
+      name: prod.name,
+      code: prod.code,
+      quantity: 1,
+      unitPrice: prod.salePrice || 0,
+      basePrice: prod.salePrice || 0,
+      uom: 'UN',
+      discount: 0,
+      _unitPriceEdited: false
+    }
+    cartItems.value.push(item)
+    targetItem = item
   }
-  cartItems.value.push(item)
   productResults.value = []
   productQuery.value = ''
-  await maybeResolveBulk(item)
-  await refreshStockAlerts(item)
+  await maybeResolveBulk(targetItem)
+  await refreshStockAlerts(targetItem)
   recalcTotals()
 }
 

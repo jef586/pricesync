@@ -504,9 +504,25 @@ async function addRowFromResolvedArticle(art: any) {
       unitPrice = Number(prev.finalUnitPrice || prev.baseUnitPrice || unitPrice)
     } catch (_) {}
   }
-  const row = { id: cryptoRandom(), sku: art?.sku || art?.id, desc: art?.name || 'Artículo', qty, price: Math.round(unitPrice), manualLocked: false, disc: 0, productId: String(art.id) }
-  console.log('SalesForm:push row', row)
-  rows.value.push(row)
+  const keySku = art?.sku || art?.id
+  const idx = rows.value.findIndex(r => r.productId === String(art.id) || r.sku === keySku)
+  if (idx >= 0) {
+    const current = rows.value[idx]
+    const nextQty = (current.qty || 0) + qty
+    let nextPrice = current.price
+    if (!current.manualLocked && ['l1', 'l2', 'l3'].includes(list)) {
+      try {
+        const prev = await getPricingPreview(String(art.id), nextQty, list as 'l1'|'l2'|'l3')
+        nextPrice = Math.round(Number(prev.finalUnitPrice || prev.baseUnitPrice || nextPrice))
+      } catch (_) {}
+    }
+    rows.value[idx] = { ...current, qty: nextQty, price: nextPrice }
+    console.log('SalesForm:accumulate row', rows.value[idx])
+  } else {
+    const row = { id: cryptoRandom(), sku: keySku, desc: art?.name || 'Artículo', qty, price: Math.round(unitPrice), manualLocked: false, disc: 0, productId: String(art.id) }
+    console.log('SalesForm:push row', row)
+    rows.value.push(row)
+  }
   barcode.value = ''
   newQty.value = 1
   selectedImageUrl.value = (art?.imageUrl || '') as string
@@ -520,7 +536,14 @@ const addRowFromProduct = (product: any) => {
   const desc = product.name || 'Producto'
   const pl = selectedPriceList.value
   const price = computePriceForProduct(product, pl)
-  rows.value.push({ id: cryptoRandom(), sku, desc, qty: newQty.value || 1, price, manualLocked: false, disc: 0 })
+  const qty = newQty.value || 1
+  const idx = rows.value.findIndex(r => r.sku === sku)
+  if (idx >= 0) {
+    const current = rows.value[idx]
+    rows.value[idx] = { ...current, qty: (current.qty || 0) + qty }
+  } else {
+    rows.value.push({ id: cryptoRandom(), sku, desc, qty, price, manualLocked: false, disc: 0 })
+  }
   newQty.value = 1
   syncTotals()
 }

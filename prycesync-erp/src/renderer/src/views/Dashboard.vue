@@ -1,5 +1,6 @@
 <template>
   <DashboardLayout :key="$route.fullPath">
+    <div class="dashboard-view-scroll">
       <!-- Encabezado -->
       <div class="flex items-center justify-between">
         <div>
@@ -178,7 +179,7 @@
       </div>
 
       <!-- 4 Widgets -->
-      <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mt-6">
         <!-- Gráfico ventas 7 días -->
         <div class="card card--animated" style="animation-delay: 500ms">
           <div class="flex items-center justify-between mb-2">
@@ -268,6 +269,7 @@
           </div>
         </div>
       </div>
+    </div>
   </DashboardLayout>
 </template>
 
@@ -475,6 +477,18 @@ const goTo = (path: string) => router.push(path)
 </script>
 
 <style scoped>
+/* Contenedor con scroll local y estilo del sistema */
+.dashboard-view-scroll { min-height: 0; overflow-y: auto; }
+
+/* Alinear al borde derecho: sin padding en el contenedor del layout */
+:deep(.dashboard-content) { padding-right: 0; }
+
+/* Scrollbar consistente con el layout (sólo para esta vista) */
+:deep(.dashboard-view-scroll) { scrollbar-width: thin; scrollbar-color: var(--ps-border) transparent; }
+:deep(.dashboard-view-scroll::-webkit-scrollbar) { width: 10px; height: 10px; }
+:deep(.dashboard-view-scroll::-webkit-scrollbar-track) { background: transparent; }
+:deep(.dashboard-view-scroll::-webkit-scrollbar-thumb) { background-color: color-mix(in srgb, var(--ps-border) 70%, transparent); border-radius: 8px; border: 2px solid var(--ps-bg); }
+:deep(.dashboard-view-scroll::-webkit-scrollbar-thumb:hover) { background-color: color-mix(in srgb, var(--ps-border) 85%, transparent); }
 .card {
   background-color: #ffffff; /* light */
   border-radius: 0.75rem; /* rounded-xl */
