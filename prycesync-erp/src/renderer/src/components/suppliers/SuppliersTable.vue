@@ -49,67 +49,52 @@
           </BaseBadge>
         </template>
 
-        <!-- Columna Acciones -->
         <template #cell-actions="{ item }">
-          <div class="flex items-center gap-2">
+          <div class="flex items-center justify-end gap-3">
             <BaseButton
               variant="ghost"
               size="sm"
+              aria-label="Ver"
+              title="Ver"
               @click.stop="viewSupplier(item.id)"
-              title="Ver detalles"
-              class="p-1"
             >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-              </svg>
+              <EyeIcon class="w-6 h-6 text-primary-400 hover:text-primary-300" />
             </BaseButton>
             <BaseButton
               variant="ghost"
               size="sm"
+              aria-label="Última lista"
+              title="Última lista"
               @click.stop="viewLastList(item)"
-              title="Ver última lista"
-              class="p-1"
             >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
+              <DocumentTextIcon class="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
             </BaseButton>
-            
             <BaseButton
               variant="ghost"
               size="sm"
-              @click.stop="editSupplier(item.id)"
+              aria-label="Editar"
               title="Editar"
-              class="p-1"
+              @click.stop="editSupplier(item.id)"
             >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
+              <PencilSquareIcon class="w-6 h-6 text-blue-600 dark:text-blue-400" />
             </BaseButton>
-            
             <BaseButton
               variant="ghost"
               size="sm"
-              @click.stop="confirmDelete(item)"
+              aria-label="Eliminar"
               title="Eliminar"
-              class="p-1 text-red-600 hover:text-red-900"
+              @click.stop="confirmDelete(item)"
             >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
+              <TrashIcon class="w-6 h-6 text-red-600 dark:text-red-400" />
             </BaseButton>
-            
             <BaseButton
               variant="ghost"
               size="sm"
+              aria-label="Importar"
+              title="Importar"
               @click.stop="importProducts(item)"
-              title="Importar lista"
-              class="p-1"
             >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
-              </svg>
+              <ArrowUpTrayIcon class="w-6 h-6 text-amber-600 dark:text-amber-400" />
             </BaseButton>
           </div>
         </template>
@@ -181,51 +166,21 @@
           </div>
         </div>
 
-        <div class="flex gap-2 pt-3 border-t border-gray-200 dark:border-gray-700">
-          <BaseButton
-            variant="ghost"
-            size="sm"
-            @click="viewSupplier(supplier.id)"
-            title="Ver detalles"
-            class="flex-1"
-          >
-            Ver
+        <div class="flex items-center justify-end gap-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+          <BaseButton variant="ghost" size="sm" aria-label="Ver" title="Ver" @click="viewSupplier(supplier.id)">
+            <EyeIcon class="w-6 h-6 text-primary-400 dark:text-primary-300" />
           </BaseButton>
-          <BaseButton
-            variant="ghost"
-            size="sm"
-            @click="viewLastList(supplier)"
-            title="Ver última lista"
-            class="flex-1"
-          >
-            Lista
+          <BaseButton variant="ghost" size="sm" aria-label="Última lista" title="Última lista" @click="viewLastList(supplier)">
+            <DocumentTextIcon class="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
           </BaseButton>
-          <BaseButton
-            variant="ghost"
-            size="sm"
-            @click="editSupplier(supplier.id)"
-            title="Editar"
-            class="flex-1"
-          >
-            Editar
+          <BaseButton variant="ghost" size="sm" aria-label="Editar" title="Editar" @click="editSupplier(supplier.id)">
+            <PencilSquareIcon class="w-6 h-6 text-blue-600 dark:text-blue-400" />
           </BaseButton>
-          <BaseButton
-            variant="ghost"
-            size="sm"
-            @click="confirmDelete(supplier)"
-            title="Eliminar"
-            class="flex-1 text-red-600 hover:text-red-900"
-          >
-            Eliminar
+          <BaseButton variant="ghost" size="sm" aria-label="Eliminar" title="Eliminar" @click="confirmDelete(supplier)">
+            <TrashIcon class="w-6 h-6 text-red-600 dark:text-red-400" />
           </BaseButton>
-          <BaseButton
-            variant="ghost"
-            size="sm"
-            @click="importProducts(supplier)"
-            title="Importar lista"
-            class="flex-1"
-          >
-            Importar
+          <BaseButton variant="ghost" size="sm" aria-label="Importar" title="Importar" @click="importProducts(supplier)">
+            <ArrowUpTrayIcon class="w-6 h-6 text-amber-600 dark:text-amber-400" />
           </BaseButton>
         </div>
       </div>
@@ -291,6 +246,7 @@ import BaseButton from '@/components/atoms/BaseButton.vue'
 import BaseSpinner from '@/components/atoms/BaseSpinner.vue'
 import ConfirmModal from '@/components/atoms/ConfirmModal.vue'
 import SupplierImportWizard from '@/components/suppliers/SupplierImportWizard.vue'
+import { EyeIcon, DocumentTextIcon, PencilSquareIcon, TrashIcon, ArrowUpTrayIcon } from '@heroicons/vue/24/outline'
 
 interface Props {
   suppliers: Supplier[]

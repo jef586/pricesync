@@ -50,7 +50,15 @@
         </template>
         <template #actions="{ item }">
           <div class="flex items-center gap-2">
-            <BaseButton variant="ghost" size="sm" @click.stop="goDetail(item.id)">Ver</BaseButton>
+            <BaseButton
+              variant="ghost"
+              size="sm"
+              aria-label="Ver"
+              title="Ver"
+              @click.stop="goDetail(item.id)"
+            >
+              <EyeIcon class="h-6 w-6 text-primary-400 hover:text-primary-300" />
+            </BaseButton>
           </div>
         </template>
       </DataTable>
@@ -70,6 +78,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { EyeIcon } from '@heroicons/vue/24/outline'
 import { useRouter, useRoute } from 'vue-router'
 import DashboardLayout from '@/components/organisms/DashboardLayout.vue'
 import FilterBar from '@/components/molecules/FilterBar.vue'

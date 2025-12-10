@@ -33,7 +33,22 @@
             </router-link>
           </li>
           
-           <li class="nav-item">
+          <!-- Reordenado: Nueva venta, Ventas, Artículos -->
+          <li class="nav-item">
+            <router-link to="/sales/new" class="nav-link" :class="{ active: $route.path.startsWith('/sales/new') }" :title="sidebarCollapsed ? 'Nueva venta' : ''">
+              <ShoppingBagIcon class="nav-icon w-5 h-5" :title="sidebarCollapsed ? 'Nueva venta' : ''" />
+              <span v-if="!sidebarCollapsed" class="nav-text">Nueva venta</span>
+            </router-link>
+          </li>
+
+          <li class="nav-item">
+            <router-link to="/sales" class="nav-link" :class="{ active: $route.path.startsWith('/sales') && !$route.path.startsWith('/sales/new') }" :title="sidebarCollapsed ? 'Ventas' : ''">
+              <ShoppingCartIcon class="nav-icon w-5 h-5" :title="sidebarCollapsed ? 'Ventas' : ''" />
+              <span v-if="!sidebarCollapsed" class="nav-text">Ventas</span>
+            </router-link>
+          </li>
+
+          <li class="nav-item">
             <router-link to="/articles" class="nav-link" :class="{ active: $route.path.startsWith('/articles') }" :title="sidebarCollapsed ? 'Artículos' : ''">
               <svg class="nav-icon" :title="sidebarCollapsed ? 'Artículos' : ''" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M4 19.5V4.5C4 3.67157 4.67157 3 5.5 3H14.5C15.3284 3 16 3.67157 16 4.5V19.5C16 20.3284 15.3284 21 14.5 21H5.5C4.67157 21 4 20.3284 4 19.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -45,60 +60,9 @@
             </router-link>
           </li>
 
-
-
-          <li class="nav-item">
-            <router-link to="/invoices" class="nav-link" :class="{ active: $route.path.startsWith('/invoices') }" :title="sidebarCollapsed ? 'Facturas' : ''">
-              <svg class="nav-icon" :title="sidebarCollapsed ? 'Facturas' : ''" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M16 13H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M16 17H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M10 9H9H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span v-if="!sidebarCollapsed" class="nav-text">Facturas</span>
-            </router-link>
-          </li>
-
-          <li class="nav-item">
-            <router-link to="/sales" class="nav-link" :class="{ active: $route.path.startsWith('/sales') && !$route.path.startsWith('/sales/new') }" :title="sidebarCollapsed ? 'Ventas' : ''">
-              <svg class="nav-icon" :title="sidebarCollapsed ? 'Ventas' : ''" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M3 3H21V7H3V3Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M7 21L5 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M17 21L19 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M9 11H15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span v-if="!sidebarCollapsed" class="nav-text">Ventas</span>
-            </router-link>
-          </li>
-
-          <li class="nav-item">
-            <router-link to="/sales/new" class="nav-link" :class="{ active: $route.path.startsWith('/sales/new') }" :title="sidebarCollapsed ? 'Nueva venta' : ''">
-              <svg class="nav-icon" :title="sidebarCollapsed ? 'Nueva venta' : ''" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M3 3H21V7H3V3Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M9 11H15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span v-if="!sidebarCollapsed" class="nav-text">Nueva venta</span>
-            </router-link>
-          </li>
-          <li class="nav-item">
-            <router-link to="/pos/parked" class="nav-link" :class="{ active: $route.path.startsWith('/pos/parked') }" :title="sidebarCollapsed ? 'Ventas estacionadas' : ''">
-              <svg class="nav-icon" :title="sidebarCollapsed ? 'Ventas estacionadas' : ''" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M3 3H21V7H3V3Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M7 21L5 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M17 21L19 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M9 11H15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span v-if="!sidebarCollapsed" class="nav-text">Ventas estacionadas</span>
-            </router-link>
-          </li>
-
           <li class="nav-item">
             <router-link to="/customers" class="nav-link" :class="{ active: $route.path.startsWith('/customers') }" :title="sidebarCollapsed ? 'Clientes' : ''">
-              <svg class="nav-icon" :title="sidebarCollapsed ? 'Clientes' : ''" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
+              <UserGroupIcon class="nav-icon w-5 h-5" :title="sidebarCollapsed ? 'Clientes' : ''" />
               <span v-if="!sidebarCollapsed" class="nav-text">Clientes</span>
             </router-link>
           </li>
@@ -106,12 +70,7 @@
 
           <li class="nav-item">
             <router-link to="/suppliers" class="nav-link" :class="{ active: $route.path.startsWith('/suppliers') }" :title="sidebarCollapsed ? 'Proveedores' : ''">
-              <svg class="nav-icon" :title="sidebarCollapsed ? 'Proveedores' : ''" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M17 21V19C17 17.9391 16.5786 16.9217 15.8284 16.1716C15.0783 15.4214 14.0609 15 13 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M23 21V19C22.9993 18.1137 22.7044 17.2528 22.1614 16.5523C21.6184 15.8519 20.8581 15.3516 20 15.13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M16 3.13C16.8604 3.35031 17.623 3.85071 18.1676 4.55232C18.7122 5.25392 19.0078 6.11683 19.0078 7.005C19.0078 7.89318 18.7122 8.75608 18.1676 9.45769C17.623 10.1593 16.8604 10.6597 16 10.88" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
+              <TruckIcon class="nav-icon w-5 h-5" :title="sidebarCollapsed ? 'Proveedores' : ''" />
               <span v-if="!sidebarCollapsed" class="nav-text">Proveedores</span>
             </router-link>
           </li>
@@ -119,25 +78,29 @@
          
           <li class="nav-item">
             <router-link to="/rubros" class="nav-link" :class="{ active: $route.path.startsWith('/rubros') }" :title="sidebarCollapsed ? 'Rubros' : ''">
-              <svg class="nav-icon" :title="sidebarCollapsed ? 'Categorías' : ''" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M7 7H17V17H7V7Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M3 3H21V21H3V3Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M16 3L21 8L16 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M8 21L3 16L8 11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
+              <TagIcon class="nav-icon w-5 h-5" :title="sidebarCollapsed ? 'Categorías' : ''" />
               <span v-if="!sidebarCollapsed" class="nav-text">Rubros</span>
             </router-link>
           </li>
 
-          <li class="nav-item">
-            <router-link to="/company" class="nav-link" :class="{ active: $route.path.startsWith('/company') }" :title="sidebarCollapsed ? 'Empresa' : ''">
-              <svg class="nav-icon" :title="sidebarCollapsed ? 'Empresa' : ''" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M19 21V5C19 4.46957 18.7893 3.96086 18.4142 3.58579C18.0391 3.21071 17.5304 3 17 3H7C6.46957 3 5.96086 3.21071 5.58579 3.58579C5.21071 3.96086 5 4.46957 5 5V21L12 17L19 21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+
+          <!-- Bloque final: Usuarios y Configuración -->
+          <li class="nav-item" v-if="authStore.hasPermission('admin:users')">
+            <router-link to="/admin/config/users" class="nav-link" :class="{ active: $route.path.startsWith('/admin/config/users') }" :title="sidebarCollapsed ? 'Usuarios' : ''">
+              <svg class="nav-icon" :title="sidebarCollapsed ? 'Usuarios' : ''" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
-              <span v-if="!sidebarCollapsed" class="nav-text">Empresa</span>
+              <span v-if="!sidebarCollapsed" class="nav-text">Usuarios</span>
             </router-link>
           </li>
-
+          <li class="nav-item">
+            <router-link to="/company" class="nav-link" :class="{ active: $route.path.startsWith('/company') }" :title="sidebarCollapsed ? 'Configuración' : ''">
+              <BuildingOffice2Icon class="nav-icon w-5 h-5" :title="sidebarCollapsed ? 'Configuración' : ''" />
+              <span v-if="!sidebarCollapsed" class="nav-text">Configuración</span>
+            </router-link>
+          </li>
+          <!-- Centro de Ayuda al final -->
           <li class="nav-item">
             <router-link to="/help" class="nav-link" :class="{ active: $route.path.startsWith('/help') }" :title="sidebarCollapsed ? 'Ayuda' : ''">
               <svg class="nav-icon" :title="sidebarCollapsed ? 'Ayuda' : ''" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -146,17 +109,6 @@
                 <circle cx="12" cy="18" r="1" fill="currentColor" />
               </svg>
               <span v-if="!sidebarCollapsed" class="nav-text">Ayuda</span>
-            </router-link>
-          </li>
-
-          <!-- Usuarios (visible sólo con permiso admin:users) -->
-          <li class="nav-item" v-if="authStore.hasPermission('admin:users')">
-            <router-link to="/admin/config/users" class="nav-link" :class="{ active: $route.path.startsWith('/admin/config/users') }" :title="sidebarCollapsed ? 'Usuarios' : ''">
-              <svg class="nav-icon" :title="sidebarCollapsed ? 'Usuarios' : ''" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span v-if="!sidebarCollapsed" class="nav-text">Usuarios</span>
             </router-link>
           </li>
 
@@ -208,6 +160,7 @@ import { useAuthStore } from '../../stores/auth'
 import ThemeSwitcher from '@/components/ThemeSwitcher.vue'
 import AppHeader from '@/components/layout/AppHeader.vue'
 import logoUrl from '@/assets/iberasoft-logo.png'
+import { TruckIcon, TagIcon, UserGroupIcon, ShoppingBagIcon, ShoppingCartIcon, BuildingOffice2Icon } from '@heroicons/vue/24/outline'
 
 const route = useRoute()
 const router = useRouter()
