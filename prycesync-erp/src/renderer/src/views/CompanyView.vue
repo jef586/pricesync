@@ -1,43 +1,173 @@
 <template>
   <DashboardLayout>
     <div class="company-view">
-      <PageHeader
-        title="Configuración de Empresa"
-      >
+      <PageHeader title="Configuración de Empresa">
         <template #actions>
-          <button class="btn-primary">
-            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M18.5 2.50023C18.8978 2.1024 19.4374 1.87891 20 1.87891C20.5626 1.87891 21.1022 2.1024 21.5 2.50023C21.8978 2.89805 22.1213 3.43762 22.1213 4.00023C22.1213 4.56284 21.8978 5.1024 21.5 5.50023L12 15.0002L8 16.0002L9 12.0002L18.5 2.50023Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            Editar Información
-          </button>
-          <RouterLink to="/company/pricing" class="btn-primary" style="margin-left: 0.5rem;">
-            Configurar Pricing
-          </RouterLink>
+          <RouterLink to="/company/pricing" class="btn-primary">Configurar Pricing</RouterLink>
+          <RouterLink to="/company/settings/printing" class="btn-primary" style="margin-left: 0.5rem;">Impresión</RouterLink>
         </template>
       </PageHeader>
 
-      <div class="content-placeholder">
-        <div class="placeholder-icon">
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M3 21H21M5 21V7L13 2L21 7V21M9 9H15M9 13H15M9 17H15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </div>
-        <h2>Configuración de Empresa</h2>
-        <p class="text-secondary">Aquí podrás gestionar la información de tu empresa y otras configuraciones.</p>
-        <div class="mt-6 flex flex-wrap gap-3 justify-center">
-          <RouterLink to="/company/pricing" class="btn-primary">Configurar Pricing</RouterLink>
-          <RouterLink to="/company/settings/printing" class="btn-primary">Impresión de Tickets</RouterLink>
-        </div>
+      <div class="bg-white dark:bg-slate-900 rounded-xl shadow-md border border-slate-200 dark:border-slate-800 p-6">
+        <form class="grid grid-cols-1 md:grid-cols-2 gap-4" @submit.prevent="onSubmit">
+          <FormField label="Nombre comercial" :error="errors.commercialName" required>
+            <template #default="{ fieldId }">
+              <BaseInput :id="fieldId" v-model="form.commercialName" placeholder="Ej: Empresa SA" :has-error="!!errors.commercialName" :error-message="errors.commercialName" :disabled="!isEditMode || saving" />
+            </template>
+          </FormField>
+
+          <FormField label="Razón social" :error="errors.legalName" required>
+            <template #default="{ fieldId }">
+              <BaseInput :id="fieldId" v-model="form.legalName" placeholder="Ej: Empresa Sociedad Anónima" :has-error="!!errors.legalName" :error-message="errors.legalName" :disabled="!isEditMode || saving" />
+            </template>
+          </FormField>
+
+          <FormField label="CUIT" :error="errors.taxId" required>
+            <template #default="{ fieldId }">
+              <BaseInput :id="fieldId" v-model="form.taxId" placeholder="20123456789" :has-error="!!errors.taxId" :error-message="errors.taxId" :disabled="!isEditMode || saving" />
+            </template>
+          </FormField>
+
+          <FormField label="Inicio de actividades" :error="errors.startDate" required>
+            <template #default="{ fieldId }">
+              <input :id="fieldId" v-model="form.startDate" type="date" class="w-full px-3 py-2 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100" :disabled="!isEditMode || saving" />
+            </template>
+          </FormField>
+
+          <FormField label="Dirección comercial" :error="errors.address" required>
+            <template #default="{ fieldId }">
+              <BaseInput :id="fieldId" v-model="form.address" placeholder="Calle 123, Ciudad" :has-error="!!errors.address" :error-message="errors.address" :disabled="!isEditMode || saving" />
+            </template>
+          </FormField>
+
+          <FormField label="Teléfono" :error="errors.phone" required>
+            <template #default="{ fieldId }">
+              <BaseInput :id="fieldId" v-model="form.phone" type="tel" placeholder="1134567890" :has-error="!!errors.phone" :error-message="errors.phone" :disabled="!isEditMode || saving" />
+            </template>
+          </FormField>
+
+          <FormField label="Email" :error="errors.email" required>
+            <template #default="{ fieldId }">
+              <BaseInput :id="fieldId" v-model="form.email" type="email" placeholder="facturacion@empresa.com" :has-error="!!errors.email" :error-message="errors.email" :disabled="!isEditMode || saving" />
+            </template>
+          </FormField>
+
+          <FormField label="Tipo de contribuyente" :error="errors.contributorType" required>
+            <template #default>
+              <BaseSelect v-model="form.contributorType" :disabled="!isEditMode || saving">
+                <option value="MONOTRIBUTO">Monotributo</option>
+                <option value="RESPONSABLE_INSCRIPTO">Responsable Inscripto</option>
+                <option value="EXENTO">Exento</option>
+                <option value="CONSUMIDOR_FINAL">Consumidor Final</option>
+              </BaseSelect>
+            </template>
+          </FormField>
+
+          <FormField label="Punto de venta AFIP" :error="errors.posAfip" required>
+            <template #default="{ fieldId }">
+              <BaseInput :id="fieldId" v-model.number="form.posAfip" type="number" placeholder="1" :min="1" :max="9999" step="1" :has-error="!!errors.posAfip" :error-message="errors.posAfip" :disabled="!isEditMode || saving" />
+            </template>
+          </FormField>
+
+          <div class="md:col-span-2 flex justify-end gap-3 mt-4">
+            <template v-if="isEditMode">
+              <BaseButton variant="secondary" @click="cancelEdit" :disabled="saving">Cancelar</BaseButton>
+              <BaseButton variant="primary" type="submit" :loading="saving" :disabled="saving">Guardar</BaseButton>
+            </template>
+            <template v-else>
+              <BaseButton variant="primary" @click="startEdit">Editar</BaseButton>
+            </template>
+          </div>
+
+          <div v-if="loading" class="mt-4 text-sm text-slate-600 dark:text-slate-300">Cargando datos...</div>
+        </form>
       </div>
     </div>
   </DashboardLayout>
 </template>
 
 <script setup lang="ts">
+import { onMounted, ref, watch } from 'vue'
 import DashboardLayout from '../components/organisms/DashboardLayout.vue'
 import PageHeader from '../components/molecules/PageHeader.vue'
+import FormField from '@/components/atoms/FormField.vue'
+import BaseInput from '@/components/atoms/BaseInput.vue'
+import BaseSelect from '@/components/atoms/BaseSelect.vue'
+import BaseButton from '@/components/atoms/BaseButton.vue'
+import { useCompanyStore } from '@/stores/company'
+import { type CompanyInfo, CompanyInfoSchema } from '@/services/companyService'
+import { useNotifications } from '@/composables/useNotifications'
+
+const store = useCompanyStore()
+const { success, error } = useNotifications()
+
+const form = ref<CompanyInfo>({
+  commercialName: '',
+  legalName: '',
+  taxId: '',
+  startDate: new Date().toISOString().slice(0, 10),
+  address: '',
+  phone: '',
+  email: '',
+  contributorType: 'CONSUMIDOR_FINAL',
+  posAfip: 1
+})
+
+const errors = ref<Record<string, string>>({})
+const loading = ref(false)
+const saving = ref(false)
+const isEditMode = ref(true)
+
+onMounted(async () => {
+  loading.value = true
+  try {
+    await store.load()
+    if (store.info) Object.assign(form.value, store.info)
+  } catch {}
+  loading.value = false
+  isEditMode.value = !store.info
+})
+
+watch(form, () => {
+  errors.value = {}
+}, { deep: true })
+
+function resetForm() {
+  if (store.info) Object.assign(form.value, store.info)
+}
+
+function startEdit() {
+  isEditMode.value = true
+}
+
+function cancelEdit() {
+  resetForm()
+  isEditMode.value = false
+}
+
+async function onSubmit() {
+  const parsed = CompanyInfoSchema.safeParse(form.value)
+  errors.value = {}
+  if (!parsed.success) {
+    for (const issue of parsed.error.issues) {
+      const key = String(issue.path[0])
+      errors.value[key] = issue.message
+    }
+    error('Corregir los errores del formulario')
+    return
+  }
+  saving.value = true
+  try {
+    const updated = await store.save(parsed.data)
+    Object.assign(form.value, updated)
+    success('Información guardada correctamente')
+    isEditMode.value = false
+  } catch (err: any) {
+    error('Error al guardar', err?.message)
+  } finally {
+    saving.value = false
+  }
+}
 </script>
 
 <style scoped>
