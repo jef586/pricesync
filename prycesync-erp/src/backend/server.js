@@ -25,6 +25,7 @@ import rolesRoutes from './routes/roles.js';
 import auditRoutes from './routes/audit.js';
 import adminRoutes from './routes/admin.js';
 import companyRoutes from './routes/company.js';
+import setupRoutes from './routes/setup.js';
 
 import salesRoutes from './routes/sales.js';
 import stockRoutes from './routes/stock.js';
@@ -112,6 +113,7 @@ app.use('/api/roles', rolesRoutes);
 app.use('/api/audit', auditRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/company', companyRoutes);
+app.use('/api/setup', setupRoutes);
 
 // Ops endpoints
 app.use('/ops', opsRoutes)

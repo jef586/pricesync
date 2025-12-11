@@ -8,7 +8,12 @@
         </template>
       </PageHeader>
 
-      <div class="bg-white dark:bg-slate-900 rounded-xl shadow-md border border-slate-200 dark:border-slate-800 p-6">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="md:col-span-1">
+          <ChecklistSetupInicial />
+        </div>
+
+        <div class="md:col-span-2 bg-white dark:bg-slate-900 rounded-xl shadow-md border border-slate-200 dark:border-slate-800 p-6">
         <form class="grid grid-cols-1 md:grid-cols-2 gap-4" @submit.prevent="onSubmit">
           <FormField label="Nombre comercial" :error="errors.commercialName" required>
             <template #default="{ fieldId }">
@@ -81,6 +86,7 @@
 
           <div v-if="loading" class="mt-4 text-sm text-slate-600 dark:text-slate-300">Cargando datos...</div>
         </form>
+        </div>
       </div>
     </div>
   </DashboardLayout>
@@ -94,6 +100,7 @@ import FormField from '@/components/atoms/FormField.vue'
 import BaseInput from '@/components/atoms/BaseInput.vue'
 import BaseSelect from '@/components/atoms/BaseSelect.vue'
 import BaseButton from '@/components/atoms/BaseButton.vue'
+import ChecklistSetupInicial from '@/components/molecules/ChecklistSetupInicial.vue'
 import { useCompanyStore } from '@/stores/company'
 import { type CompanyInfo, CompanyInfoSchema } from '@/services/companyService'
 import { useNotifications } from '@/composables/useNotifications'

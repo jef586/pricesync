@@ -1,7 +1,8 @@
 import axios from 'axios';
 
-// API Base URL
-const API_BASE_URL = 'http://localhost:3002/api';
+// API Base URL (compatible con Docker y Vite)
+const rawBase = (import.meta as any)?.env?.VITE_API_URL || (import.meta as any)?.env?.API_URL || 'http://localhost:3002'
+const API_BASE_URL = rawBase.endsWith('/api') ? rawBase : `${rawBase}/api`
 
 // Create axios instance
 export const apiClient = axios.create({
