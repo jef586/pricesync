@@ -32,14 +32,16 @@
             <BaseSelect
               v-model="settings.priceSource"
               label="Fuente de precio"
-              :options="priceSourceOptions"
-            />
+            >
+              <option v-for="opt in priceSourceOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+            </BaseSelect>
 
             <BaseSelect
               v-model="settings.roundingMode"
               label="Modo de redondeo"
-              :options="roundingModeOptions"
-            />
+            >
+              <option v-for="opt in roundingModeOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+            </BaseSelect>
 
             <BaseInput
               v-model.number="settings.roundingDecimals"
@@ -90,7 +92,9 @@
                     secondary-field="code"
                     :searchable="true"
                     :clearable="true"
+                    :show-actions="false"
                     @update:model-value="val => handleSupplierSelect(idx, val)"
+                    @refresh="refreshSuppliers"
                   />
                 </div>
                 <div class="md:col-span-4">
@@ -125,7 +129,9 @@
               secondary-field="code"
               :searchable="true"
               :clearable="true"
+              :show-actions="false"
               @update:model-value="val => selectedPreviewSupplierId = typeof val === 'object' ? val?.id : val"
+              @refresh="refreshSuppliers"
             />
             <BaseInput
               v-model.number="previewCost"
@@ -142,10 +148,11 @@
               min="0"
             />
 
-            <div class="mt-2 p-4 ps-surface border-default rounded">
-              <p class="text-sm text-secondary">Precio de Venta calculado:</p>
-              <p class="text-2xl font-semibold text-primary">${{ formatCurrency(previewSale) }}</p>
-            </div>
+          <div class="mt-2 p-4 ps-surface border-default rounded">
+            <p class="text-sm text-secondary">Precio de Venta calculado:</p>
+            <p class="text-2xl font-semibold text-primary">${{ formatCurrency(previewSale) }}</p>
+            <p class="text-xs text-secondary mt-2">{{ previewExplanation }}</p>
+          </div>
           </div>
         </div>
       </div>
@@ -170,7 +177,8 @@ import {
   computePreviewSale, 
   type PricingSettings 
 } from '@/services/settingsService'
-import { useSuppliers } from '@/composables/useSuppliers'
+import { listSuppliers } from '@/services/suppliers'
+import type { Supplier } from '@/types/supplier'
 
 const { success, error } = useNotifications()
 const router = useRouter()
@@ -213,6 +221,16 @@ const previewSale = computed(() => {
   )
 })
 
+const previewExplanation = computed(() => {
+  const sid = selectedPreviewSupplierId.value || null
+  const s = settings.value
+  const sourceLabel = s.priceSource === 'listPrice' && previewList.value != null ? 'listPrice' : 'costPrice'
+  const sourceValue = sourceLabel === 'listPrice' ? (previewList.value ?? 0) : (previewCost.value || 0)
+  const override = sid ? s.supplierOverrides?.[sid] : null
+  const marginPercent = override?.marginPercent != null ? override.marginPercent : s.defaultMarginPercent
+  return `Fuente: ${sourceLabel}=${formatCurrency(sourceValue)} · Margen: ${marginPercent}% · Redondeo: ${s.roundingMode} (${s.roundingDecimals} dec)`
+})
+
 function formatCurrency(value: number) {
   return (value || 0).toLocaleString('es-AR', {
     minimumFractionDigits: 2,
@@ -229,7 +247,9 @@ async function loadSettings() {
     const entries = Object.entries(settings.value.supplierOverrides || {})
     overridesRows.value = entries.map(([supplierId, conf]: [string, any]) => ({
       supplierId,
-      marginPercent: Number(conf?.marginPercent ?? 0)
+      marginPercent: Number(conf?.marginPercent ?? 0),
+      applyOnImport: !!conf?.applyOnImport,
+      overwriteSalePrice: !!conf?.overwriteSalePrice
     }))
   } catch (e) {
     console.error('Error loading pricing settings', e)
@@ -243,12 +263,12 @@ async function saveSettings() {
   isSaving.value = true
   try {
     // Persistir overrides desde filas
-    const overridesObj: Record<string, { marginPercent: number }> = {}
+    const overridesObj: Record<string, { marginPercent: number; applyOnImport?: boolean; overwriteSalePrice?: boolean }> = {}
     for (const row of overridesRows.value) {
       const sid = String(row.supplierId || '')
       const mp = Number(row.marginPercent)
       if (sid && !Number.isNaN(mp) && mp >= 0) {
-        overridesObj[sid] = { marginPercent: mp }
+        overridesObj[sid] = { marginPercent: mp, applyOnImport: !!row.applyOnImport, overwriteSalePrice: !!row.overwriteSalePrice }
       }
     }
     settings.value.supplierOverrides = overridesObj
@@ -265,21 +285,29 @@ async function saveSettings() {
   }
 }
 
-onMounted(() => {
-  // Cargar settings y proveedores
-  loadSettings()
-  fetchSuppliers({ limit: 100, sortBy: 'name', sortOrder: 'asc' })
+onMounted(async () => {
+  await loadSettings()
+  await refreshSuppliers()
 })
 
 // --- Overrides por proveedor ---
-type OverrideRow = { supplierId: string | null; marginPercent: number }
+type OverrideRow = { supplierId: string | null; marginPercent: number; applyOnImport: boolean; overwriteSalePrice: boolean }
 const overridesRows = ref<OverrideRow[]>([])
 
 // Proveedores para selector
-const { suppliers, fetchSuppliers } = useSuppliers()
+const suppliers = ref<Supplier[]>([])
+async function refreshSuppliers() {
+  try {
+    const { items } = await listSuppliers({ limit: 100, sort: 'name', order: 'asc' })
+    suppliers.value = items
+  } catch (e) {
+    console.error('Error cargando proveedores', e)
+    suppliers.value = []
+  }
+}
 
 function addOverrideRow() {
-  overridesRows.value.push({ supplierId: null, marginPercent: Number(settings.value.defaultMarginPercent || 0) })
+  overridesRows.value.push({ supplierId: null, marginPercent: Number(settings.value.defaultMarginPercent || 0), applyOnImport: !!settings.value.applyOnImport, overwriteSalePrice: !!settings.value.overwriteSalePrice })
 }
 
 function removeOverrideRow(index: number) {

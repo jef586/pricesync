@@ -1,5 +1,6 @@
 import prisma from '../config/database.js'
 import { PrintingSettingsSchema, defaultPrintingSettings } from '../core/settings/printing.schemas.js'
+import { PricingSettingsSchema } from '../core/settings/pricing.schemas.js'
 
 function getDefaultPricing() {
   return {
@@ -54,18 +55,11 @@ class SettingsController {
       const input = req.body || {}
       const pricing = mergePricingConfig(input)
 
-      if (typeof pricing.defaultMarginPercent !== 'number' || pricing.defaultMarginPercent < 0 || pricing.defaultMarginPercent > 1000) {
-        return res.status(400).json({ error: 'defaultMarginPercent inválido' })
+      const parsed = PricingSettingsSchema.safeParse(pricing)
+      if (!parsed.success) {
+        return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'Configuración de pricing inválida', details: parsed.error.flatten() } })
       }
-      if (!['costPrice', 'listPrice'].includes(pricing.priceSource)) {
-        return res.status(400).json({ error: 'priceSource inválido' })
-      }
-      if (!['nearest', 'up', 'down'].includes(pricing.roundingMode)) {
-        return res.status(400).json({ error: 'roundingMode inválido' })
-      }
-      if (typeof pricing.roundingDecimals !== 'number' || pricing.roundingDecimals < 0 || pricing.roundingDecimals > 4) {
-        return res.status(400).json({ error: 'roundingDecimals inválido (0-4)' })
-      }
+      const pricingValid = parsed.data
 
       const company = await prisma.company.findUnique({
         where: { id: companyId },
@@ -73,7 +67,7 @@ class SettingsController {
       })
 
       const fiscalConfig = company?.fiscalConfig || {}
-      const updatedFiscal = { ...fiscalConfig, pricing }
+      const updatedFiscal = { ...fiscalConfig, pricing: pricingValid }
 
       const updated = await prisma.company.update({
         where: { id: companyId },

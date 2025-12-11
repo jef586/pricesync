@@ -61,7 +61,7 @@ function cellNumber(row, col) {
   return Number.isFinite(n) ? n : undefined
 }
 
-async function upsertArticle(companyId, payload) {
+async function upsertArticle(companyId, payload, overwriteSalePrice = false) {
   const { sku, barcode } = payload
   const existing = await prisma.article.findFirst({
     where: {
@@ -76,9 +76,13 @@ async function upsertArticle(companyId, payload) {
   })
 
   if (existing) {
+    const data = { ...payload }
+    if (!overwriteSalePrice) {
+      delete data.pricePublic
+    }
     const updated = await prisma.article.update({
       where: { id: existing.id },
-      data: payload
+      data
     })
     return { action: 'updated', article: updated }
   } else {
@@ -181,7 +185,8 @@ const ImportArticlesService = {
           skippedCount++
           errorCount += issues.length
         } else if (!isDryRun) {
-          const { action } = await upsertArticle(companyId, payload)
+          const allowOverwrite = !!pricing.overwriteSalePrice || !!pricing.supplierOverrides?.[supplierId || '']?.overwriteSalePrice
+          const { action } = await upsertArticle(companyId, payload, allowOverwrite)
           if (action === 'created') createdCount++
         }
 

@@ -1,6 +1,12 @@
 import { apiClient } from './api'
 import { z } from 'zod'
 
+export type SupplierOverride = {
+  marginPercent: number
+  applyOnImport?: boolean
+  overwriteSalePrice?: boolean
+}
+
 export interface PricingSettings {
   defaultMarginPercent: number
   priceSource: 'costPrice' | 'listPrice'
@@ -10,7 +16,7 @@ export interface PricingSettings {
   roundingDecimals: number
   overwriteSalePrice: boolean
   allowBelowCost: boolean
-  supplierOverrides: Record<string, { marginPercent: number }>
+  supplierOverrides: Record<string, SupplierOverride>
 }
 
 export async function getPricingSettings(): Promise<PricingSettings> {
@@ -20,7 +26,11 @@ export async function getPricingSettings(): Promise<PricingSettings> {
 }
 
 export async function updatePricingSettings(settings: Partial<PricingSettings>): Promise<PricingSettings> {
-  const res = await apiClient.put('/settings/pricing', settings)
+  const parsed = PricingSettingsSchema.partial().safeParse(settings)
+  if (!parsed.success) {
+    throw new Error('Validación de configuración de pricing inválida')
+  }
+  const res = await apiClient.put('/settings/pricing', parsed.data)
   return res.data.data || res.data
 }
 
@@ -61,6 +71,23 @@ export function computePreviewSale(
 
   return value
 }
+
+// Pricing Settings validation
+export const PricingSettingsSchema = z.object({
+  defaultMarginPercent: z.number().min(0).max(1000),
+  priceSource: z.enum(['costPrice','listPrice']),
+  applyOnImport: z.boolean(),
+  applyOnUpdate: z.boolean(),
+  roundingMode: z.enum(['nearest','up','down']),
+  roundingDecimals: z.number().min(0).max(4),
+  overwriteSalePrice: z.boolean(),
+  allowBelowCost: z.boolean(),
+  supplierOverrides: z.record(z.object({
+    marginPercent: z.number().min(0).max(1000),
+    applyOnImport: z.boolean().optional(),
+    overwriteSalePrice: z.boolean().optional()
+  }))
+})
 
 // --- Printing Settings ---
 export const PrintingSettingsSchema = z.object({

@@ -13,11 +13,12 @@
         :placeholder="placeholder"
         :disabled="disabled || loading"
         :error="error"
-        :options="processedOptions"
-        :clearable="clearable"
-        :searchable="searchable"
         class="w-full"
-      />
+      >
+        <option v-for="opt in processedOptions" :key="opt.value" :value="opt.value">
+          {{ opt.label }}
+        </option>
+      </BaseSelect>
 
       <!-- Botones de acción -->
       <div v-if="showActions" class="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center space-x-1">
@@ -242,7 +243,7 @@ const internalLoading = ref(false)
 // Computed
 const containerClasses = computed(() => {
   const classes = ['entity-selector']
-  
+  if (props.showActions) classes.push('has-actions')
   switch (props.variant) {
     case 'compact':
       classes.push('space-y-1')
@@ -253,7 +254,6 @@ const containerClasses = computed(() => {
     default:
       classes.push('space-y-2')
   }
-  
   return classes
 })
 
@@ -380,5 +380,12 @@ watch(() => props.options, (newOptions) => {
 <style scoped>
 .entity-selector {
   @apply relative;
+}
+.has-actions :deep(.base-select__field) {
+  padding-right: 64px;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-image: none;
 }
 </style>
