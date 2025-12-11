@@ -312,6 +312,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, defineExpose, onBeforeUnmount, onActivated, onDeactivated } from 'vue'
 import { useProducts } from '@/composables/useProducts'
+import { getArticle } from '@/services/articles'
 import { useCustomers } from '@/composables/useCustomers'
 import { usePadronStore } from '@/stores/modules/padron'
 import CustomerSearchModal from '@/components/molecules/CustomerSearchModal.vue'
@@ -353,6 +354,15 @@ const barcode = ref('')
 const newQty = ref(1)
 // Visor: URL de imagen del Ãºltimo producto seleccionado
 const selectedImageUrl = ref<string>('')
+import { apiClient } from '@/services/api'
+const apiBase = String((apiClient.defaults.baseURL || '') as string).replace(/\/?api\/?$/i, '')
+function resolveImgUrl(p: string | null | undefined): string {
+  const s = String(p || '')
+  if (!s) return ''
+  if (/^https?:\/\//i.test(s) || s.startsWith('data:')) return s
+  const b = apiBase.endsWith('/') ? apiBase.slice(0, -1) : apiBase
+  return s.startsWith('/') ? `${b}${s}` : `${b}/${s}`
+}
 
 // Etiquetas de departamentos para selecciÃ³n rÃ¡pida (UI-only)
 const departmentLabels = [
@@ -394,12 +404,21 @@ const debouncedSearch = () => {
 }
 
 // Al seleccionar, insertar fila en la tabla
-const onProductSelected = (p: any) => {
+const onProductSelected = async (p: any) => {
   addRowFromProduct(p)
   productResults.value = []
   searchQuery.value = ''
   // Actualizar visor de imagen si existe
-  selectedImageUrl.value = (p?.imageUrl || p?.image || p?.photo || '') as string
+  {
+    let url = resolveImgUrl((p?.imageUrl || p?.image || p?.photo || '') as string)
+    if (!url && p?.id) {
+      try {
+        const full = await getArticle(String(p.id))
+        url = resolveImgUrl((full?.image?.thumbnailUrl || full?.image?.imageUrl || full?.imageUrl || '') as string)
+      } catch (_) {}
+    }
+    selectedImageUrl.value = url ? `${url}?v=${Date.now()}` : ''
+  }
 }
 
 // Cliente
@@ -520,7 +539,16 @@ async function addRowFromResolvedArticle(art: any) {
   }
   barcode.value = ''
   newQty.value = 1
-  selectedImageUrl.value = (art?.imageUrl || '') as string
+  {
+    let url = resolveImgUrl((art?.image?.thumbnailUrl || art?.image?.imageUrl || art?.imageUrl || '') as string)
+    if (!url) {
+      try {
+        const full = await getArticle(String(art.id))
+        url = resolveImgUrl((full?.image?.thumbnailUrl || full?.image?.imageUrl || full?.imageUrl || '') as string)
+      } catch (_) {}
+    }
+    selectedImageUrl.value = url ? `${url}?v=${Date.now()}` : ''
+  }
   syncTotals()
 }
 

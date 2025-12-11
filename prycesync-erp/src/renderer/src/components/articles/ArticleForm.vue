@@ -658,7 +658,8 @@ const saving = ref(false)
 const showDeleteModal = ref(false)
 const showSupplierModal = ref(false)
 const showAdvanced = ref(false)
-const apiBase = String((import.meta as any).env?.VITE_API_URL || (apiClient.defaults.baseURL || ''))
+const apiBaseRaw = String((import.meta as any).env?.VITE_API_URL || (apiClient.defaults.baseURL || ''))
+const apiBase = apiBaseRaw.replace(/\/?api\/?$/i, '')
 function resolveImgUrl(p: string | null | undefined): string {
   const s = String(p || '')
   if (!s) return ''
@@ -1116,7 +1117,8 @@ async function onSubmit() {
         try {
           const result = await uploadArticleImage(created.id, photoFile.value)
           const previewPath = result?.thumbnailUrl || result?.imageUrl
-          photoPreview.value = resolveImgUrl(previewPath) || photoPreview.value
+          const resolved = resolveImgUrl(previewPath)
+          photoPreview.value = resolved ? `${resolved}?v=${Date.now()}` : (photoPreview.value || '')
         } catch (err: any) {
           console.error('Upload image failed:', err)
         }
@@ -1129,7 +1131,8 @@ async function onSubmit() {
         try {
           const result = await uploadArticleImage(props.initial!.id, photoFile.value)
           const previewPath = result?.thumbnailUrl || result?.imageUrl
-          photoPreview.value = resolveImgUrl(previewPath) || photoPreview.value
+          const resolved = resolveImgUrl(previewPath)
+          photoPreview.value = resolved ? `${resolved}?v=${Date.now()}` : (photoPreview.value || '')
         } catch (err: any) {
           console.error('Upload image failed:', err)
         }

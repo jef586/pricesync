@@ -73,6 +73,8 @@ class ArticleController {
             stock: true,
             active: true,
             type: true,
+            imageUrl: true,
+            image: { select: { imageUrl: true, thumbnailUrl: true } },
             category: { select: { id: true, name: true } }
           },
           take: parseInt(limit),
@@ -195,30 +197,32 @@ class ArticleController {
         const res = await Promise.all([
           prisma.article.findMany({
             where: finalWhere,
-            select: {
-              id: true,
-              sku: true,
-              name: true,
-              description: true,
-              type: true,
-              active: true,
-              cost: true,
-              pricePublic: true,
-              pointsPerUnit: true,
-              stock: true,
-              stockMin: true,
-              stockMax: true,
-              controlStock: true,
-              taxRate: true,
-              internalTaxType: true,
-              internalTaxValue: true,
-              categoryId: true,
-              category: { select: { id: true, name: true } },
-              fixedPrices: { select: { l1MarginPct: true, l2MarginPct: true, l3MarginPct: true, l1FinalPrice: true, l2FinalPrice: true, l3FinalPrice: true, l1Locked: true, l2Locked: true, l3Locked: true } },
-              qtyPromotions: { select: { active: true, priceListIds: true, tiers: { select: { minQtyUn: true, pricePerUnit: true } } } },
-              createdAt: true,
-              updatedAt: true
-            },
+              select: {
+                id: true,
+                sku: true,
+                name: true,
+                description: true,
+                type: true,
+                active: true,
+                cost: true,
+                pricePublic: true,
+                pointsPerUnit: true,
+                stock: true,
+                stockMin: true,
+                stockMax: true,
+                controlStock: true,
+                taxRate: true,
+                internalTaxType: true,
+                internalTaxValue: true,
+                categoryId: true,
+                imageUrl: true,
+                image: { select: { imageUrl: true, thumbnailUrl: true } },
+                category: { select: { id: true, name: true } },
+                fixedPrices: { select: { l1MarginPct: true, l2MarginPct: true, l3MarginPct: true, l1FinalPrice: true, l2FinalPrice: true, l3FinalPrice: true, l1Locked: true, l2Locked: true, l3Locked: true } },
+                qtyPromotions: { select: { active: true, priceListIds: true, tiers: { select: { minQtyUn: true, pricePerUnit: true } } } },
+                createdAt: true,
+                updatedAt: true
+              },
             skip,
             take: perPage,
             orderBy
@@ -249,6 +253,8 @@ class ArticleController {
                 internalTaxType: true,
                 internalTaxValue: true,
                 categoryId: true,
+                imageUrl: true,
+                image: { select: { imageUrl: true, thumbnailUrl: true } },
                 category: { select: { id: true, name: true } },
                 createdAt: true,
                 updatedAt: true
@@ -1633,7 +1639,9 @@ class ArticleController {
         internalTaxType: true,
         internalTaxValue: true,
         cost: true,
-        stock: true
+        stock: true,
+        imageUrl: true,
+        image: { select: { imageUrl: true, thumbnailUrl: true } }
       }
 
       console.log('articles.lookup start', { requestId: req.requestId, companyId, code: normalized })
@@ -1756,7 +1764,8 @@ class ArticleController {
         stock: Number(found.stock || 0),
         tax,
         priceLists: { L1: l1, L2: l2, L3: l3, L4 },
-        missingPriceLists: missing
+        missingPriceLists: missing,
+        imageUrl: (found?.image?.thumbnailUrl || found?.image?.imageUrl || found?.imageUrl || null)
       }
       console.log('articles.lookup success', { requestId: req.requestId, id: payload.id })
       return res.json(payload)

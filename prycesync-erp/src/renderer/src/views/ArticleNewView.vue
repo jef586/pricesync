@@ -977,7 +977,14 @@ const save = async () => {
     if (imageFile.value && articleId) {
       try {
         const { uploadArticleImage } = await import('@/services/articles');
-        await uploadArticleImage(articleId, imageFile.value);
+        const resp = await uploadArticleImage(articleId, imageFile.value);
+        const raw = (resp as any) || {}
+        const img = raw?.thumbnailUrl || raw?.imageUrl || ''
+        const baseRaw = String(apiClient.defaults.baseURL || '')
+        const base = baseRaw.replace(/\/?api\/?$/i, '')
+        const isAbs = /^https?:\/\//i.test(String(img)) || String(img).startsWith('data:')
+        const full = isAbs ? String(img) : (img ? ((base.endsWith('/')?base.slice(0,-1):base) + (String(img).startsWith('/')?String(img):('/'+String(img)))) : '')
+        imagePreview.value = full ? `${full}?v=${Date.now()}` : ''
       } catch (err) {
         console.warn('No se pudo subir la imagen', err);
       }
@@ -1058,7 +1065,8 @@ onMounted(() => {
       pointsPerUnit.value = Number(art?.pointsPerUnit ?? pointsPerUnit.value)
       lastCreatedArticleId.value = String(art?.id || '')
   const img = (art as any)?.image?.thumbnailUrl || (art as any)?.image?.imageUrl || (art as any)?.imageUrl || (art as any)?.thumbnailUrl || ''
-  const base = String(apiClient.defaults.baseURL || '')
+  const baseRaw = String(apiClient.defaults.baseURL || '')
+  const base = baseRaw.replace(/\/?api\/?$/i, '')
   const isAbs = /^https?:\/\//i.test(String(img)) || String(img).startsWith('data:')
   imagePreview.value = isAbs ? String(img) : (img ? ((base.endsWith('/')?base.slice(0,-1):base) + (String(img).startsWith('/')?String(img):('/'+String(img)))) : '')
     }).catch(() => { initialArticle.value = null })

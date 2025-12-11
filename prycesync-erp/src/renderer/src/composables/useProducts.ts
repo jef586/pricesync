@@ -262,7 +262,7 @@ export function useProducts() {
         sku: a.sku || '',
         code: a.sku || '',
         salePrice: (a as any).salePrice ?? a.pricePublic ?? 0,
-        imageUrl: (a as any).imageUrl ?? null
+        imageUrl: (a as any)?.image?.thumbnailUrl || (a as any)?.image?.imageUrl || (a as any)?.imageUrl || null
       }))
     } catch (err: any) {
       console.error('Error searching products:', err)
