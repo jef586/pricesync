@@ -59,7 +59,7 @@
 
         <!-- Step 1: File Upload -->
         <div v-if="currentStep === 1" class="space-y-6">
-          <div v-if="type === 'suppliers'" class="mt-10 md:mt-12 space-y-3">
+          <div v-if="type === 'suppliers' || (type === 'supplier-products' && !selectedSupplierId)" class="mt-10 md:mt-12 space-y-3">
             <label class="text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Proveedor destino</label>
             <BaseSelect :model-value="selectedSupplierId || ''" placeholder="Seleccionar proveedor" @update:modelValue="v => selectedSupplierId = (v || null)">
               <option v-for="opt in supplierOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
@@ -237,7 +237,7 @@
             <button
               v-if="currentStep === 1 && selectedFile"
               @click="processFile"
-              :disabled="isProcessing"
+              :disabled="isProcessing || (type === 'supplier-products' && !selectedSupplierId)"
               class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {{ isProcessing ? 'Procesando...' : 'Vista Previa' }}
@@ -303,8 +303,8 @@ const formatInstructions = computed(() => {
     : 'El archivo debe contener una hoja con los productos del proveedor en las columnas especificadas.'
 })
 
-// Cargar proveedores para selección cuando el tipo es "suppliers"
-if (props.type === 'suppliers') {
+// Cargar proveedores para selección cuando el tipo es "suppliers" o falta supplierId en supplier-products
+if (props.type === 'suppliers' || (props.type === 'supplier-products' && !selectedSupplierId.value)) {
   fetch(`${API_BASE}/suppliers?limit=200`, {
     headers: { 'Authorization': `Bearer ${authStore.token}` }
   }).then(async (r) => {
@@ -380,7 +380,8 @@ const getEndpointUrl = (action: 'preview' | 'execute') => {
   if (props.type === 'suppliers') {
     return `${API_BASE}/suppliers/import/${action}`
   } else {
-    return `${API_BASE}/suppliers/${props.supplierId}/products/import/${action}`
+    const sid = selectedSupplierId.value || props.supplierId
+    return `${API_BASE}/suppliers/${sid}/products/import/${action}`
   }
 }
 
@@ -430,6 +431,11 @@ const executeImport = async () => {
     formData.append('file', selectedFile.value)
     if (props.type === 'supplier-products') {
       formData.append('updateExisting', 'true')
+      if (!selectedSupplierId.value && !props.supplierId) {
+        alert('Debe seleccionar un proveedor')
+        isImporting.value = false
+        return
+      }
     }
     if (props.type === 'suppliers') {
       if (!selectedSupplierId.value) {
@@ -457,7 +463,7 @@ const executeImport = async () => {
     importResults.value = data.results || data
     currentStep.value = 3
     
-    emit('success')
+    emit('success', importResults.value)
   } catch (error) {
     console.error('Error importing:', error)
     alert(error instanceof Error ? error.message : 'Error ejecutando la importación')

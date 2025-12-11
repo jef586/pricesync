@@ -27,6 +27,15 @@
             </svg>
             Consulta de Precios (F9)
           </button>
+          <button
+            @click="openImportFromSupplier"
+            class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
+          >
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v16h16M8 12h8M8 8h8M8 16h5" />
+            </svg>
+            Importar desde proveedor
+          </button>
         </div>
       </div>
 
@@ -114,6 +123,7 @@
   :data="store.items"
   :loading="store.loading || navigating"
   :page-size="store.pageSize"
+  :paginated="false"
   :show-header="false"
   :clickable-rows="true"
   @row-click="handleRowClick"
@@ -195,6 +205,15 @@
         </template>
       </DataTable>
 
+      <Pagination
+        class="mt-2 mb-6"
+        :current-page="store.page"
+        :total-pages="Math.max(1, Math.ceil(store.total / store.pageSize))"
+        :total-items="store.total"
+        :items-per-page="store.pageSize"
+        @pageChange="onPageChange"
+      />
+
       <!-- Confirmaciones -->
       <ConfirmModal
         v-model="showDeleteModal"
@@ -214,6 +233,11 @@
         @confirm="confirmToggle"
         @cancel="cancelToggle"
       />
+      <SupplierProductsImportModal
+        v-if="showImportModal"
+        @close="closeImportModal"
+        @success="handleImportSuccess"
+      />
     </div>
   </DashboardLayout>
 </template>
@@ -225,6 +249,7 @@ import { debounce } from 'lodash-es'
 import DashboardLayout from '@/components/organisms/DashboardLayout.vue'
 import FilterBar from '@/components/molecules/FilterBar.vue'
 import DataTable from '@/components/atoms/DataTable.vue'
+import Pagination from '@/components/atoms/Pagination.vue'
 import ConfirmModal from '@/components/atoms/ConfirmModal.vue'
 import { useArticleStore } from '@/stores/articles'
 import { useCategories } from '@/composables/useCategories'
@@ -234,6 +259,7 @@ import { mapUiFiltersToQuery } from '@/composables/useArticleFilters'
 import { useAuthStore } from '@/stores/auth'
 import { reportsService } from '@/services/reportsService'
 import { PencilSquareIcon, DocumentDuplicateIcon, PowerIcon, TrashIcon } from '@heroicons/vue/24/outline'
+import SupplierProductsImportModal from '@/components/articles/SupplierProductsImportModal.vue'
 
 // Minimal i18n shim
 function t(key: string) {
@@ -329,6 +355,11 @@ const debouncedSearch = debounce(async (term: string) => {
 
 const onSearch = debouncedSearch
 
+async function onPageChange(page: number) {
+  store.setPage(page)
+  await store.list({ ...store.filters, page })
+}
+
 async function applyFilters() {
   const f = mapUiToStoreFilters()
   store.setFilters(f as any)
@@ -375,6 +406,7 @@ const deleteId = ref<string | null>(null)
 
 const showToggleModal = ref(false)
 const toggleItem = ref<any | null>(null)
+const showImportModal = ref(false)
 
 function removeItem(id: string) {
   if (!canDelete.value) return
@@ -441,5 +473,22 @@ async function confirmToggleActivate(item: any) {
   } catch (e: any) {
     error('Error al activar', e?.message)
   }
+}
+
+function openImportFromSupplier() {
+  showImportModal.value = true
+}
+
+function closeImportModal() {
+  showImportModal.value = false
+}
+
+async function handleImportSuccess(results?: any) {
+  closeImportModal()
+  await store.list({ ...store.filters })
+  const created = results?.created ?? 0
+  const updated = results?.updated ?? 0
+  const skipped = results?.skipped ?? 0
+  success(`Importación completada: ${created} creados, ${updated} actualizados, ${skipped} omitidos`)
 }
 </script>

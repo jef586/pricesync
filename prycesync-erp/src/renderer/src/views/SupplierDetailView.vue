@@ -1,6 +1,6 @@
 <template>
   <DashboardLayout>
-    <div class="supplier-detail-view">
+    <div class="supplier-detail-view supplier-detail-scroll">
       <!-- Header -->
       <div class="flex justify-between items-center mb-6">
         <div class="flex items-center gap-4">
@@ -371,4 +371,12 @@ onMounted(() => {
 .supplier-detail-view {
   @apply space-y-6;
 }
+
+/* Scroll en toda la vista con el mismo estilo que Dashboard */
+.supplier-detail-scroll { min-height: 0; overflow-y: auto; }
+.supplier-detail-scroll { scrollbar-width: thin; scrollbar-color: var(--ps-border) transparent; }
+.supplier-detail-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
+.supplier-detail-scroll::-webkit-scrollbar-track { background: transparent; }
+.supplier-detail-scroll::-webkit-scrollbar-thumb { background-color: color-mix(in srgb, var(--ps-border) 70%, transparent); border-radius: 8px; border: 2px solid var(--ps-bg); }
+.supplier-detail-scroll::-webkit-scrollbar-thumb:hover { background-color: color-mix(in srgb, var(--ps-primary) 50%, var(--ps-border) 50%); }
 </style>
