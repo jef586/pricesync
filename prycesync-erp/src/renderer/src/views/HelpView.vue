@@ -1,69 +1,119 @@
 <template>
-  <DashboardLayout>
+  <DashboardLayout :contentScrollable="true" :key="$route.fullPath">
     <div class="help-view">
       <PageHeader
         title="Centro de Ayuda"
         subtitle="Guía de funcionalidades y configuración del sistema"
       />
 
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div class="help-view-scroll">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Contenido principal -->
         <div class="lg:col-span-2 bg-slate-900 text-white rounded-lg shadow p-6 space-y-8 border border-slate-700">
           <section>
             <h2 class="text-xl font-semibold text-white">Visión General</h2>
             <p class="mt-2 text-slate-300">
-              PryceSync ERP integra módulos de Facturación, Clientes, Inventario, Productos y Proveedores
-              con reglas de pricing configurables y redondeo. Esta guía resume cómo navegar y configurar
-              las funcionalidades principales, e incluye pasos prácticos para el pricing y la importación
-              de productos.
+              Punto de Venta 2026 reúne en un solo lugar la gestión de Facturación, Clientes, Inventario, Productos, Proveedores y Configuración de Empresa. Esta guía explica de forma clara y práctica cómo usar las funciones principales, con indicaciones paso a paso para que puedas trabajar sin tecnicismos.
             </p>
           </section>
 
           <section>
-            <h2 class="text-xl font-semibold text-white">Configuración de Pricing y Preview</h2>
+            <h2 class="text-xl font-semibold text-white">Configuración de Precios (Pricing)</h2>
             <ol class="mt-2 list-decimal list-inside text-slate-300 space-y-2">
-              <li>Navega a <code>/company/pricing</code>.</li>
-              <li>Ajusta <em>Margen por defecto</em>, <em>Fuente de precio</em> (Costo o Precio Lista), <em>Redondeo</em> y <em>Decimales</em>.</li>
-              <li>Define <em>Overrides por proveedor</em> con márgenes específicos.</li>
-              <li>Usa el <em>Preview</em> seleccionando proveedor (opcional) e ingresando Costo y Precio Lista.</li>
-              <li>Guarda para persistir los cambios; los overrides se reflejan en el preview y en cálculos futuros.</li>
+              <li>Desde el menú lateral, abre <strong>Configuración</strong> y luego <strong>Precios</strong>.</li>
+              <li>Define el <em>Margen por defecto</em> y la <em>Fuente de precio</em> (Costo o Precio de Lista).</li>
+              <li>Configura el <em>Redondeo</em> y la cantidad de <em>Decimales</em> según tu política comercial.</li>
+              <li>Si trabajas con distintos proveedores, agrega <em>Márgenes específicos por proveedor</em> (overrides).</li>
+              <li>Utiliza el <em>Preview</em> para simular precios con un costo y precio de lista, y confirma que el resultado es el esperado.</li>
+              <li>Guarda los cambios para que se apliquen en el cálculo de precios del sistema.</li>
             </ol>
             <p class="mt-2 text-slate-300">
-              Lógica de cálculo en frontend: <code>settingsService.computePreviewSale</code>.
-              En backend: <code>PricingService.computeSalePrice</code> aplica overrides si se pasa <code>supplierId</code>.
+              Consejo: el <em>Preview</em> te ayuda a validar rápidamente tus reglas antes de aplicarlas a todos los productos.
             </p>
           </section>
 
           <section>
             <h2 class="text-xl font-semibold text-white">Importación de Productos de Proveedores</h2>
             <ol class="mt-2 list-decimal list-inside text-slate-300 space-y-2">
-              <li>Ve a Detalle de Proveedor (<code>/suppliers/:id</code>).</li>
-              <li>Abre el modal de importación y carga el Excel con los productos.</li>
-              <li>El sistema puede aplicar pricing durante la importación si está habilitado.</li>
-              <li>Objetivo recomendado: pasar <code>supplierId</code> al cálculo para que se apliquen los overrides.</li>
+              <li>En el menú lateral, entra a <strong>Proveedores</strong> y selecciona el proveedor.</li>
+              <li>En el detalle del proveedor, usa la opción <em>Importar productos</em>.</li>
+              <li>Sube el archivo del proveedor (por ejemplo Excel/CSV) con código, nombre, costo y precio lista.</li>
+              <li>Revisa el resumen y confirma la importación. Si tienes márgenes por proveedor configurados, se aplicarán al calcular precios.</li>
             </ol>
-            <p class="mt-2 text-slate-300">Endpoints relacionados: <code>/suppliers/import/execute</code> y <code>/:id/products/import/execute</code>.</p>
+            <p class="mt-2 text-slate-300">
+              Consejo: valida que las columnas del archivo coincidan con tu formato de trabajo para evitar errores de carga.
+            </p>
           </section>
 
           <section>
-            <h2 class="text-xl font-semibold text-white">Navegación y Rutas</h2>
+            <h2 class="text-xl font-semibold text-white">Gestión de Inventario</h2>
             <ul class="mt-2 list-disc list-inside text-slate-300 space-y-1">
-              <li><code>/dashboard</code>: Resumen y accesos rápidos.</li>
-              <li><code>/invoices</code>: Lista y gestión de facturas.</li>
-              <li><code>/customers</code>: Gestión de clientes.</li>
-              <li><code>/inventory</code>: Inventario y navegación a productos.</li>
-              <li><code>/suppliers</code>: Proveedores y productos asociados.</li>
-              <li><code>/company</code>: Información de empresa.</li>
-              <li><code>/company/pricing</code>: Configuración de pricing.</li>
-              <li><code>/help</code>: Esta guía.</li>
+              <li>Desde la barra lateral, abre <strong>Inventario</strong> para ver todos tus artículos.</li>
+              <li>Usa la búsqueda y filtros para encontrar rápidamente productos por nombre, categoría o proveedor.</li>
+              <li>Edita productos para ajustar stock, precios, imágenes y datos generales.</li>
+              <li>Consulta precios calculados según tus reglas de pricing.</li>
             </ul>
           </section>
 
           <section>
-            <h2 class="text-xl font-semibold text-white">Autenticación</h2>
+            <h2 class="text-xl font-semibold text-white">Facturación</h2>
+            <ul class="mt-2 list-disc list-inside text-slate-300 space-y-1">
+              <li>Para iniciar una venta rápida, usa el acceso <strong>Nueva venta</strong> del menú lateral.</li>
+              <li>Agrega cliente, selecciona artículos, aplica descuentos si corresponde y elige el medio de pago.</li>
+              <li>Imprime el comprobante según tu configuración de impresión.</li>
+              <li>Consulta el historial en <strong>Facturas</strong> para ver y editar comprobantes.</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 class="text-xl font-semibold text-white">Gestión de Clientes</h2>
+            <ul class="mt-2 list-disc list-inside text-slate-300 space-y-1">
+              <li>Abre <strong>Clientes</strong> desde el menú lateral para crear, editar y buscar clientes.</li>
+              <li>Guarda datos esenciales: información fiscal, contactos y condiciones comerciales.</li>
+              <li>Usa la búsqueda para localizar clientes rápidamente por nombre o documento.</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 class="text-xl font-semibold text-white">Configuración de Empresa</h2>
+            <ul class="mt-2 list-disc list-inside text-slate-300 space-y-1">
+              <li>En el menú lateral, abre <strong>Configuración</strong> para gestionar datos de tu empresa.</li>
+              <li>Dentro de Configuración, entra a <strong>Impresión</strong> para definir formatos y opciones de ticket.</li>
+              <li>Dentro de Configuración, entra a <strong>Precios</strong> para establecer tu política comercial.</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 class="text-xl font-semibold text-white">Navegación General</h2>
+            <ul class="mt-2 list-disc list-inside text-slate-300 space-y-1">
+              <li><strong>Inicio</strong>: Accesos rápidos y estado general.</li>
+              <li><strong>Dashboard</strong>: KPIs y análisis del negocio.</li>
+              <li><strong>Inventario</strong>: Lista y detalle de productos.</li>
+              <li><strong>Proveedores</strong>: Gestión de proveedores y sus listas.</li>
+              <li><strong>Clientes</strong>: Altas y edición de clientes.</li>
+              <li><strong>Nueva venta</strong>: Punto de venta.</li>
+              <li><strong>Facturas</strong>: Historial y administración de comprobantes.</li>
+              <li><strong>Configuración</strong> → <strong>Precios</strong>: Reglas de pricing.</li>
+              <li><strong>Configuración</strong> → <strong>Impresión</strong>: Opciones de ticket.</li>
+              <li><strong>Ayuda</strong>: Esta guía.</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 class="text-xl font-semibold text-white">Tips de uso</h2>
+            <ul class="mt-2 list-disc list-inside text-slate-300 space-y-1">
+              <li>Utiliza la barra lateral para moverte rápidamente entre módulos.</li>
+              <li>Antes de vender, verifica tus reglas de pricing en el <em>Preview</em>.</li>
+              <li>Mantén tus proveedores y clientes actualizados para agilizar búsquedas.</li>
+              <li>Después de importar productos, revisa una muestra para confirmar precios y stock.</li>
+              <li>Si algo no luce bien, alterna entre modo claro/oscuro desde el control del tema.</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 class="text-xl font-semibold text-white">Acceso a documentación técnica (opcional)</h2>
             <p class="mt-2 text-slate-300">
-              El guard del router exige autenticación en las rutas con <code>meta.requiresAuth</code> y redirige a
-              <code>/auth</code> si la sesión no está iniciada. Tras login exitoso, navega al Dashboard.
+              Si necesitas más detalle, puedes consultar los documentos técnicos del proyecto en la carpeta <code>docs/</code> del repositorio. Esta sección es opcional y sólo necesaria para configuraciones avanzadas.
             </p>
           </section>
         </div>
@@ -90,6 +140,7 @@
           </div>
         </aside>
       </div>
+      </div>
     </div>
   </DashboardLayout>
 </template>
@@ -103,4 +154,11 @@ import PageHeader from '@/components/molecules/PageHeader.vue'
 .help-view {
   @apply space-y-6;
 }
+.help-view-scroll { min-height: 0; overflow-y: auto; flex: 1; padding-bottom: 1rem; display: flex; flex-direction: column; }
+:deep(.dashboard-content) { padding-right: 0; }
+:deep(.help-view-scroll) { scrollbar-width: thin; scrollbar-color: var(--ps-border) transparent; }
+:deep(.help-view-scroll::-webkit-scrollbar) { width: 10px; height: 10px; }
+:deep(.help-view-scroll::-webkit-scrollbar-track) { background: transparent; }
+:deep(.help-view-scroll::-webkit-scrollbar-thumb) { background-color: color-mix(in srgb, var(--ps-border) 70%, transparent); border-radius: 8px; border: 2px solid var(--ps-bg); }
+:deep(.help-view-scroll::-webkit-scrollbar-thumb:hover) { background-color: color-mix(in srgb, var(--ps-primary) 50%, var(--ps-border) 50%); }
 </style>
