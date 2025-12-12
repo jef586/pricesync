@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { apiClient } from '@/services/api'
 
 export interface User {
   id: string
@@ -158,26 +159,18 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null
 
     try {
-      const response = await fetch('http://localhost:3002/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: credentials.name,
-          email: credentials.email,
-          password: credentials.password,
-          role: 'admin',
-          companyId: credentials.companyId,
-        }),
+      const envCompanyId =
+        (import.meta as any)?.env?.VITE_COMPANY_ID ||
+        (import.meta as any)?.env?.COMPANY_ID ||
+        credentials.companyId
+
+      const { data } = await apiClient.post('/auth/register', {
+        name: credentials.name,
+        email: credentials.email,
+        password: credentials.password,
+        role: 'admin',
+        companyId: envCompanyId,
       })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || 'Error en el registro')
-      }
-
-      const data = await response.json()
       
       // Guardar token y usuario según la estructura de respuesta de la API
       const accessToken = data.data.tokens.accessToken
@@ -189,8 +182,13 @@ export const useAuthStore = defineStore('auth', () => {
       localStorage.setItem('user', JSON.stringify(userData))
 
       return { success: true }
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Error desconocido'
+    } catch (err: any) {
+      const backend = err?.response?.data
+      const msg =
+        backend?.error ||
+        backend?.message ||
+        (err instanceof Error ? err.message : 'Error desconocido')
+      error.value = String(msg)
       return { success: false, error: error.value }
     } finally {
       isLoading.value = false

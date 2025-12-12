@@ -16,7 +16,6 @@
           :loading="authStore.isLoading"
           :error="authStore.error"
           @login="handleLogin"
-          @register="handleRegister"
         />
       </div>
     </div>
@@ -58,18 +57,7 @@ const handleLogin = async (data: LoginData) => {
   }
 }
 
-const handleRegister = async (data: RegisterData) => {
-  const result = await authStore.register({
-    ...data,
-    role: 'admin',
-    companyId: 'cmfzbx1ff0000521dfh4ynxm1'
-  })
-  
-  if (result.success) {
-    router.push('/')
-    try { (window as any).windowControls?.maximize?.() } catch {}
-  }
-}
+// El registro se maneja internamente en RegisterForm; aquí no duplicamos la petición
 
 // Inicializar autenticación al montar el componente
 onMounted(() => {

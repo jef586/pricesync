@@ -128,7 +128,7 @@ const validateEmail = (email: string) => {
 
 const validatePassword = (password: string) => {
   if (!password) return 'La contraseña es requerida'
-  if (password.length < 6) return 'La contraseña debe tener al menos 6 caracteres'
+  if (password.length < 8) return 'La contraseña debe tener al menos 8 caracteres'
   return ''
 }
 
@@ -157,7 +157,7 @@ const handleSubmit = async () => {
     email: form.value.email,
     password: form.value.password,
     role: 'admin', // Por defecto admin para el primer usuario
-    companyId: 'cmfzbx1ff0000521dfh4ynxm1' // ID de la empresa de prueba
+    companyId: ((import.meta as any).env?.VITE_COMPANY_ID || (import.meta as any).env?.COMPANY_ID || 'cmfzbx1ff0000521dfh4ynxm1')
   })
 
   if (result.success) {
