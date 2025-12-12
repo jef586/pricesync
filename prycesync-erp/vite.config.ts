@@ -1,4 +1,4 @@
-﻿import { fileURLToPath, URL } from 'node:url'
+import { fileURLToPath, URL } from 'node:url'
 
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
@@ -18,8 +18,11 @@ export default defineConfig(async ({ mode }) => {
     server: {
       host: '0.0.0.0',
       port: 5173,
+      hmr: false,
       watch: {
-        usePolling: true
+        // Evita que Vite observe cambios y dispare recargas
+        usePolling: false,
+        ignored: ['**/*']
       }
     },
     plugins,

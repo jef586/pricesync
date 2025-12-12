@@ -11,7 +11,7 @@
         :model-value="selectedValue"
         @update:model-value="handleSelection"
         :placeholder="placeholder"
-        :disabled="disabled || loading"
+        :disabled="disabled || loading || internalLoading"
         :error="error"
         class="w-full"
       >
@@ -28,10 +28,10 @@
           @click="refreshOptions"
           variant="ghost"
           size="xs"
-          :disabled="disabled || loading"
+          :disabled="disabled || loading || internalLoading"
           class="p-1"
         >
-          <ArrowPathIcon class="w-4 h-4" :class="{ 'animate-spin': loading }" />
+          <ArrowPathIcon class="w-4 h-4" :class="{ 'animate-spin': loading || internalLoading }" />
         </BaseButton>
 
         <!-- Botón crear nuevo -->
@@ -75,7 +75,7 @@
     </div>
 
     <!-- Estado de carga -->
-    <div v-if="loading && !options.length" class="mt-2 text-center">
+    <div v-if="(loading || internalLoading) && !options.length" class="mt-2 text-center">
       <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mx-auto"></div>
       <p class="text-xs text-gray-500 mt-1">Cargando opciones...</p>
     </div>

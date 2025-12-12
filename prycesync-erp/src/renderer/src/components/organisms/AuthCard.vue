@@ -100,6 +100,7 @@ const handleRegister = (data: RegisterData) => {
 <style scoped>
 .auth-card {
   @apply w-full max-w-md mx-auto rounded-2xl shadow-xl border p-8;
+  animation: cardFloat 8s ease-in-out infinite;
 }
 
 .auth-card__header {
@@ -108,6 +109,7 @@ const handleRegister = (data: RegisterData) => {
 
 .auth-card__title {
   @apply text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2;
+  animation: titleFadeIn 400ms ease-out both;
 }
 
 .auth-card__subtitle {
@@ -116,6 +118,7 @@ const handleRegister = (data: RegisterData) => {
 
 .auth-card__content {
   @apply py-2;
+  animation: contentFadeIn 500ms 100ms ease-out both;
 }
 
 .auth-card__footer {
@@ -124,5 +127,21 @@ const handleRegister = (data: RegisterData) => {
 
 .auth-card__footer-text {
   @apply text-xs text-gray-500 dark:text-gray-400 leading-relaxed;
+}
+
+@keyframes cardFloat {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+  100% { transform: translateY(0); }
+}
+
+@keyframes titleFadeIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes contentFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 </style>

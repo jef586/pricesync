@@ -22,15 +22,15 @@
       />
     </div>
 
-    <div v-if="authStore.error" class="text-red-600 text-sm">
-      {{ authStore.error }}
+    <div v-if="!loading && generalError" class="text-red-600 text-sm">
+      {{ generalError }}
     </div>
 
     <BaseButton
       type="submit"
       variant="primary"
       size="md"
-      :loading="authStore.isLoading"
+      :loading="loading ?? authStore.isLoading"
       :disabled="!isFormValid"
       class="w-full"
     >
@@ -60,6 +60,14 @@ import { useAuthStore } from '../../stores/auth'
 defineEmits<{
   switchToRegister: []
 }>()
+
+// Props
+const props = defineProps<{
+  loading?: boolean
+  generalError?: string
+}>()
+const loading = props.loading
+const generalError = props.generalError
 
 // Composables
 const router = useRouter()

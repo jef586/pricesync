@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fetch from 'node-fetch';
 
 // Obtener __dirname en módulos ES
 const __filename = fileURLToPath(import.meta.url);
@@ -12,6 +13,20 @@ let mainWindow;
 
 function getActiveWindow() {
   return BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0] || mainWindow;
+}
+
+async function waitForUrl(url, { timeoutMs = 30000, intervalMs = 1000 } = {}) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const res = await fetch(url, { method: 'HEAD' });
+      if (res.ok) return true;
+    } catch (err) {
+      // ignore and retry
+    }
+    await new Promise(r => setTimeout(r, intervalMs));
+  }
+  return false;
 }
 
 function createWindow() {
@@ -35,16 +50,24 @@ function createWindow() {
   });
 
   console.log('[Electron] Preload path:', path.join(__dirname, 'preload.cjs'));
-  console.log('[Electron] Loading URL:', 'http://localhost:5173');
-  mainWindow.loadURL('http://localhost:5173');
+  const DEV_URL = process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173';
+  console.log('[Electron] Loading URL:', DEV_URL);
 
-  mainWindow.once('ready-to-show', () => {
-    mainWindow.show();
+  waitForUrl(DEV_URL, { timeoutMs: 30000 }).then(async (ok) => {
+    if (ok) {
+      await mainWindow.loadURL(DEV_URL);
+    } else {
+      console.error('[Electron] Dev server no disponible en', DEV_URL);
+      // Mantener la ventana oculta si no hay servidor disponible
+    }
   });
 
-  if (process.env.NODE_ENV === 'development') {
-    mainWindow.webContents.openDevTools();
-  }
+  // Mostrar solo cuando el contenido terminó de cargar, eliminando cualquier pantalla intermedia
+  mainWindow.webContents.once('did-finish-load', () => {
+    if (mainWindow) mainWindow.show();
+  });
+
+  // DevTools deshabilitado para evitar efectos de recarga/flicker
 
   mainWindow.on('closed', function () {
     mainWindow = null;
@@ -109,6 +132,18 @@ ipcMain.on('window:toggleMaximize', () => {
   } else {
     win.maximize();
   }
+});
+
+ipcMain.on('window:maximize', () => {
+  console.log('[IPC] window:maximize')
+  const win = getActiveWindow();
+  if (win) win.maximize();
+});
+
+ipcMain.on('window:setFullScreen', (_e, flag) => {
+  console.log('[IPC] window:setFullScreen', flag)
+  const win = getActiveWindow();
+  if (win) win.setFullScreen(!!flag);
 });
 
 // IPC: List printers available in the active window (Electron)

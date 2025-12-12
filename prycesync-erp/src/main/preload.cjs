@@ -30,6 +30,8 @@ contextBridge.exposeInMainWorld('windowControls', {
   minimize: () => ipcRenderer.send('window:minimize'),
   close: () => ipcRenderer.send('window:close'),
   toggleMaximize: () => ipcRenderer.send('window:toggleMaximize')
+  , maximize: () => ipcRenderer.send('window:maximize')
+  , setFullScreen: (flag) => ipcRenderer.send('window:setFullScreen', !!flag)
 })
 
 // Safe ping to verify preload is active
@@ -45,7 +47,9 @@ try {
     value: {
       minimize: () => ipcRenderer.send('window:minimize'),
       close: () => ipcRenderer.send('window:close'),
-      toggleMaximize: () => ipcRenderer.send('window:toggleMaximize')
+      toggleMaximize: () => ipcRenderer.send('window:toggleMaximize'),
+      maximize: () => ipcRenderer.send('window:maximize'),
+      setFullScreen: (flag) => ipcRenderer.send('window:setFullScreen', !!flag)
     },
     writable: false,
     configurable: true

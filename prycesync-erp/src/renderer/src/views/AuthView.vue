@@ -54,6 +54,7 @@ const handleLogin = async (data: LoginData) => {
   
   if (result.success) {
     router.push('/')
+    try { (window as any).windowControls?.maximize?.() } catch {}
   }
 }
 
@@ -66,12 +67,51 @@ const handleRegister = async (data: RegisterData) => {
   
   if (result.success) {
     router.push('/')
+    try { (window as any).windowControls?.maximize?.() } catch {}
   }
 }
 
 // Inicializar autenticación al montar el componente
 onMounted(() => {
   authStore.initializeAuth()
+})
+
+onMounted(() => {
+  const gsap = (window as any).gsap
+  if (!gsap) return
+  const containerEl = document.querySelector('.auth-view__container')
+  const brandEl = document.querySelector('.auth-view__brand')
+  const formEl = document.querySelector('.auth-view__form')
+  const taglineEl = document.querySelector('.auth-view__tagline')
+  if (!formEl) return
+
+  gsap.set(formEl, { opacity: 0, x: 48 })
+  if (brandEl && containerEl) {
+    const brandRect = brandEl.getBoundingClientRect()
+    const containerRect = containerEl.getBoundingClientRect()
+    const brandCenterX = brandRect.left + brandRect.width / 2
+    const containerCenterX = containerRect.left + containerRect.width / 2
+    const offsetX = containerCenterX - brandCenterX
+    gsap.set(brandEl, { opacity: 0, x: offsetX })
+  }
+  if (taglineEl) {
+    gsap.set(taglineEl, { opacity: 0 })
+  }
+
+  const tl = gsap.timeline({ defaults: { ease: 'power3.out' } })
+  if (brandEl) {
+    tl.to(brandEl, { opacity: 1, duration: 1.0 })
+      .to(brandEl, { x: 0, duration: 1.4, ease: 'expo.inOut' })
+      .to(formEl, { opacity: 1, x: 0, duration: 1.0 }, '-=0.3')
+    if (taglineEl) {
+      tl.to(taglineEl, { opacity: 1, duration: 0.5, ease: 'power1.out' }, '+=0.1')
+    }
+  } else {
+    tl.to(formEl, { opacity: 1, x: 0, duration: 1.0 })
+    if (taglineEl) {
+      tl.to(taglineEl, { opacity: 1, duration: 0.5, ease: 'power1.out' }, '+=0.1')
+    }
+  }
 })
 </script>
 
@@ -83,9 +123,14 @@ onMounted(() => {
 .auth-view__container {
   @apply w-full max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center;
 }
-
 .auth-view__brand {
-  @apply h-full flex flex-col items-center justify-center text-center space-y-8;
+  @apply h-full flex flex-col items-center justify-center text-center space-y-2;
+}
+.auth-view__container.is-intro .auth-view__brand {
+  /* eliminado modo intro */
+}
+.auth-view__container.is-intro .auth-view__form {
+  /* eliminado modo intro */
 }
 
 .auth-view__logo {
@@ -101,7 +146,7 @@ onMounted(() => {
 }
 
 .auth-view__tagline {
-  @apply text-lg text-gray-600 dark:text-gray-300 max-w-lg mx-auto lg:mx-0 leading-relaxed;
+  @apply text-lg text-gray-600 dark:text-gray-300 whitespace-nowrap max-w-none mx-auto lg:mx-0 leading-tight mt-1;
 }
 
 .auth-view__form {
@@ -156,7 +201,5 @@ onMounted(() => {
     @apply text-sm;
   }
 }
+
 </style>
-  .auth-view__logo-icon {
-    @apply w-64 h-64;
-  }
