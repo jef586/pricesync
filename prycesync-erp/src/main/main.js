@@ -58,7 +58,12 @@ function createWindow() {
       await mainWindow.loadURL(DEV_URL);
     } else {
       console.error('[Electron] Dev server no disponible en', DEV_URL);
-      // Mantener la ventana oculta si no hay servidor disponible
+      const distIndex = path.join(__dirname, '../renderer/dist/index.html');
+      try {
+        await mainWindow.loadFile(distIndex);
+      } catch (e) {
+        console.error('[Electron] No se pudo cargar dist/index.html:', e && e.message);
+      }
     }
   });
 

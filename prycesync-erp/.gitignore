@@ -176,3 +176,4 @@ Thumbs.db
 # Build artifacts
 build/
 dist/
+dist_electron/
