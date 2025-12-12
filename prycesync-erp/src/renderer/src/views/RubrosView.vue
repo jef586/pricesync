@@ -68,21 +68,56 @@
             </div>
           </template>
           <template #actions="{ item }">
-            <div v-if="item" class="flex justify-center gap-1">
-              <BaseButton 
-                v-if="item.level === 0" 
-                variant="ghost" 
-                size="sm" 
-                @click="openCreateChild(item)" 
+            <div v-if="item" class="flex items-center justify-end gap-3">
+              <BaseButton
+                v-if="item.level === 0"
+                variant="ghost"
+                size="sm"
+                aria-label="Subrubro"
                 title="Crear Subrubro"
+                @click.stop="openCreateChild(item)"
               >
-                Subrubro
+                <PlusCircleIcon class="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
               </BaseButton>
-              <BaseButton variant="ghost" size="sm" @click="edit(item)" title="Editar">Editar</BaseButton>
-              <BaseButton v-if="!item?.deletedAt" variant="ghost" size="sm" @click="remove(item)" title="Eliminar">Eliminar</BaseButton>
-              <BaseButton v-else variant="ghost" size="sm" @click="restore(item)" title="Restaurar">Restaurar</BaseButton>
-              <BaseButton variant="ghost" size="sm" @click="move(item)" title="Mover">Mover</BaseButton>
-              </div>
+              <BaseButton
+                variant="ghost"
+                size="sm"
+                aria-label="Editar"
+                title="Editar"
+                @click.stop="edit(item)"
+              >
+                <PencilSquareIcon class="w-6 h-6 text-blue-600 dark:text-blue-400" />
+              </BaseButton>
+              <BaseButton
+                v-if="!item?.deletedAt"
+                variant="ghost"
+                size="sm"
+                aria-label="Eliminar"
+                title="Eliminar"
+                @click.stop="remove(item)"
+              >
+                <TrashIcon class="w-6 h-6 text-red-600 dark:text-red-400" />
+              </BaseButton>
+              <BaseButton
+                v-else
+                variant="ghost"
+                size="sm"
+                aria-label="Restaurar"
+                title="Restaurar"
+                @click.stop="restore(item)"
+              >
+                <ArrowUturnLeftIcon class="w-6 h-6 text-green-600 dark:text-green-400" />
+              </BaseButton>
+              <BaseButton
+                variant="ghost"
+                size="sm"
+                aria-label="Mover"
+                title="Mover"
+                @click.stop="move(item)"
+              >
+                <ArrowsUpDownIcon class="w-6 h-6 text-amber-600 dark:text-amber-400" />
+              </BaseButton>
+            </div>
             </template>
             <template #empty>
               <div class="text-center py-8 text-sm">No hay rubros creados</div>
@@ -151,6 +186,7 @@ import BaseInput from '@/components/atoms/BaseInput.vue'
 import RubroFormModal from '@/components/rubros/RubroFormModal.vue'
 import RubroTree from '@/components/rubros/RubroTree.vue'
 import type { RubroDTO, RubroFilters } from '@/types/rubro'
+import { PencilSquareIcon, TrashIcon, PlusCircleIcon, ArrowsUpDownIcon, ArrowUturnLeftIcon } from '@heroicons/vue/24/outline'
 
 const store = useRubrosStore()
 const route = useRoute()

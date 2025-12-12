@@ -1,10 +1,10 @@
 <template>
   <div class="rubro-tree-node">
     <div 
-      class="flex items-center py-2 px-3 rounded-lg hover:bg-gray-50 group cursor-pointer transition-colors"
+      class="flex items-center py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 group cursor-pointer transition-colors"
       :class="{
-        'bg-blue-50 border border-blue-200': isSelected,
-        'hover:bg-gray-50': !isSelected
+        'bg-blue-50 border border-blue-200 dark:bg-blue-900/20 dark:border-blue-800': isSelected,
+        'hover:bg-gray-50 dark:hover:bg-slate-800': !isSelected
       }"
       :style="{ paddingLeft: `${level * 20 + 12}px` }"
       @click="onSelect"
@@ -13,7 +13,7 @@
       <button
         v-if="hasChildren"
         @click.stop="toggleExpanded"
-        class="flex-shrink-0 w-5 h-5 mr-2 text-gray-400 hover:text-gray-600 focus:outline-none"
+        class="flex-shrink-0 w-5 h-5 mr-2 text-gray-400 hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-300 focus:outline-none"
       >
         <ChevronRightIcon 
           class="w-4 h-4 transition-transform duration-200"
@@ -23,34 +23,34 @@
       <div v-else class="w-5 h-5 mr-2"></div>
 
       <!-- Rubro Icon -->
-      <TagIcon class="w-5 h-5 text-gray-400 mr-3 flex-shrink-0" />
+      <TagIcon class="w-5 h-5 text-gray-400 dark:text-gray-300 mr-3 flex-shrink-0" />
 
       <!-- Rubro Info -->
       <div class="flex-1 min-w-0">
         <div class="flex items-center">
-          <h3 class="text-sm font-medium text-gray-900 truncate">
+          <h3 class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
             {{ rubro.name }}
           </h3>
           <span 
             v-if="rubro._count?.children"
-            class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+            class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
           >
             {{ rubro._count.children }}
           </span>
         </div>
-        <p v-if="rubro.description" class="text-xs text-gray-500 truncate mt-1">
+        <p v-if="rubro.description" class="text-xs text-gray-500 dark:text-gray-400 truncate mt-1">
           {{ rubro.description }}
         </p>
       </div>
 
       <!-- Status Badge -->
       <div v-if="rubro.deletedAt" class="ml-2">
-        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
           Eliminado
         </span>
       </div>
       <div v-else-if="!rubro.isActive" class="ml-2">
-        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">
           Inactivo
         </span>
       </div>
