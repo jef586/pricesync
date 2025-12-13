@@ -45,6 +45,8 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import BaseModal from '@/components/atoms/BaseModal.vue'
+import BaseButton from '@/components/atoms/BaseButton.vue'
 
 interface Props {
   modelValue: boolean

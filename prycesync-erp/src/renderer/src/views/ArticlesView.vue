@@ -251,6 +251,7 @@ import FilterBar from '@/components/molecules/FilterBar.vue'
 import DataTable from '@/components/atoms/DataTable.vue'
 import Pagination from '@/components/atoms/Pagination.vue'
 import ConfirmModal from '@/components/atoms/ConfirmModal.vue'
+import BaseButton from '@/components/atoms/BaseButton.vue'
 import { useArticleStore } from '@/stores/articles'
 import { useCategories } from '@/composables/useCategories'
 import { useSuppliers } from '@/composables/useSuppliers'
@@ -464,6 +465,11 @@ async function confirmToggle() {
     showToggleModal.value = false
     toggleItem.value = null
   }
+}
+
+function cancelToggle() {
+  showToggleModal.value = false
+  toggleItem.value = null
 }
 
 async function confirmToggleActivate(item: any) {
